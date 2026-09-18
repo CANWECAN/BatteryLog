@@ -1,3 +1,3 @@
-from .core import AnalysisResult, analyze_battery_log
+from .core import AnalysisResult, ViolationEvent, analyze_battery_log
 
-__all__ = ["AnalysisResult", "analyze_battery_log"]
+__all__ = ["AnalysisResult", "ViolationEvent", "analyze_battery_log"]
