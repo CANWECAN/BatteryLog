@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass, field, replace
 from math import isfinite
 from pathlib import Path
@@ -91,9 +92,54 @@ class EventDetectionConfig:
 
 
 @dataclass(frozen=True)
+class SignalPattern:
+    pattern: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.pattern, str):
+            raise TypeError("signal pattern must be a string")
+        if not self.pattern:
+            raise ValueError("signal pattern must not be empty")
+
+        try:
+            compiled = re.compile(self.pattern)
+        except re.error as exc:
+            raise ValueError(f"Invalid signal regex: {exc}") from exc
+
+        if "index" not in compiled.groupindex:
+            raise ValueError("signal pattern must define a named 'index' capture group")
+
+
+@dataclass(frozen=True)
+class SignalMapping:
+    timestamp: str
+    cell_voltage: SignalPattern
+    temperature: SignalPattern
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.timestamp, str):
+            raise TypeError("signals.timestamp must be a string")
+        if not self.timestamp:
+            raise ValueError("signals.timestamp must not be empty")
+        if not isinstance(self.cell_voltage, SignalPattern):
+            raise TypeError("signals.cell_voltage must be a SignalPattern")
+        if not isinstance(self.temperature, SignalPattern):
+            raise TypeError("signals.temperature must be a SignalPattern")
+
+
+@dataclass(frozen=True)
 class ValidationConfig:
     limits: ValidationLimits = field(default_factory=ValidationLimits)
     event_detection: EventDetectionConfig = field(default_factory=EventDetectionConfig)
+    signals: SignalMapping | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.limits, ValidationLimits):
+            raise TypeError("limits must be a ValidationLimits instance")
+        if not isinstance(self.event_detection, EventDetectionConfig):
+            raise TypeError("event_detection must be an EventDetectionConfig instance")
+        if self.signals is not None and not isinstance(self.signals, SignalMapping):
+            raise TypeError("signals must be a SignalMapping instance or null")
 
 
 def _require_mapping(name: str, value: Any) -> dict[str, Any]:
@@ -111,6 +157,14 @@ def _reject_unknown_keys(
     if unknown:
         joined = ", ".join(unknown)
         raise ValueError(f"Unknown {name} key(s): {joined}")
+
+
+def _required_string(name: str, value: Any) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"{name} must be a string")
+    if not value:
+        raise ValueError(f"{name} must not be empty")
+    return value
 
 
 def _optional_number(name: str, value: Any) -> float | None:
@@ -142,7 +196,7 @@ def _load_config_root(path: str | Path) -> dict[str, Any]:
     _reject_unknown_keys(
         "top-level",
         root,
-        {"schema_version", "limits", "event_detection"},
+        {"schema_version", "limits", "event_detection", "signals"},
     )
 
     schema_version = root.get("schema_version", 1)
@@ -218,11 +272,52 @@ def _parse_event_detection(root: dict[str, Any]) -> EventDetectionConfig:
     )
 
 
+def _parse_signal_pattern(
+    name: str,
+    raw_value: Any,
+) -> SignalPattern:
+    raw = _require_mapping(name, raw_value)
+    _reject_unknown_keys(name, raw, {"pattern"})
+    if "pattern" not in raw:
+        raise ValueError(f"{name}.pattern is required")
+    return SignalPattern(pattern=_required_string(f"{name}.pattern", raw["pattern"]))
+
+
+def _parse_signals(root: dict[str, Any]) -> SignalMapping | None:
+    if "signals" not in root:
+        return None
+
+    raw = _require_mapping("signals", root["signals"])
+    _reject_unknown_keys(
+        "signals",
+        raw,
+        {"timestamp", "cell_voltage", "temperature"},
+    )
+
+    missing = sorted({"timestamp", "cell_voltage", "temperature"} - set(raw))
+    if missing:
+        joined = ", ".join(missing)
+        raise ValueError(f"Missing signals key(s): {joined}")
+
+    return SignalMapping(
+        timestamp=_required_string("signals.timestamp", raw["timestamp"]),
+        cell_voltage=_parse_signal_pattern(
+            "signals.cell_voltage",
+            raw["cell_voltage"],
+        ),
+        temperature=_parse_signal_pattern(
+            "signals.temperature",
+            raw["temperature"],
+        ),
+    )
+
+
 def load_validation_config(path: str | Path) -> ValidationConfig:
     root = _load_config_root(path)
     return ValidationConfig(
         limits=_parse_limits(root),
         event_detection=_parse_event_detection(root),
+        signals=_parse_signals(root),
     )
 
 

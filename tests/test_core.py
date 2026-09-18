@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from batterylog import EventDetectionConfig, ValidationLimits, analyze_battery_log
+from batterylog import (
+    EventDetectionConfig,
+    SignalMapping,
+    SignalPattern,
+    ValidationLimits,
+    analyze_battery_log,
+)
 
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
@@ -463,3 +469,81 @@ def test_event_gap_exact_decimal_boundary_is_not_split_by_float_noise(
     assert len(events) == 1
     assert events[0]["start_time_s"] == 0.1
     assert events[0]["end_time_s"] == 0.4
+
+
+def test_explicit_signal_mapping_flows_through_full_analysis(tmp_path: Path) -> None:
+    path = tmp_path / "vendor.csv"
+    path.write_text(
+        "Time_s,BMS_CellVoltage_010,BMS_CellVoltage_002,"
+        "BMS_CellVoltage_001,BMS_CellVoltage_Max,T_Module_02,T_Module_01\n"
+        "0.0,3.90,3.80,3.70,4.20,30,28\n"
+        "1.0,3.95,3.82,3.68,4.25,50,47\n",
+        encoding="utf-8",
+    )
+    mapping = SignalMapping(
+        timestamp="Time_s",
+        cell_voltage=SignalPattern(r"BMS_CellVoltage_(?P<index>\d+)"),
+        temperature=SignalPattern(r"T_Module_(?P<index>\d+)"),
+    )
+
+    result = analyze_battery_log(
+        path,
+        limits=ValidationLimits(
+            imbalance_max_v=0.08,
+            temperature_max_c=45.0,
+        ),
+        signal_mapping=mapping,
+    )
+
+    assert result["cells_detected"] == 3
+    assert result["temperature_sensors_detected"] == 2
+    assert result["max_cell_voltage_v"] == pytest.approx(3.95)
+    assert result["max_delta_v"] == pytest.approx(0.27)
+    assert result["max_temperature_c"] == pytest.approx(50.0)
+    assert result["signal_mapping"] == {
+        "mode": "explicit",
+        "timestamp_source": "Time_s",
+        "cell_voltage_pattern": r"BMS_CellVoltage_(?P<index>\d+)",
+        "temperature_pattern": r"T_Module_(?P<index>\d+)",
+    }
+    assert [event["code"] for event in result["violations"]] == [
+        "CELL_IMBALANCE_HIGH",
+        "TEMPERATURE_HIGH",
+    ]
+    assert result["violations"][0]["signals"] == ["cell_10_v", "cell_1_v"]
+
+
+def test_canonical_analysis_records_canonical_mapping_mode() -> None:
+    result = analyze_battery_log(SAMPLE)
+
+    assert result["signal_mapping"] == {
+        "mode": "canonical",
+        "timestamp_source": "timestamp_s",
+        "cell_voltage_pattern": None,
+        "temperature_pattern": None,
+    }
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        (
+            {"limits": {}},
+            "limits must be a ValidationLimits instance or null",
+        ),
+        (
+            {"event_detection": {}},
+            "event_detection must be an EventDetectionConfig instance or null",
+        ),
+        (
+            {"signal_mapping": {}},
+            "signal_mapping must be a SignalMapping instance or null",
+        ),
+    ],
+)
+def test_analyzer_rejects_invalid_config_object_types(
+    kwargs: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(TypeError, match=message):
+        analyze_battery_log(SAMPLE, **kwargs)  # type: ignore[arg-type]

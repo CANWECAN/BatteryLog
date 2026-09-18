@@ -2,6 +2,35 @@
 
 All notable changes to BatteryLog are documented here.
 
+## 0.6.0 - 2026-09-18
+
+### Added
+
+- Explicit YAML signal mapping for vendor-specific timestamp, cell-voltage, and temperature channel names
+- Full-match regex selection with required named `index` capture groups for indexed sensor channels
+- Canonicalization into `timestamp_s`, `cell_<n>_v`, and `temp_<n>_c` before validation
+- Public `SignalPattern` and `SignalMapping` Python API types
+- Signal-mapping provenance in machine-readable results and HTML reports
+- Tested vendor-style CSV and YAML examples
+
+### Correctness
+
+- Ambiguous cell/temperature pattern matches fail closed.
+- Duplicate logical indexes such as `Cell_1` and `Cell_01` are rejected.
+- Duplicate or non-string source signal names are rejected at the canonicalization boundary.
+- Aggregate channels are not selected unless the explicit user pattern actually maps them to a numeric logical index.
+- Analyzer/config public APIs now reject invalid config-object types instead of silently falling back to defaults.
+
+### Compatibility
+
+- Canonical CSV names continue to work without a `signals` block.
+- Existing validation/event configuration remains compatible.
+- Result schema remains version `1`; signal-mapping provenance is additive.
+
+### Units
+
+Signal mapping performs naming only. It does not convert units. CSV timestamp, cell-voltage, and temperature values must already be expressed in seconds, volts, and degrees Celsius respectively.
+
 ## 0.5.0 - 2026-09-18
 
 ### Added

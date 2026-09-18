@@ -4,7 +4,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from batterylog.config import EventDetectionConfig, ValidationLimits, override_validation_limits
+from batterylog.config import (
+    EventDetectionConfig,
+    SignalMapping,
+    ValidationLimits,
+    override_validation_limits,
+)
 from batterylog.loaders import load_battery_csv
 from batterylog.models import (
     RESULT_SCHEMA_VERSION,
@@ -12,8 +17,10 @@ from batterylog.models import (
     AnalysisResult,
     AppliedLimits,
     RuleCode,
+    SignalMappingInfo,
     ViolationEvent,
 )
+from batterylog.signals import canonicalize_battery_signals
 
 from .rules import build_high_events, build_imbalance_events, build_low_events
 
@@ -61,12 +68,26 @@ def _resolve_limits(
     imbalance_limit_v: float | None,
     temp_warning_c: float | None,
 ) -> ValidationLimits:
-    resolved = limits or ValidationLimits()
+    if limits is not None and not isinstance(limits, ValidationLimits):
+        raise TypeError("limits must be a ValidationLimits instance or null")
+
+    resolved = limits if limits is not None else ValidationLimits()
     return override_validation_limits(
         resolved,
         imbalance_max_v=imbalance_limit_v,
         temperature_max_c=temp_warning_c,
     )
+
+
+def _resolve_event_detection(
+    event_detection: EventDetectionConfig | None,
+) -> EventDetectionConfig:
+    if event_detection is not None and not isinstance(
+        event_detection,
+        EventDetectionConfig,
+    ):
+        raise TypeError("event_detection must be an EventDetectionConfig instance or null")
+    return event_detection if event_detection is not None else EventDetectionConfig()
 
 
 def _limits_snapshot(limits: ValidationLimits) -> AppliedLimits:
@@ -81,6 +102,23 @@ def _limits_snapshot(limits: ValidationLimits) -> AppliedLimits:
 
 def _analysis_options_snapshot(config: EventDetectionConfig) -> AnalysisOptions:
     return {"max_event_gap_s": config.max_gap_s}
+
+
+def _signal_mapping_snapshot(mapping: SignalMapping | None) -> SignalMappingInfo:
+    if mapping is None:
+        return {
+            "mode": "canonical",
+            "timestamp_source": "timestamp_s",
+            "cell_voltage_pattern": None,
+            "temperature_pattern": None,
+        }
+
+    return {
+        "mode": "explicit",
+        "timestamp_source": mapping.timestamp,
+        "cell_voltage_pattern": mapping.cell_voltage.pattern,
+        "temperature_pattern": mapping.temperature.pattern,
+    }
 
 
 def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
@@ -105,17 +143,22 @@ def analyze_battery_log(
     *,
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
+    signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
     resolved_limits = _resolve_limits(
         limits,
         imbalance_limit_v,
         temp_warning_c,
     )
-    resolved_event_detection = event_detection or EventDetectionConfig()
+    resolved_event_detection = _resolve_event_detection(event_detection)
+    if signal_mapping is not None and not isinstance(signal_mapping, SignalMapping):
+        raise TypeError("signal_mapping must be a SignalMapping instance or null")
 
     df = load_battery_csv(path)
     if df.empty:
         raise ValueError("Battery log contains no data rows")
+
+    df = canonicalize_battery_signals(df, signal_mapping)
     if "timestamp_s" not in df.columns:
         raise ValueError("Required column 'timestamp_s' is missing")
 
@@ -228,6 +271,7 @@ def analyze_battery_log(
         "rules_evaluated": rules_evaluated,
         "limits_applied": _limits_snapshot(resolved_limits),
         "analysis_options": _analysis_options_snapshot(resolved_event_detection),
+        "signal_mapping": _signal_mapping_snapshot(signal_mapping),
         "rows_analyzed": len(df),
         "cells_detected": len(cell_cols),
         "temperature_sensors_detected": len(temp_cols),

@@ -278,3 +278,65 @@ def test_cli_rejects_invalid_max_event_gap(capsys) -> None:
 
     assert exc.value.code == 2
     assert "max_gap_s must be non-negative" in capsys.readouterr().err
+
+
+def test_cli_applies_explicit_signal_mapping_from_yaml(tmp_path, capsys) -> None:
+    source = tmp_path / "vendor.csv"
+    source.write_text(
+        "Time_s,BMS_CellVoltage_002,BMS_CellVoltage_001,"
+        "BMS_CellVoltage_Max,T_Module_02,T_Module_01\n"
+        "0.0,3.90,3.70,4.20,30,28\n",
+        encoding="utf-8",
+    )
+    config = tmp_path / "validation.yaml"
+    config.write_text(
+        "limits:\n"
+        "  cell_voltage:\n"
+        "    max_delta_v: 0.08\n"
+        "signals:\n"
+        "  timestamp: Time_s\n"
+        "  cell_voltage:\n"
+        "    pattern: 'BMS_CellVoltage_(?P<index>\\d+)'\n"
+        "  temperature:\n"
+        "    pattern: 'T_Module_(?P<index>\\d+)'\n",
+        encoding="utf-8",
+    )
+
+    exit_code = run([str(source), "--config", str(config)])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["cells_detected"] == 2
+    assert payload["temperature_sensors_detected"] == 2
+    assert payload["signal_mapping"] == {
+        "mode": "explicit",
+        "timestamp_source": "Time_s",
+        "cell_voltage_pattern": r"BMS_CellVoltage_(?P<index>\d+)",
+        "temperature_pattern": r"T_Module_(?P<index>\d+)",
+    }
+    assert payload["max_cell_voltage_v"] == 3.9
+    assert payload["violations"][0]["signals"] == ["cell_2_v", "cell_1_v"]
+
+
+def test_cli_reports_mapping_errors_as_exit_2(tmp_path, capsys) -> None:
+    source = tmp_path / "vendor.csv"
+    source.write_text(
+        "Time_s,OtherCell,T_Module_01\n0.0,3.8,25\n",
+        encoding="utf-8",
+    )
+    config = tmp_path / "validation.yaml"
+    config.write_text(
+        "signals:\n"
+        "  timestamp: Time_s\n"
+        "  cell_voltage:\n"
+        "    pattern: 'BMS_CellVoltage_(?P<index>\\d+)'\n"
+        "  temperature:\n"
+        "    pattern: 'T_Module_(?P<index>\\d+)'\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        run([str(source), "--config", str(config)])
+
+    assert exc.value.code == 2
+    assert "matched no cell-voltage columns" in capsys.readouterr().err
