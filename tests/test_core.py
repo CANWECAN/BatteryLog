@@ -8,7 +8,11 @@ SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
 
 def test_sample_log_returns_structured_violation_events() -> None:
-    result = analyze_battery_log(SAMPLE)
+    result = analyze_battery_log(
+        SAMPLE,
+        imbalance_limit_v=0.08,
+        temp_warning_c=45.0,
+    )
 
     assert result["rows_analyzed"] == 5
     assert result["cells_detected"] == 4
@@ -51,7 +55,11 @@ def test_contiguous_violations_are_grouped_into_events(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    result = analyze_battery_log(path)
+    result = analyze_battery_log(
+        path,
+        imbalance_limit_v=0.08,
+        temp_warning_c=45.0,
+    )
 
     imbalance_events = [
         event for event in result["violations"] if event["code"] == "CELL_IMBALANCE_HIGH"
@@ -218,7 +226,7 @@ def test_imbalance_event_reports_all_tied_extreme_cells(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    result = analyze_battery_log(path)
+    result = analyze_battery_log(path, imbalance_limit_v=0.08)
     event = result["violations"][0]
 
     assert event["code"] == "CELL_IMBALANCE_HIGH"
@@ -228,3 +236,87 @@ def test_imbalance_event_reports_all_tied_extreme_cells(tmp_path: Path) -> None:
         "cell_3_v",
         "cell_4_v",
     ]
+
+
+def test_default_analysis_computes_metrics_without_assuming_limits() -> None:
+    result = analyze_battery_log(SAMPLE)
+
+    assert result["max_delta_v"] == pytest.approx(0.10)
+    assert result["max_temperature_c"] == pytest.approx(48.0)
+    assert result["violations"] == []
+
+
+def test_aggregate_columns_are_not_misclassified_as_cell_signals(tmp_path: Path) -> None:
+    path = tmp_path / "aggregate.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_min_v,cell_max_v\n0,25,3.7,4.1\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="No cell voltage columns found"):
+        analyze_battery_log(path)
+
+
+def test_signal_columns_are_sorted_by_numeric_index(tmp_path: Path) -> None:
+    path = tmp_path / "natural_order.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_10_v,cell_2_v,cell_1_v\n0,25,4.0,3.8,4.0\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_battery_log(path, imbalance_limit_v=0.1)
+    event = result["violations"][0]
+
+    assert event["signals"] == ["cell_1_v", "cell_10_v", "cell_2_v"]
+
+
+def test_duplicate_logical_signal_indexes_are_rejected(tmp_path: Path) -> None:
+    path = tmp_path / "duplicate_index.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v,cell_01_v\n0,25,3.8,3.9\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Duplicate cell signal index 1"):
+        analyze_battery_log(path)
+
+
+def test_legacy_temperature_name_cannot_mix_with_indexed_sensors(tmp_path: Path) -> None:
+    path = tmp_path / "mixed_temp.csv"
+    path.write_text(
+        "timestamp_s,temp_c,temp_1_c,cell_1_v\n0,25,26,3.8\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Legacy temp_c cannot be combined"):
+        analyze_battery_log(path)
+
+
+def test_duplicate_csv_headers_are_rejected(tmp_path: Path) -> None:
+    path = tmp_path / "duplicate_header.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v,cell_1_v\n0,25,3.8,3.9\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Duplicate CSV column name"):
+        analyze_battery_log(path)
+
+
+def test_values_exactly_on_limits_do_not_violate(tmp_path: Path) -> None:
+    path = tmp_path / "boundaries.csv"
+    path.write_text(
+        "timestamp_s,temp_1_c,temp_2_c,cell_1_v,cell_2_v\n0,-20,55,4.20,4.12\n1,25,25,2.80,2.80\n",
+        encoding="utf-8",
+    )
+    limits = ValidationLimits(
+        cell_min_v=2.8,
+        cell_max_v=4.2,
+        imbalance_max_v=0.08,
+        temperature_min_c=-20.0,
+        temperature_max_c=55.0,
+    )
+
+    result = analyze_battery_log(path, limits=limits)
+
+    assert result["violations"] == []

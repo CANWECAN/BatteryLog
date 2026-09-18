@@ -10,7 +10,18 @@ SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
 
 def test_cli_emits_structured_json(monkeypatch, capsys) -> None:
-    monkeypatch.setattr(sys, "argv", ["batterylog", str(SAMPLE)])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "batterylog",
+            str(SAMPLE),
+            "--imbalance-limit-v",
+            "0.08",
+            "--temp-max-c",
+            "45",
+        ],
+    )
 
     main()
 
@@ -106,3 +117,13 @@ def test_cli_reports_config_errors(monkeypatch, tmp_path, capsys) -> None:
 
     assert exc.value.code == 2
     assert "must be a number" in capsys.readouterr().err
+
+
+def test_cli_without_limits_reports_metrics_only(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(sys, "argv", ["batterylog", str(SAMPLE)])
+
+    main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["max_delta_v"] == 0.1
+    assert payload["violations"] == []

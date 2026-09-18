@@ -6,13 +6,44 @@ from typing import Any
 import yaml
 
 
+class _UniqueKeySafeLoader(yaml.SafeLoader):
+    pass
+
+
+def _construct_unique_mapping(
+    loader: _UniqueKeySafeLoader,
+    node: yaml.MappingNode,
+    deep: bool = False,
+) -> dict[Any, Any]:
+    mapping: dict[Any, Any] = {}
+
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                f"found duplicate key {key!r}",
+                key_node.start_mark,
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+
+    return mapping
+
+
+_UniqueKeySafeLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
+
+
 @dataclass(frozen=True)
 class ValidationLimits:
     cell_min_v: float | None = None
     cell_max_v: float | None = None
-    imbalance_max_v: float | None = 0.08
+    imbalance_max_v: float | None = None
     temperature_min_c: float | None = None
-    temperature_max_c: float | None = 45.0
+    temperature_max_c: float | None = None
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -76,7 +107,10 @@ def _optional_number(name: str, value: Any) -> float | None:
 def load_validation_limits(path: str | Path) -> ValidationLimits:
     config_path = Path(path)
     try:
-        raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        raw = yaml.load(
+            config_path.read_text(encoding="utf-8"),
+            Loader=_UniqueKeySafeLoader,
+        )
     except OSError:
         raise
     except yaml.YAMLError as exc:

@@ -15,14 +15,14 @@ def _write(tmp_path: Path, content: str) -> Path:
     return path
 
 
-def test_default_limits_preserve_existing_behavior() -> None:
+def test_default_limits_enable_no_engineering_rules() -> None:
     limits = ValidationLimits()
 
     assert limits.cell_min_v is None
     assert limits.cell_max_v is None
-    assert limits.imbalance_max_v == pytest.approx(0.08)
+    assert limits.imbalance_max_v is None
     assert limits.temperature_min_c is None
-    assert limits.temperature_max_c == pytest.approx(45.0)
+    assert limits.temperature_max_c is None
 
 
 def test_load_validation_limits_from_yaml(tmp_path: Path) -> None:
@@ -151,3 +151,18 @@ def test_schema_version_must_be_an_integer(tmp_path: Path, content: str) -> None
 def test_validation_limits_reject_non_numeric_values(value: object) -> None:
     with pytest.raises(TypeError, match="must be a number or null"):
         ValidationLimits(cell_max_v=value)  # type: ignore[arg-type]
+
+
+def test_duplicate_yaml_keys_are_rejected(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        """
+limits:
+  cell_voltage:
+    max_v: 4.2
+    max_v: 4.1
+""",
+    )
+
+    with pytest.raises(ValueError, match="Invalid YAML"):
+        load_validation_limits(path)

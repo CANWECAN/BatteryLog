@@ -28,10 +28,12 @@ Battery validation often involves repetitive checks across long measurement logs
 Every input must contain:
 
 - `timestamp_s`
-- one or more cell-voltage columns named `cell_*_v`
-- one or more temperature columns named `temp_*_c`
+- one or more indexed cell-voltage columns named `cell_<n>_v`
+- one or more indexed temperature columns named `temp_<n>_c`
 
-The legacy single-temperature name `temp_c` also matches the temperature pattern.
+Examples are `cell_1_v`, `cell_96_v`, `temp_1_c`, and `temp_24_c`. The legacy single-temperature name `temp_c` is supported only when indexed temperature signals are not present.
+
+Aggregate names such as `cell_min_v`, `cell_max_v`, or `temp_max_c` are intentionally not treated as raw sensor channels.
 
 Example:
 
@@ -77,18 +79,17 @@ limits:
 
 The values in `examples/validation.example.yaml` are illustrative only. They are not universal safety limits or chemistry defaults. Validation limits must come from the tested cell/pack specification, operating state, BMS strategy, and test plan.
 
-Without a config file, BatteryLog preserves the original MVP defaults:
+BatteryLog does not assume universal engineering limits. If no YAML config or explicit CLI/Python threshold is supplied, it computes metrics only and emits no validation violations.
 
-- cell imbalance maximum: `0.08 V`
-- temperature maximum: `45 degC`
-- cell minimum/maximum voltage rules: disabled
-- temperature minimum rule: disabled
+This is deliberate: voltage, temperature, and imbalance limits must come from the applicable cell/pack specification and validation plan rather than from generic tool defaults.
 
 Precedence is:
 
 ```text
-CLI override > YAML config > built-in defaults
+CLI override > YAML config
 ```
+
+A rule is active only when a numeric limit is explicitly supplied. A YAML value of `null` disables that rule.
 
 Unknown config keys are rejected instead of silently ignored, so spelling mistakes do not disable a validation rule unnoticed.
 
@@ -139,7 +140,7 @@ Run the quality gate:
 
 ## CLI usage
 
-Use built-in defaults:
+Compute metrics only, without assuming engineering limits:
 
 ```powershell
 .\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv
