@@ -3,7 +3,7 @@ from collections.abc import Callable
 import numpy as np
 import pandas as pd
 
-from batterylog.models import ViolationEvent
+from batterylog.models import RuleCode, ViolationEvent
 
 
 def contiguous_true_ranges(mask: pd.Series) -> list[tuple[int, int]]:
@@ -68,7 +68,7 @@ def _build_extreme_events(
     signal_cols: list[str],
     row_extreme: pd.Series,
     limit: float,
-    code: str,
+    code: RuleCode,
     unit: str,
     violates: Callable[[pd.Series, float], pd.Series],
     peak_offset: Callable[[np.ndarray], int],
@@ -107,7 +107,7 @@ def build_high_events(
     signal_cols: list[str],
     row_max: pd.Series,
     limit: float,
-    code: str,
+    code: RuleCode,
     unit: str,
 ) -> list[ViolationEvent]:
     return _build_extreme_events(
@@ -130,7 +130,7 @@ def build_low_events(
     signal_cols: list[str],
     row_min: pd.Series,
     limit: float,
-    code: str,
+    code: RuleCode,
     unit: str,
 ) -> list[ViolationEvent]:
     return _build_extreme_events(
