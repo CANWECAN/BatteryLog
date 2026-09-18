@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from batterylog import analyze_battery_log
+from batterylog import ValidationLimits, analyze_battery_log
 
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
@@ -131,7 +131,100 @@ def test_invalid_logs_are_rejected(
         analyze_battery_log(path)
 
 
-@pytest.mark.parametrize("value", [-0.01, float("inf"), float("nan")])
-def test_invalid_limits_are_rejected(value: float) -> None:
-    with pytest.raises(ValueError, match="finite, non-negative"):
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        (-0.01, "non-negative"),
+        (float("inf"), "finite"),
+        (float("nan"), "finite"),
+    ],
+)
+def test_invalid_limits_are_rejected(value: float, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
         analyze_battery_log(SAMPLE, imbalance_limit_v=value)
+
+
+def test_configurable_rules_detect_voltage_and_temperature_extremes(tmp_path: Path) -> None:
+    path = tmp_path / "limits.csv"
+    path.write_text(
+        "timestamp_s,temp_1_c,temp_2_c,cell_1_v,cell_2_v\n"
+        "0,25,24,3.80,3.79\n"
+        "1,56,54,4.25,4.10\n"
+        "2,-21,-19,2.75,2.90\n"
+        "3,25,25,3.80,3.80\n",
+        encoding="utf-8",
+    )
+    limits = ValidationLimits(
+        cell_min_v=2.8,
+        cell_max_v=4.2,
+        imbalance_max_v=None,
+        temperature_min_c=-20.0,
+        temperature_max_c=55.0,
+    )
+
+    result = analyze_battery_log(path, limits=limits)
+    by_code = {event["code"]: event for event in result["violations"]}
+
+    assert set(by_code) == {
+        "CELL_OVERVOLTAGE",
+        "CELL_UNDERVOLTAGE",
+        "TEMPERATURE_HIGH",
+        "TEMPERATURE_LOW",
+    }
+    assert by_code["CELL_OVERVOLTAGE"]["peak_time_s"] == 1.0
+    assert by_code["CELL_OVERVOLTAGE"]["measured_value"] == pytest.approx(4.25)
+    assert by_code["CELL_OVERVOLTAGE"]["signals"] == ["cell_1_v"]
+    assert by_code["CELL_UNDERVOLTAGE"]["peak_time_s"] == 2.0
+    assert by_code["CELL_UNDERVOLTAGE"]["measured_value"] == pytest.approx(2.75)
+    assert by_code["TEMPERATURE_HIGH"]["signals"] == ["temp_1_c"]
+    assert by_code["TEMPERATURE_LOW"]["signals"] == ["temp_1_c"]
+    assert result["min_temperature_c"] == pytest.approx(-21.0)
+
+
+def test_all_rules_can_be_disabled() -> None:
+    limits = ValidationLimits(
+        cell_min_v=None,
+        cell_max_v=None,
+        imbalance_max_v=None,
+        temperature_min_c=None,
+        temperature_max_c=None,
+    )
+
+    result = analyze_battery_log(SAMPLE, limits=limits)
+
+    assert result["violations"] == []
+
+
+def test_legacy_threshold_arguments_override_limits() -> None:
+    limits = ValidationLimits(
+        imbalance_max_v=0.05,
+        temperature_max_c=40.0,
+    )
+
+    result = analyze_battery_log(
+        SAMPLE,
+        imbalance_limit_v=0.11,
+        temp_warning_c=50.0,
+        limits=limits,
+    )
+
+    assert result["violations"] == []
+
+
+def test_imbalance_event_reports_all_tied_extreme_cells(tmp_path: Path) -> None:
+    path = tmp_path / "tied.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v,cell_2_v,cell_3_v,cell_4_v\n0,25,4.00,4.00,3.80,3.80\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_battery_log(path)
+    event = result["violations"][0]
+
+    assert event["code"] == "CELL_IMBALANCE_HIGH"
+    assert event["signals"] == [
+        "cell_1_v",
+        "cell_2_v",
+        "cell_3_v",
+        "cell_4_v",
+    ]

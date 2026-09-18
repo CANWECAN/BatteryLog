@@ -1,0 +1,14 @@
+schema_version: 1
+
+# Illustrative engineering limits only.
+# Replace these values with limits appropriate to the tested cell, pack,
+# operating state, and validation plan.
+limits:
+  cell_voltage:
+    min_v: 2.8
+    max_v: 4.2
+    max_delta_v: 0.08
+
+  temperature:
+    min_c: -20
+    max_c: 55
