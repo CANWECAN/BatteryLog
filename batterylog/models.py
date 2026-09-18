@@ -8,7 +8,18 @@ RuleCode = Literal[
     "TEMPERATURE_LOW",
 ]
 
+ResultSchemaVersion = Literal[1]
+RESULT_SCHEMA_VERSION: ResultSchemaVersion = 1
+
 ValidationStatus = Literal["NOT_EVALUATED", "PASS", "FAIL"]
+
+
+class AppliedLimits(TypedDict):
+    cell_min_v: float | None
+    cell_max_v: float | None
+    imbalance_max_v: float | None
+    temperature_min_c: float | None
+    temperature_max_c: float | None
 
 
 class ViolationEvent(TypedDict):
@@ -23,8 +34,10 @@ class ViolationEvent(TypedDict):
 
 
 class AnalysisResult(TypedDict):
+    schema_version: ResultSchemaVersion
     validation_status: ValidationStatus
     rules_evaluated: list[RuleCode]
+    limits_applied: AppliedLimits
     rows_analyzed: int
     cells_detected: int
     temperature_sensors_detected: int

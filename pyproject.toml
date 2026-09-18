@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "batterylog"
-version = "0.3.1"
+version = "0.4.0"
 description = "EV battery test-data analysis and validation toolkit"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -14,6 +14,10 @@ dependencies = [
   "pandas>=2.2",
   "PyYAML>=6.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/CANWECAN/BatteryLog"
+Issues = "https://github.com/CANWECAN/BatteryLog/issues"
 
 [project.scripts]
 batterylog = "batterylog.__main__:main"

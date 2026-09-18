@@ -6,7 +6,13 @@ import pandas as pd
 
 from batterylog.config import ValidationLimits, override_validation_limits
 from batterylog.loaders import load_battery_csv
-from batterylog.models import AnalysisResult, RuleCode, ViolationEvent
+from batterylog.models import (
+    RESULT_SCHEMA_VERSION,
+    AnalysisResult,
+    AppliedLimits,
+    RuleCode,
+    ViolationEvent,
+)
 
 from .rules import build_high_events, build_imbalance_events, build_low_events
 
@@ -60,6 +66,16 @@ def _resolve_limits(
         imbalance_max_v=imbalance_limit_v,
         temperature_max_c=temp_warning_c,
     )
+
+
+def _limits_snapshot(limits: ValidationLimits) -> AppliedLimits:
+    return {
+        "cell_min_v": limits.cell_min_v,
+        "cell_max_v": limits.cell_max_v,
+        "imbalance_max_v": limits.imbalance_max_v,
+        "temperature_min_c": limits.temperature_min_c,
+        "temperature_max_c": limits.temperature_max_c,
+    }
 
 
 def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
@@ -195,8 +211,10 @@ def analyze_battery_log(
         validation_status = "NOT_EVALUATED"
 
     return {
+        "schema_version": RESULT_SCHEMA_VERSION,
         "validation_status": validation_status,
         "rules_evaluated": rules_evaluated,
+        "limits_applied": _limits_snapshot(resolved_limits),
         "rows_analyzed": len(df),
         "cells_detected": len(cell_cols),
         "temperature_sensors_detected": len(temp_cols),
