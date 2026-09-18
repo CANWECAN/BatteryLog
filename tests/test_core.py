@@ -16,8 +16,10 @@ SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 def test_sample_log_returns_structured_violation_events() -> None:
     result = analyze_battery_log(
         SAMPLE,
-        imbalance_limit_v=0.08,
-        temp_warning_c=45.0,
+        limits=ValidationLimits(
+            imbalance_max_v=0.08,
+            temperature_max_c=45.0,
+        ),
     )
 
     assert result["schema_version"] == 1
@@ -69,8 +71,10 @@ def test_contiguous_violations_are_grouped_into_events(tmp_path: Path) -> None:
 
     result = analyze_battery_log(
         path,
-        imbalance_limit_v=0.08,
-        temp_warning_c=45.0,
+        limits=ValidationLimits(
+            imbalance_max_v=0.08,
+            temperature_max_c=45.0,
+        ),
     )
 
     imbalance_events = [
@@ -100,8 +104,10 @@ def test_contiguous_violations_are_grouped_into_events(tmp_path: Path) -> None:
 def test_custom_limits_can_clear_violations() -> None:
     result = analyze_battery_log(
         SAMPLE,
-        imbalance_limit_v=0.11,
-        temp_warning_c=50.0,
+        limits=ValidationLimits(
+            imbalance_max_v=0.11,
+            temperature_max_c=50.0,
+        ),
     )
     assert result["validation_status"] == "PASS"
     assert result["rules_evaluated"] == [
@@ -166,7 +172,7 @@ def test_invalid_logs_are_rejected(
 )
 def test_invalid_limits_are_rejected(value: float, message: str) -> None:
     with pytest.raises(ValueError, match=message):
-        analyze_battery_log(SAMPLE, imbalance_limit_v=value)
+        ValidationLimits(imbalance_max_v=value)
 
 
 def test_configurable_rules_detect_voltage_and_temperature_extremes(tmp_path: Path) -> None:
@@ -228,12 +234,13 @@ def test_legacy_threshold_arguments_override_limits() -> None:
         temperature_max_c=40.0,
     )
 
-    result = analyze_battery_log(
-        SAMPLE,
-        imbalance_limit_v=0.11,
-        temp_warning_c=50.0,
-        limits=limits,
-    )
+    with pytest.warns(DeprecationWarning, match="deprecated"):
+        result = analyze_battery_log(
+            SAMPLE,
+            imbalance_limit_v=0.11,
+            temp_warning_c=50.0,
+            limits=limits,
+        )
 
     assert result["violations"] == []
 
@@ -245,7 +252,10 @@ def test_imbalance_event_reports_all_tied_extreme_cells(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    result = analyze_battery_log(path, imbalance_limit_v=0.08)
+    result = analyze_battery_log(
+        path,
+        limits=ValidationLimits(imbalance_max_v=0.08),
+    )
     event = result["violations"][0]
 
     assert event["code"] == "CELL_IMBALANCE_HIGH"
@@ -285,7 +295,10 @@ def test_signal_columns_are_sorted_by_numeric_index(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    result = analyze_battery_log(path, imbalance_limit_v=0.1)
+    result = analyze_battery_log(
+        path,
+        limits=ValidationLimits(imbalance_max_v=0.1),
+    )
     event = result["violations"][0]
 
     assert event["signals"] == ["cell_1_v", "cell_10_v", "cell_2_v"]
@@ -547,3 +560,41 @@ def test_analyzer_rejects_invalid_config_object_types(
 ) -> None:
     with pytest.raises(TypeError, match=message):
         analyze_battery_log(SAMPLE, **kwargs)  # type: ignore[arg-type]
+
+
+def test_invalid_numeric_error_identifies_first_row_column_and_value(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "invalid_numeric.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,3.8,3.7\n1,26,3.9,bad\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as exc:
+        analyze_battery_log(path)
+
+    message = str(exc.value)
+    assert "data row 2" in message
+    assert "index 1" in message
+    assert "column 'cell_2_v'" in message
+    assert "'bad'" in message
+
+
+def test_non_finite_error_identifies_first_row_column_and_value(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "non_finite.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v\n0,25,3.8\n1,inf,3.9\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as exc:
+        analyze_battery_log(path)
+
+    message = str(exc.value)
+    assert "data row 2" in message
+    assert "index 1" in message
+    assert "column 'temp_c'" in message
+    assert "inf" in message

@@ -216,6 +216,14 @@ Run the quality gate:
 .\.venv\Scripts\python.exe -m pytest -q --cov=batterylog --cov-fail-under=95
 ```
 
+Run the synthetic worst-case event-construction benchmark separately from CI:
+
+```powershell
+.\.venv\Scripts\python.exe benchmarks\benchmark_event_builders.py --rows 300000 --signals 20
+```
+
+The benchmark intentionally creates many short events. It is a profiling aid, not a pass/fail CI timing gate.
+
 ## CLI usage
 
 Compute metrics only, without assuming engineering limits:
@@ -304,13 +312,19 @@ result = analyze_battery_log(
 
 The older `load_validation_limits()` helper remains available for callers that intentionally need only the engineering-limit portion of a config file.
 
+The legacy `imbalance_limit_v` and `temp_warning_c` arguments to `analyze_battery_log()` are deprecated and emit `DeprecationWarning`. New code should construct `ValidationLimits` and pass it through `limits=`. During the compatibility period, a supplied legacy value overrides the corresponding field from `limits=`.
+
 ## Engineering notes
 
-The analyzer fails closed on invalid required sensor values. A missing cell or temperature sample is treated as invalid input instead of being silently excluded from min/max calculations, because silently skipping a signal can hide a real validation failure.
+The analyzer fails closed on invalid required sensor values. A missing cell or temperature sample is treated as invalid input instead of being silently excluded from min/max calculations, because silently skipping a signal can hide a real validation failure. The validation error identifies the first failing data row, column, and value to make large-log diagnosis practical.
 
 Event grouping uses row contiguity by default and can optionally split sparse failures with `event_detection.max_gap_s`.
 
 Signal mapping deliberately does not infer units or perform unit conversion. Future loaders that expose measurement-unit metadata should validate units explicitly before the canonical data reaches the rule engine.
+
+HTML evidence generation hashes the source/config before analysis and re-hashes them afterwards. A metadata-only size/mtime check is not used as the final provenance guard.
+
+The current CSV loader still materializes the complete file in memory. The event-construction hot path is optimized, but multi-million-row bounded-memory processing requires the separate streaming work planned for large-log support.
 
 Planned follow-on work includes report plots, MF4/MDF support, CAN/DBC decoding, richer rule metadata, automated release artifacts, and larger-log processing.
 
