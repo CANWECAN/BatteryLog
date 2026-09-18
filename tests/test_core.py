@@ -14,6 +14,7 @@ def test_sample_log_returns_structured_violation_events() -> None:
         temp_warning_c=45.0,
     )
 
+    assert result["schema_version"] == 1
     assert result["validation_status"] == "FAIL"
     assert result["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",
@@ -342,3 +343,23 @@ def test_values_exactly_on_limits_do_not_violate(tmp_path: Path) -> None:
         "TEMPERATURE_LOW",
     ]
     assert result["violations"] == []
+
+
+def test_result_contains_applied_limit_snapshot() -> None:
+    limits = ValidationLimits(
+        cell_min_v=2.8,
+        cell_max_v=4.2,
+        imbalance_max_v=0.08,
+        temperature_min_c=-20.0,
+        temperature_max_c=55.0,
+    )
+
+    result = analyze_battery_log(SAMPLE, limits=limits)
+
+    assert result["limits_applied"] == {
+        "cell_min_v": 2.8,
+        "cell_max_v": 4.2,
+        "imbalance_max_v": 0.08,
+        "temperature_min_c": -20.0,
+        "temperature_max_c": 55.0,
+    }

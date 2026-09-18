@@ -2,11 +2,17 @@
 
 BatteryLog is an engineering toolkit for validating EV battery test logs from the command line or Python.
 
-The current version focuses on deterministic CSV analysis, configurable validation rules, structured violation events, and strict input validation.
+The current version focuses on deterministic CSV analysis, configurable validation rules, structured violation events, explicit validation status, and self-contained HTML evidence reports.
 
 ## Why it exists
 
 Battery validation often involves repetitive checks across long measurement logs. BatteryLog turns those checks into reproducible software so violations can be traced to when they happened, how severe they were, and which signals were involved.
+
+## Report preview
+
+The preview below is generated from the repository's included sample CSV and validation config.
+
+![BatteryLog HTML validation report](docs/assets/report-preview.png)
 
 ## Current capabilities
 
@@ -22,7 +28,10 @@ Battery validation often involves repetitive checks across long measurement logs
 - Reject missing, non-numeric, non-finite, or time-disordered required data
 - Emit explicit `NOT_EVALUATED`, `PASS`, or `FAIL` validation status
 - Report which rules were actually evaluated
-- Emit machine-readable JSON from the CLI
+- Emit a versioned machine-readable JSON result
+- Generate self-contained HTML validation reports
+- Record input/config SHA-256 provenance in HTML reports
+- Return CI-friendly process exit codes
 - Run as a Python API
 
 ## Expected CSV schema
@@ -107,6 +116,12 @@ BatteryLog separates "no violations" from "no validation was performed":
 
 The result also contains `rules_evaluated`, so downstream reports can show exactly which checks participated in the status decision.
 
+## Result schema
+
+Machine-readable results include a separate `schema_version`. The current result schema is `1`.
+
+Package versions and result-schema versions are intentionally independent. A package release may add compatible features without changing the result schema; the schema version should change only when the machine-readable result contract changes incompatibly.
+
 ## Event semantics
 
 A violation is not reported once per failing row. Consecutive samples that violate the same rule are grouped into one event.
@@ -174,6 +189,27 @@ Override a YAML value from the CLI:
 
 The existing `--temp-warning-c` option remains available as an alias for `--temp-max-c`.
 
+Generate a self-contained HTML report:
+
+```powershell
+.\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv --config examples\validation.example.yaml --report battery-report.html
+```
+
+The report contains the validation status, dataset summary, measured extrema, effective limits, evaluated rules, violation events, BatteryLog version, result-schema version, UTC generation timestamp, and SHA-256 provenance for the input log and optional YAML config.
+
+The report path is not allowed to overwrite the input log or validation config.
+
+## Process exit codes
+
+| Exit code | Meaning |
+| ---: | --- |
+| `0` | at least one rule was evaluated and all evaluated rules passed |
+| `1` | validation completed and at least one evaluated rule failed |
+| `2` | input, configuration, CLI, or report-generation error |
+| `3` | metrics were computed but no engineering rule was evaluated |
+
+This allows CI/HIL pipelines to distinguish a true PASS from a validation failure or an unevaluated dataset without parsing the JSON payload.
+
 ## Python API
 
 ```python
@@ -211,7 +247,7 @@ The analyzer fails closed on invalid required sensor values. A missing cell or t
 
 Event grouping currently uses row contiguity. A future version may add a maximum allowed time gap so sparse logs can distinguish physically separate events even when no passing sample exists between them.
 
-Planned follow-on work includes HTML reporting, plots, MF4/MDF support, CAN/DBC decoding, richer rule metadata, and larger-log processing.
+Planned follow-on work includes report plots, time-gap-aware event grouping, MF4/MDF support, CAN/DBC decoding, configurable signal mapping, richer rule metadata, and larger-log processing.
 
 ## Status
 
