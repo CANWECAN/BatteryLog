@@ -12,6 +12,7 @@ ResultSchemaVersion = Literal[1]
 RESULT_SCHEMA_VERSION: ResultSchemaVersion = 1
 
 ValidationStatus = Literal["NOT_EVALUATED", "PASS", "FAIL"]
+SignalMappingMode = Literal["canonical", "explicit"]
 
 
 class AppliedLimits(TypedDict):
@@ -24,6 +25,13 @@ class AppliedLimits(TypedDict):
 
 class AnalysisOptions(TypedDict):
     max_event_gap_s: float | None
+
+
+class SignalMappingInfo(TypedDict):
+    mode: SignalMappingMode
+    timestamp_source: str
+    cell_voltage_pattern: str | None
+    temperature_pattern: str | None
 
 
 class ViolationEvent(TypedDict):
@@ -43,6 +51,7 @@ class AnalysisResult(TypedDict):
     rules_evaluated: list[RuleCode]
     limits_applied: AppliedLimits
     analysis_options: AnalysisOptions
+    signal_mapping: SignalMappingInfo
     rows_analyzed: int
     cells_detected: int
     temperature_sensors_detected: int

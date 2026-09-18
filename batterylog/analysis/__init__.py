@@ -5,6 +5,8 @@ from batterylog.models import (
     AppliedLimits,
     ResultSchemaVersion,
     RuleCode,
+    SignalMappingInfo,
+    SignalMappingMode,
     ValidationStatus,
     ViolationEvent,
 )
@@ -18,6 +20,8 @@ __all__ = [
     "AppliedLimits",
     "ResultSchemaVersion",
     "RuleCode",
+    "SignalMappingInfo",
+    "SignalMappingMode",
     "ValidationStatus",
     "ViolationEvent",
     "analyze_battery_log",

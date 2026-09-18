@@ -74,6 +74,33 @@ def _analysis_options_rows(result: AnalysisResult) -> str:
     return _metric_row("Maximum event gap", rendered)
 
 
+def _signal_mapping_rows(result: AnalysisResult) -> str:
+    mapping = result["signal_mapping"]
+
+    if mapping["mode"] == "canonical":
+        items = [
+            ("Signal mapping mode", "Canonical schema"),
+            ("Timestamp source", mapping["timestamp_source"]),
+            ("Cell voltage mapping", "Canonical cell_<n>_v"),
+            ("Temperature mapping", "Canonical temp_<n>_c or temp_c"),
+        ]
+    else:
+        items = [
+            ("Signal mapping mode", "Explicit"),
+            ("Timestamp source", mapping["timestamp_source"]),
+            (
+                "Cell voltage pattern",
+                mapping["cell_voltage_pattern"] or "Not specified",
+            ),
+            (
+                "Temperature pattern",
+                mapping["temperature_pattern"] or "Not specified",
+            ),
+        ]
+
+    return "".join(_metric_row(label, value) for label, value in items)
+
+
 def _violation_rows(result: AnalysisResult) -> str:
     rows: list[str] = []
     for event in result["violations"]:
@@ -193,7 +220,7 @@ code {{ font-family: ui-monospace, Consolas, monospace; }}
 <section>
 <h2>Validation configuration</h2>
 <p>Rules evaluated: <code>{escape(rules)}</code></p>
-<table><tbody>{_limits_rows(result)}{_analysis_options_rows(result)}</tbody></table>
+<table><tbody>{_limits_rows(result)}{_analysis_options_rows(result)}{_signal_mapping_rows(result)}</tbody></table>
 </section>
 <section>
 <h2>Violation events</h2>

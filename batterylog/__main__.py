@@ -87,6 +87,7 @@ def _resolve_cli_config(args: argparse.Namespace) -> ValidationConfig:
     return ValidationConfig(
         limits=limits,
         event_detection=event_detection,
+        signals=base.signals,
     )
 
 
@@ -138,6 +139,7 @@ def run(argv: Sequence[str] | None = None) -> int:
             input_path,
             limits=validation_config.limits,
             event_detection=validation_config.event_detection,
+            signal_mapping=validation_config.signals,
         )
 
         if report_path is not None:

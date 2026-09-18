@@ -10,13 +10,14 @@ Battery validation often involves repetitive checks across long measurement logs
 
 ## Report preview
 
-The preview below is generated from the repository's included sample CSV and validation config.
+The preview below is generated from the repository's vendor-style sample CSV and explicit signal-mapping config.
 
 ![BatteryLog HTML validation report](docs/assets/report-preview.png)
 
 ## Current capabilities
 
 - Analyze CSV battery logs
+- Map vendor-specific timestamp, cell-voltage, and temperature channel names into a canonical signal model
 - Load validation limits from YAML
 - Detect cell overvoltage and undervoltage
 - Detect excessive cell-voltage imbalance
@@ -35,9 +36,9 @@ The preview below is generated from the repository's included sample CSV and val
 - Return CI-friendly process exit codes
 - Run as a Python API
 
-## Expected CSV schema
+## Canonical CSV schema
 
-Every input must contain:
+Without an explicit signal-mapping block, every input must contain:
 
 - `timestamp_s`
 - one or more indexed cell-voltage columns named `cell_<n>_v`
@@ -56,6 +57,46 @@ timestamp_s,temp_1_c,temp_2_c,cell_1_v,cell_2_v
 ```
 
 `timestamp_s` must be numeric and non-decreasing.
+
+## Explicit signal mapping
+
+Vendor exports do not need to be renamed before analysis. A YAML config can explicitly map source channel names into BatteryLog's canonical model:
+
+```yaml
+signals:
+  timestamp: Time_s
+  cell_voltage:
+    pattern: 'BMS_CellVoltage_(?P<index>\d+)'
+  temperature:
+    pattern: 'T_Module_(?P<index>\d+)'
+```
+
+Signal patterns are applied as **full matches**, not substring searches. Both cell-voltage and temperature patterns must define a named `index` capture group containing ASCII digits. The numeric index determines canonical ordering, so source names such as `BMS_CellVoltage_001`, `BMS_CellVoltage_2`, and `BMS_CellVoltage_10` become `cell_1_v`, `cell_2_v`, and `cell_10_v`.
+
+When a `signals` block is present, `timestamp`, `cell_voltage`, and `temperature` are all required. BatteryLog fails closed when:
+
+- the mapped timestamp is missing
+- a pattern matches no required channels
+- two source channels resolve to the same logical index
+- one source channel matches both sensor patterns
+- the timestamp also matches a sensor pattern
+- source signal names are duplicated
+
+Extra columns that do not match the explicit patterns are not part of the canonical battery-signal model. For example, `BMS_CellVoltage_Max` is not selected by the numeric-index pattern above.
+
+Signal mapping performs **naming/canonicalization only**. It does not convert units. CSV values must already use:
+
+- seconds for the timestamp
+- volts for cell voltage
+- degrees Celsius for temperature
+
+Violation events use canonical names such as `cell_1_v` and `temp_2_c`. The machine-readable result and HTML report record whether canonical or explicit mapping was used, along with the source timestamp and configured patterns.
+
+A tested vendor-style example is included:
+
+```powershell
+.\.venv\Scripts\batterylog.exe examples\vendor_battery_log.csv --config examples\vendor_mapping.example.yaml
+```
 
 ## Validation rules
 
@@ -183,10 +224,16 @@ Compute metrics only, without assuming engineering limits:
 .\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv
 ```
 
-Use a YAML config:
+Use a YAML config with canonical signals:
 
 ```powershell
 .\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv --config examples\validation.example.yaml
+```
+
+Analyze a vendor-style CSV through explicit signal mapping:
+
+```powershell
+.\.venv\Scripts\batterylog.exe examples\vendor_battery_log.csv --config examples\vendor_mapping.example.yaml
 ```
 
 Override YAML values from the CLI:
@@ -203,7 +250,7 @@ Generate a self-contained HTML report:
 .\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv --config examples\validation.example.yaml --report battery-report.html
 ```
 
-The report contains the validation status, dataset summary, measured extrema, effective limits, evaluated rules, violation events, BatteryLog version, result-schema version, UTC generation timestamp, and SHA-256 provenance for the input log and optional YAML config.
+The report contains the validation status, dataset summary, measured extrema, effective limits, evaluated rules, signal-mapping provenance, violation events, BatteryLog version, result-schema version, UTC generation timestamp, and SHA-256 provenance for the input log and optional YAML config.
 
 The report path is not allowed to overwrite the input log or validation config.
 
@@ -251,6 +298,7 @@ result = analyze_battery_log(
     "test.csv",
     limits=config.limits,
     event_detection=config.event_detection,
+    signal_mapping=config.signals,
 )
 ```
 
@@ -260,9 +308,11 @@ The older `load_validation_limits()` helper remains available for callers that i
 
 The analyzer fails closed on invalid required sensor values. A missing cell or temperature sample is treated as invalid input instead of being silently excluded from min/max calculations, because silently skipping a signal can hide a real validation failure.
 
-Event grouping currently uses row contiguity. A future version may add a maximum allowed time gap so sparse logs can distinguish physically separate events even when no passing sample exists between them.
+Event grouping uses row contiguity by default and can optionally split sparse failures with `event_detection.max_gap_s`.
 
-Planned follow-on work includes report plots, MF4/MDF support, CAN/DBC decoding, configurable signal mapping, richer rule metadata, and larger-log processing.
+Signal mapping deliberately does not infer units or perform unit conversion. Future loaders that expose measurement-unit metadata should validate units explicitly before the canonical data reaches the rule engine.
+
+Planned follow-on work includes report plots, MF4/MDF support, CAN/DBC decoding, richer rule metadata, automated release artifacts, and larger-log processing.
 
 ## Status
 

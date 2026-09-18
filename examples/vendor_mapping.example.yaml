@@ -1,0 +1,21 @@
+schema_version: 1
+
+# Illustrative engineering limits only.
+limits:
+  cell_voltage:
+    min_v: 2.8
+    max_v: 4.2
+    max_delta_v: 0.08
+  temperature:
+    min_c: -20
+    max_c: 45
+
+event_detection:
+  max_gap_s: 2.0
+
+signals:
+  timestamp: Time_s
+  cell_voltage:
+    pattern: 'BMS_CellVoltage_(?P<index>\d+)'
+  temperature:
+    pattern: 'T_Module_(?P<index>\d+)'

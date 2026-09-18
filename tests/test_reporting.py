@@ -4,7 +4,13 @@ from pathlib import Path
 import pytest
 
 import batterylog.reporting.evidence as evidence_module
-from batterylog import EventDetectionConfig, ValidationLimits, analyze_battery_log
+from batterylog import (
+    EventDetectionConfig,
+    SignalMapping,
+    SignalPattern,
+    ValidationLimits,
+    analyze_battery_log,
+)
 from batterylog.reporting import (
     FileEvidence,
     ReportMetadata,
@@ -256,3 +262,38 @@ def test_report_labels_default_grouping_as_row_contiguity() -> None:
 
     assert "Maximum event gap" in html
     assert "Row contiguity only" in html
+
+
+def test_report_displays_canonical_signal_mapping_mode() -> None:
+    result = analyze_battery_log(SAMPLE)
+
+    html = render_html_report(result)
+
+    assert "Signal mapping mode" in html
+    assert "Canonical schema" in html
+    assert "Canonical cell_&lt;n&gt;_v" in html
+
+
+def test_report_displays_explicit_signal_mapping_provenance(tmp_path: Path) -> None:
+    path = tmp_path / "vendor.csv"
+    path.write_text(
+        "Time_s,CellV_2,CellV_1,Temp_1\n0.0,3.9,3.8,25\n",
+        encoding="utf-8",
+    )
+    mapping = SignalMapping(
+        timestamp="Time_s",
+        cell_voltage=SignalPattern(r"CellV_(?P<index>\d+)"),
+        temperature=SignalPattern(r"Temp_(?P<index>\d+)"),
+    )
+    result = analyze_battery_log(
+        path,
+        signal_mapping=mapping,
+    )
+
+    html = render_html_report(result)
+
+    assert "Signal mapping mode" in html
+    assert "Explicit" in html
+    assert "Time_s" in html
+    assert r"CellV_(?P&lt;index&gt;\d+)" in html
+    assert r"Temp_(?P&lt;index&gt;\d+)" in html

@@ -1,6 +1,8 @@
 from .analysis.core import analyze_battery_log
 from .config import (
     EventDetectionConfig,
+    SignalMapping,
+    SignalPattern,
     ValidationConfig,
     ValidationLimits,
     load_validation_config,
@@ -13,6 +15,8 @@ from .models import (
     AppliedLimits,
     ResultSchemaVersion,
     RuleCode,
+    SignalMappingInfo,
+    SignalMappingMode,
     ValidationStatus,
     ViolationEvent,
 )
@@ -25,6 +29,10 @@ __all__ = [
     "EventDetectionConfig",
     "ResultSchemaVersion",
     "RuleCode",
+    "SignalMapping",
+    "SignalMappingInfo",
+    "SignalMappingMode",
+    "SignalPattern",
     "ValidationConfig",
     "ValidationLimits",
     "ValidationStatus",

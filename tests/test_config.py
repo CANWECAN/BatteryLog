@@ -4,6 +4,8 @@ import pytest
 
 from batterylog.config import (
     EventDetectionConfig,
+    SignalMapping,
+    SignalPattern,
     ValidationConfig,
     ValidationLimits,
     load_validation_config,
@@ -266,3 +268,251 @@ def test_override_event_detection_changes_only_explicit_value() -> None:
 
     assert unchanged is base
     assert updated == EventDetectionConfig(max_gap_s=0.25)
+
+
+def test_load_validation_config_parses_explicit_signal_mapping(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        r"""
+signals:
+  timestamp: Time_s
+  cell_voltage:
+    pattern: 'BMS_CellVoltage_(?P<index>\d+)'
+  temperature:
+    pattern: 'T_Module_(?P<index>\d+)'
+""",
+    )
+
+    config = load_validation_config(path)
+
+    assert config.signals == SignalMapping(
+        timestamp="Time_s",
+        cell_voltage=SignalPattern(r"BMS_CellVoltage_(?P<index>\d+)"),
+        temperature=SignalPattern(r"T_Module_(?P<index>\d+)"),
+    )
+
+
+def test_load_validation_limits_accepts_config_with_signal_mapping(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        r"""
+limits:
+  temperature:
+    max_c: 50
+signals:
+  timestamp: Time_s
+  cell_voltage:
+    pattern: 'BMS_CellVoltage_(?P<index>\d+)'
+  temperature:
+    pattern: 'T_Module_(?P<index>\d+)'
+""",
+    )
+
+    limits = load_validation_limits(path)
+
+    assert limits == ValidationLimits(temperature_max_c=50.0)
+
+
+@pytest.mark.parametrize(
+    ("content", "exception_type", "message"),
+    [
+        (
+            "signals: []\n",
+            TypeError,
+            "signals must be a mapping",
+        ),
+        (
+            "signals:\n  timestamp: Time_s\n",
+            ValueError,
+            "Missing signals key",
+        ),
+        (
+            (
+                "signals:\n"
+                "  timestamp: Time_s\n"
+                "  cell_voltage:\n"
+                "    pattern: 'Cell_(?P<index>\\d+)'\n"
+                "  temperature:\n"
+                "    pattern: 'Temp_(?P<index>\\d+)'\n"
+                "  unexpected: true\n"
+            ),
+            ValueError,
+            "Unknown signals key",
+        ),
+        (
+            (
+                "signals:\n"
+                "  timestamp: Time_s\n"
+                "  cell_voltage:\n"
+                "    pattern: 'Cell_(\\d+)'\n"
+                "  temperature:\n"
+                "    pattern: 'Temp_(?P<index>\\d+)'\n"
+            ),
+            ValueError,
+            "named 'index' capture group",
+        ),
+        (
+            (
+                "signals:\n"
+                "  timestamp: Time_s\n"
+                "  cell_voltage:\n"
+                "    pattern: '[invalid'\n"
+                "  temperature:\n"
+                "    pattern: 'Temp_(?P<index>\\d+)'\n"
+            ),
+            ValueError,
+            "Invalid signal regex",
+        ),
+        (
+            (
+                "signals:\n"
+                "  timestamp: ''\n"
+                "  cell_voltage:\n"
+                "    pattern: 'Cell_(?P<index>\\d+)'\n"
+                "  temperature:\n"
+                "    pattern: 'Temp_(?P<index>\\d+)'\n"
+            ),
+            ValueError,
+            "signals.timestamp must not be empty",
+        ),
+        (
+            (
+                "signals:\n"
+                "  timestamp: Time_s\n"
+                "  cell_voltage:\n"
+                "    pattern: ''\n"
+                "  temperature:\n"
+                "    pattern: 'Temp_(?P<index>\\d+)'\n"
+            ),
+            ValueError,
+            "signals.cell_voltage.pattern must not be empty",
+        ),
+    ],
+)
+def test_invalid_signal_mapping_config_is_rejected(
+    tmp_path: Path,
+    content: str,
+    exception_type: type[Exception],
+    message: str,
+) -> None:
+    with pytest.raises(exception_type, match=message):
+        load_validation_config(_write(tmp_path, content))
+
+
+@pytest.mark.parametrize("value", [123, True])
+def test_signal_pattern_requires_a_string(value: object) -> None:
+    with pytest.raises(TypeError, match="signal pattern must be a string"):
+        SignalPattern(value)  # type: ignore[arg-type]
+
+
+def test_signal_pattern_rejects_empty_string_directly() -> None:
+    with pytest.raises(ValueError, match="signal pattern must not be empty"):
+        SignalPattern("")
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        (
+            {
+                "timestamp": 123,
+                "cell_voltage": SignalPattern(r"Cell_(?P<index>\d+)"),
+                "temperature": SignalPattern(r"Temp_(?P<index>\d+)"),
+            },
+            "signals.timestamp must be a string",
+        ),
+        (
+            {
+                "timestamp": "",
+                "cell_voltage": SignalPattern(r"Cell_(?P<index>\d+)"),
+                "temperature": SignalPattern(r"Temp_(?P<index>\d+)"),
+            },
+            "signals.timestamp must not be empty",
+        ),
+        (
+            {
+                "timestamp": "Time_s",
+                "cell_voltage": "bad",
+                "temperature": SignalPattern(r"Temp_(?P<index>\d+)"),
+            },
+            "signals.cell_voltage must be a SignalPattern",
+        ),
+        (
+            {
+                "timestamp": "Time_s",
+                "cell_voltage": SignalPattern(r"Cell_(?P<index>\d+)"),
+                "temperature": "bad",
+            },
+            "signals.temperature must be a SignalPattern",
+        ),
+    ],
+)
+def test_signal_mapping_validates_public_constructor(
+    kwargs: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises((TypeError, ValueError), match=message):
+        SignalMapping(**kwargs)  # type: ignore[arg-type]
+
+
+def test_signal_mapping_pattern_field_is_required(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        r"""
+signals:
+  timestamp: Time_s
+  cell_voltage: {}
+  temperature:
+    pattern: 'Temp_(?P<index>\d+)'
+""",
+    )
+
+    with pytest.raises(ValueError, match="signals.cell_voltage.pattern is required"):
+        load_validation_config(path)
+
+
+def test_signal_mapping_yaml_fields_must_be_strings(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        r"""
+signals:
+  timestamp: 123
+  cell_voltage:
+    pattern: 'Cell_(?P<index>\d+)'
+  temperature:
+    pattern: 'Temp_(?P<index>\d+)'
+""",
+    )
+
+    with pytest.raises(TypeError, match="signals.timestamp must be a string"):
+        load_validation_config(path)
+
+
+def test_missing_config_file_propagates_os_error(tmp_path: Path) -> None:
+    with pytest.raises(OSError):
+        load_validation_config(tmp_path / "missing.yaml")
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        (
+            {"limits": {}},
+            "limits must be a ValidationLimits instance",
+        ),
+        (
+            {"event_detection": {}},
+            "event_detection must be an EventDetectionConfig instance",
+        ),
+        (
+            {"signals": "bad"},
+            "signals must be a SignalMapping instance or null",
+        ),
+    ],
+)
+def test_validation_config_rejects_invalid_component_types(
+    kwargs: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(TypeError, match=message):
+        ValidationConfig(**kwargs)  # type: ignore[arg-type]
