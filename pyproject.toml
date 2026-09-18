@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "batterylog"
+version = "0.1.0"
+description = "EV battery test-data analysis and validation toolkit"
+readme = "README.md"
+requires-python = ">=3.11"
+keywords = ["battery", "bms", "automotive", "ev", "validation"]
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.2",
+]
+
+[project.scripts]
+batterylog = "batterylog.__main__:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9",
+  "pytest-cov>=7",
+  "ruff>=0.16",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
