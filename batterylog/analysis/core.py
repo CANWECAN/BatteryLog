@@ -1,142 +1,81 @@
-from math import isfinite
+import re
 from pathlib import Path
-from typing import TypedDict
 
 import numpy as np
 import pandas as pd
 
+from batterylog.config import ValidationLimits, override_validation_limits
+from batterylog.loaders import load_battery_csv
+from batterylog.models import AnalysisResult, ViolationEvent
 
-class ViolationEvent(TypedDict):
-    code: str
-    start_time_s: float
-    end_time_s: float
-    peak_time_s: float
-    measured_value: float
-    limit_value: float
-    unit: str
-    signals: list[str]
+from .rules import build_high_events, build_imbalance_events, build_low_events
+
+CELL_SIGNAL_RE = re.compile(r"^cell_(\d+)_v$")
+TEMP_SIGNAL_RE = re.compile(r"^temp_(\d+)_c$")
 
 
-class AnalysisResult(TypedDict):
-    rows_analyzed: int
-    cells_detected: int
-    temperature_sensors_detected: int
-    max_cell_voltage_v: float
-    min_cell_voltage_v: float
-    max_delta_v: float
-    max_temperature_c: float
-    violations: list[ViolationEvent]
+def _indexed_signal_columns(
+    columns: pd.Index,
+    pattern: re.Pattern[str],
+    kind: str,
+) -> list[str]:
+    indexed: list[tuple[int, str]] = []
+    seen_indexes: dict[int, str] = {}
 
+    for column in columns:
+        match = pattern.fullmatch(str(column))
+        if match is None:
+            continue
 
-def _validate_limit(name: str, value: float) -> None:
-    if not isfinite(value) or value < 0:
-        raise ValueError(f"{name} must be a finite, non-negative number")
+        index = int(match.group(1))
+        if index in seen_indexes:
+            previous = seen_indexes[index]
+            raise ValueError(f"Duplicate {kind} signal index {index}: {previous!r} and {column!r}")
+        seen_indexes[index] = str(column)
+        indexed.append((index, str(column)))
 
-
-def _contiguous_true_ranges(mask: pd.Series) -> list[tuple[int, int]]:
-    ranges: list[tuple[int, int]] = []
-    start: int | None = None
-
-    for position, active in enumerate(mask.to_numpy(dtype=bool)):
-        if active and start is None:
-            start = position
-        elif not active and start is not None:
-            ranges.append((start, position - 1))
-            start = None
-
-    if start is not None:
-        ranges.append((start, len(mask) - 1))
-
-    return ranges
+    indexed.sort(key=lambda item: (item[0], item[1]))
+    return [column for _, column in indexed]
 
 
 def _find_signal_columns(columns: pd.Index) -> tuple[list[str], list[str]]:
-    cell_cols = sorted(
-        (c for c in columns if c.startswith("cell_") and c.endswith("_v")),
-        key=str.casefold,
-    )
-    temp_cols = sorted(
-        (c for c in columns if c.startswith("temp_") and c.endswith("_c")),
-        key=str.casefold,
-    )
+    cell_cols = _indexed_signal_columns(columns, CELL_SIGNAL_RE, "cell")
+    indexed_temp_cols = _indexed_signal_columns(columns, TEMP_SIGNAL_RE, "temperature")
+
+    if "temp_c" in columns and indexed_temp_cols:
+        raise ValueError("Legacy temp_c cannot be combined with indexed temp_<n>_c signals")
+
+    temp_cols = ["temp_c"] if "temp_c" in columns else indexed_temp_cols
     return cell_cols, temp_cols
 
 
-def _build_imbalance_events(
-    numeric: pd.DataFrame,
-    timestamps: pd.Series,
-    cell_cols: list[str],
-    delta_v: pd.Series,
-    limit_v: float,
-) -> list[ViolationEvent]:
-    events: list[ViolationEvent] = []
-
-    for start, end in _contiguous_true_ranges(delta_v > limit_v):
-        segment = delta_v.iloc[start : end + 1]
-        peak_pos = start + int(np.argmax(segment.to_numpy()))
-        peak_cells = numeric.iloc[peak_pos][cell_cols]
-        max_signal = str(peak_cells.idxmax())
-        min_signal = str(peak_cells.idxmin())
-
-        events.append(
-            {
-                "code": "CELL_IMBALANCE_HIGH",
-                "start_time_s": float(timestamps.iloc[start]),
-                "end_time_s": float(timestamps.iloc[end]),
-                "peak_time_s": float(timestamps.iloc[peak_pos]),
-                "measured_value": round(float(delta_v.iloc[peak_pos]), 12),
-                "limit_value": limit_v,
-                "unit": "V",
-                "signals": [max_signal, min_signal],
-            }
-        )
-
-    return events
-
-
-def _build_temperature_events(
-    numeric: pd.DataFrame,
-    timestamps: pd.Series,
-    temp_cols: list[str],
-    row_max_temp: pd.Series,
-    limit_c: float,
-) -> list[ViolationEvent]:
-    events: list[ViolationEvent] = []
-
-    for start, end in _contiguous_true_ranges(row_max_temp > limit_c):
-        segment = row_max_temp.iloc[start : end + 1]
-        peak_pos = start + int(np.argmax(segment.to_numpy()))
-        peak_value = float(row_max_temp.iloc[peak_pos])
-        peak_temperatures = numeric.iloc[peak_pos][temp_cols]
-        hottest_signals = [
-            str(signal) for signal, value in peak_temperatures.items() if float(value) == peak_value
-        ]
-
-        events.append(
-            {
-                "code": "TEMPERATURE_HIGH",
-                "start_time_s": float(timestamps.iloc[start]),
-                "end_time_s": float(timestamps.iloc[end]),
-                "peak_time_s": float(timestamps.iloc[peak_pos]),
-                "measured_value": peak_value,
-                "limit_value": limit_c,
-                "unit": "degC",
-                "signals": hottest_signals,
-            }
-        )
-
-    return events
+def _resolve_limits(
+    limits: ValidationLimits | None,
+    imbalance_limit_v: float | None,
+    temp_warning_c: float | None,
+) -> ValidationLimits:
+    resolved = limits or ValidationLimits()
+    return override_validation_limits(
+        resolved,
+        imbalance_max_v=imbalance_limit_v,
+        temperature_max_c=temp_warning_c,
+    )
 
 
 def analyze_battery_log(
     path: str | Path,
-    imbalance_limit_v: float = 0.08,
-    temp_warning_c: float = 45.0,
+    imbalance_limit_v: float | None = None,
+    temp_warning_c: float | None = None,
+    *,
+    limits: ValidationLimits | None = None,
 ) -> AnalysisResult:
-    _validate_limit("imbalance_limit_v", imbalance_limit_v)
-    _validate_limit("temp_warning_c", temp_warning_c)
+    resolved_limits = _resolve_limits(
+        limits,
+        imbalance_limit_v,
+        temp_warning_c,
+    )
 
-    df = pd.read_csv(path)
+    df = load_battery_csv(path)
     if df.empty:
         raise ValueError("Battery log contains no data rows")
     if "timestamp_s" not in df.columns:
@@ -163,25 +102,73 @@ def analyze_battery_log(
 
     cell_max = numeric[cell_cols].max(axis=1)
     cell_min = numeric[cell_cols].min(axis=1)
-    delta_v = cell_max - cell_min
+    # Normalize subtraction noise so values exactly on a configured boundary
+    # are not misclassified by binary floating-point representation.
+    delta_v = (cell_max - cell_min).round(12)
     row_max_temp = numeric[temp_cols].max(axis=1)
+    row_min_temp = numeric[temp_cols].min(axis=1)
 
-    violations = _build_imbalance_events(
-        numeric,
-        timestamps,
-        cell_cols,
-        delta_v,
-        imbalance_limit_v,
-    )
-    violations.extend(
-        _build_temperature_events(
-            numeric,
-            timestamps,
-            temp_cols,
-            row_max_temp,
-            temp_warning_c,
+    violations: list[ViolationEvent] = []
+
+    if resolved_limits.imbalance_max_v is not None:
+        violations.extend(
+            build_imbalance_events(
+                numeric,
+                timestamps,
+                cell_cols,
+                delta_v,
+                resolved_limits.imbalance_max_v,
+            )
         )
-    )
+    if resolved_limits.cell_max_v is not None:
+        violations.extend(
+            build_high_events(
+                numeric=numeric,
+                timestamps=timestamps,
+                signal_cols=cell_cols,
+                row_max=cell_max,
+                limit=resolved_limits.cell_max_v,
+                code="CELL_OVERVOLTAGE",
+                unit="V",
+            )
+        )
+    if resolved_limits.cell_min_v is not None:
+        violations.extend(
+            build_low_events(
+                numeric=numeric,
+                timestamps=timestamps,
+                signal_cols=cell_cols,
+                row_min=cell_min,
+                limit=resolved_limits.cell_min_v,
+                code="CELL_UNDERVOLTAGE",
+                unit="V",
+            )
+        )
+    if resolved_limits.temperature_max_c is not None:
+        violations.extend(
+            build_high_events(
+                numeric=numeric,
+                timestamps=timestamps,
+                signal_cols=temp_cols,
+                row_max=row_max_temp,
+                limit=resolved_limits.temperature_max_c,
+                code="TEMPERATURE_HIGH",
+                unit="degC",
+            )
+        )
+    if resolved_limits.temperature_min_c is not None:
+        violations.extend(
+            build_low_events(
+                numeric=numeric,
+                timestamps=timestamps,
+                signal_cols=temp_cols,
+                row_min=row_min_temp,
+                limit=resolved_limits.temperature_min_c,
+                code="TEMPERATURE_LOW",
+                unit="degC",
+            )
+        )
+
     violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
 
     return {
@@ -192,5 +179,6 @@ def analyze_battery_log(
         "min_cell_voltage_v": float(cell_min.min()),
         "max_delta_v": round(float(delta_v.max()), 12),
         "max_temperature_c": float(row_max_temp.max()),
+        "min_temperature_c": float(row_min_temp.min()),
         "violations": violations,
     }

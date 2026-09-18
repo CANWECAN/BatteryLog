@@ -10,7 +10,18 @@ SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
 
 def test_cli_emits_structured_json(monkeypatch, capsys) -> None:
-    monkeypatch.setattr(sys, "argv", ["batterylog", str(SAMPLE)])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "batterylog",
+            str(SAMPLE),
+            "--imbalance-limit-v",
+            "0.08",
+            "--temp-max-c",
+            "45",
+        ],
+    )
 
     main()
 
@@ -62,3 +73,57 @@ def test_cli_reports_validation_errors(monkeypatch, tmp_path, capsys) -> None:
 
     assert exc.value.code == 2
     assert "No cell voltage columns" in capsys.readouterr().err
+
+
+def test_cli_loads_yaml_config_and_cli_overrides_it(monkeypatch, tmp_path, capsys) -> None:
+    config = tmp_path / "validation.yaml"
+    config.write_text(
+        "limits:\n  cell_voltage:\n    max_delta_v: null\n  temperature:\n    max_c: 40\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "batterylog",
+            str(SAMPLE),
+            "--config",
+            str(config),
+            "--temp-max-c",
+            "50",
+        ],
+    )
+
+    main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["violations"] == []
+
+
+def test_cli_reports_config_errors(monkeypatch, tmp_path, capsys) -> None:
+    config = tmp_path / "bad.yaml"
+    config.write_text(
+        "limits:\n  cell_voltage:\n    max_v: wrong\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["batterylog", str(SAMPLE), "--config", str(config)],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code == 2
+    assert "must be a number" in capsys.readouterr().err
+
+
+def test_cli_without_limits_reports_metrics_only(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(sys, "argv", ["batterylog", str(SAMPLE)])
+
+    main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["max_delta_v"] == 0.1
+    assert payload["violations"] == []
