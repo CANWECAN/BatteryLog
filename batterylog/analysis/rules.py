@@ -21,14 +21,18 @@ def contiguous_true_ranges(
     ranges: list[tuple[int, int]] = []
     start: int | None = None
     previous_active_position: int | None = None
+    timestamp_values = (
+        timestamps.to_numpy(dtype=float, copy=False) if timestamps is not None else None
+    )
 
     for position, active in enumerate(mask.to_numpy(dtype=bool)):
         if active:
             if start is None:
                 start = position
             elif max_gap_s is not None and previous_active_position is not None:
+                assert timestamp_values is not None
                 gap_s = round(
-                    float(timestamps.iloc[position] - timestamps.iloc[previous_active_position]),
+                    float(timestamp_values[position] - timestamp_values[previous_active_position]),
                     12,
                 )
                 if gap_s > round(max_gap_s, 12):
@@ -57,31 +61,30 @@ def build_imbalance_events(
     max_gap_s: float | None = None,
 ) -> list[ViolationEvent]:
     events: list[ViolationEvent] = []
+    cell_values = numeric.loc[:, cell_cols].to_numpy(dtype=float, copy=False)
+    delta_values = delta_v.to_numpy(dtype=float, copy=False)
+    timestamp_values = timestamps.to_numpy(dtype=float, copy=False)
 
     for start, end in contiguous_true_ranges(
         delta_v > limit_v,
         timestamps=timestamps,
         max_gap_s=max_gap_s,
     ):
-        segment = delta_v.iloc[start : end + 1]
-        peak_pos = start + int(np.argmax(segment.to_numpy()))
-        peak_cells = numeric.iloc[peak_pos][cell_cols]
-        max_value = float(peak_cells.max())
-        min_value = float(peak_cells.min())
-        max_signals = [
-            str(signal) for signal, value in peak_cells.items() if float(value) == max_value
-        ]
-        min_signals = [
-            str(signal) for signal, value in peak_cells.items() if float(value) == min_value
-        ]
+        segment = delta_values[start : end + 1]
+        peak_pos = start + int(np.argmax(segment))
+        peak_cells = cell_values[peak_pos]
+        max_value = float(np.max(peak_cells))
+        min_value = float(np.min(peak_cells))
+        max_signals = [cell_cols[index] for index in np.flatnonzero(peak_cells == max_value)]
+        min_signals = [cell_cols[index] for index in np.flatnonzero(peak_cells == min_value)]
 
         events.append(
             {
                 "code": "CELL_IMBALANCE_HIGH",
-                "start_time_s": float(timestamps.iloc[start]),
-                "end_time_s": float(timestamps.iloc[end]),
-                "peak_time_s": float(timestamps.iloc[peak_pos]),
-                "measured_value": round(float(delta_v.iloc[peak_pos]), 12),
+                "start_time_s": float(timestamp_values[start]),
+                "end_time_s": float(timestamp_values[end]),
+                "peak_time_s": float(timestamp_values[peak_pos]),
+                "measured_value": round(float(delta_values[peak_pos]), 12),
                 "limit_value": limit_v,
                 "unit": "V",
                 "signals": [*max_signals, *min_signals],
@@ -105,26 +108,27 @@ def _build_extreme_events(
     max_gap_s: float | None = None,
 ) -> list[ViolationEvent]:
     events: list[ViolationEvent] = []
+    signal_values = numeric.loc[:, signal_cols].to_numpy(dtype=float, copy=False)
+    extreme_values = row_extreme.to_numpy(dtype=float, copy=False)
+    timestamp_values = timestamps.to_numpy(dtype=float, copy=False)
 
     for start, end in contiguous_true_ranges(
         violates(row_extreme, limit),
         timestamps=timestamps,
         max_gap_s=max_gap_s,
     ):
-        segment = row_extreme.iloc[start : end + 1]
-        peak_pos = start + peak_offset(segment.to_numpy())
-        measured = float(row_extreme.iloc[peak_pos])
-        peak_signals = numeric.iloc[peak_pos][signal_cols]
-        implicated = [
-            str(signal) for signal, value in peak_signals.items() if float(value) == measured
-        ]
+        segment = extreme_values[start : end + 1]
+        peak_pos = start + peak_offset(segment)
+        measured = float(extreme_values[peak_pos])
+        peak_signals = signal_values[peak_pos]
+        implicated = [signal_cols[index] for index in np.flatnonzero(peak_signals == measured)]
 
         events.append(
             {
                 "code": code,
-                "start_time_s": float(timestamps.iloc[start]),
-                "end_time_s": float(timestamps.iloc[end]),
-                "peak_time_s": float(timestamps.iloc[peak_pos]),
+                "start_time_s": float(timestamp_values[start]),
+                "end_time_s": float(timestamp_values[end]),
+                "peak_time_s": float(timestamp_values[peak_pos]),
                 "measured_value": measured,
                 "limit_value": limit,
                 "unit": unit,

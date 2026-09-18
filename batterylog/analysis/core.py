@@ -1,4 +1,5 @@
 import re
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -61,6 +62,61 @@ def _find_signal_columns(columns: pd.Index) -> tuple[list[str], list[str]]:
 
     temp_cols = ["temp_c"] if "temp_c" in columns else indexed_temp_cols
     return cell_cols, temp_cols
+
+
+def _warn_legacy_threshold_arguments(
+    imbalance_limit_v: float | None,
+    temp_warning_c: float | None,
+) -> None:
+    if imbalance_limit_v is None and temp_warning_c is None:
+        return
+
+    warnings.warn(
+        "imbalance_limit_v and temp_warning_c are deprecated; "
+        "pass a ValidationLimits instance via limits=. "
+        "Legacy values currently override the corresponding limits fields.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+
+def _first_true_position(mask: np.ndarray) -> tuple[int, int] | None:
+    if not mask.any():
+        return None
+
+    flat_position = int(np.argmax(mask))
+    row_pos, column_pos = divmod(flat_position, mask.shape[1])
+    return row_pos, column_pos
+
+
+def _raise_invalid_numeric_value(
+    frame: pd.DataFrame,
+    numeric: pd.DataFrame,
+) -> None:
+    missing_position = _first_true_position(numeric.isna().to_numpy())
+    if missing_position is not None:
+        row_pos, column_pos = missing_position
+        column = numeric.columns[column_pos]
+        raw_value = frame.iloc[row_pos][column]
+        row_index = frame.index[row_pos]
+        raise ValueError(
+            "Required numeric value is missing or non-numeric at "
+            f"data row {row_pos + 1} (index {row_index!r}), "
+            f"column {column!r}: {raw_value!r}"
+        )
+
+    values = numeric.to_numpy(dtype=float)
+    non_finite_position = _first_true_position(~np.isfinite(values))
+    if non_finite_position is not None:
+        row_pos, column_pos = non_finite_position
+        column = numeric.columns[column_pos]
+        value = values[row_pos, column_pos]
+        row_index = frame.index[row_pos]
+        raise ValueError(
+            "Required numeric value is non-finite at "
+            f"data row {row_pos + 1} (index {row_index!r}), "
+            f"column {column!r}: {value!r}"
+        )
 
 
 def _resolve_limits(
@@ -145,6 +201,10 @@ def analyze_battery_log(
     event_detection: EventDetectionConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
+    _warn_legacy_threshold_arguments(
+        imbalance_limit_v,
+        temp_warning_c,
+    )
     resolved_limits = _resolve_limits(
         limits,
         imbalance_limit_v,
@@ -170,12 +230,7 @@ def analyze_battery_log(
 
     numeric_cols = ["timestamp_s", *cell_cols, *temp_cols]
     numeric = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
-    if numeric.isna().any().any():
-        raise ValueError("Required numeric columns contain missing or non-numeric values")
-
-    values = numeric.to_numpy(dtype=float)
-    if not np.isfinite(values).all():
-        raise ValueError("Required numeric columns contain non-finite values")
+    _raise_invalid_numeric_value(df, numeric)
 
     timestamps = numeric["timestamp_s"]
     if not timestamps.is_monotonic_increasing:

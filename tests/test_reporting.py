@@ -1,3 +1,4 @@
+import os
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -297,3 +298,41 @@ def test_report_displays_explicit_signal_mapping_provenance(tmp_path: Path) -> N
     assert "Time_s" in html
     assert r"CellV_(?P&lt;index&gt;\d+)" in html
     assert r"Temp_(?P&lt;index&gt;\d+)" in html
+
+
+def test_verify_file_unchanged_rehashes_content_even_if_metadata_is_restored(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "input.csv"
+    path.write_bytes(b"abc")
+    evidence = capture_file_evidence(path)
+    original_stat = path.stat()
+
+    path.write_bytes(b"xyz")
+    os.utime(
+        path,
+        ns=(original_stat.st_atime_ns, evidence.mtime_ns),
+    )
+
+    restored_stat = path.stat()
+    assert restored_stat.st_size == evidence.size_bytes
+    assert restored_stat.st_mtime_ns == evidence.mtime_ns
+
+    with pytest.raises(ValueError, match="changed during analysis"):
+        verify_file_unchanged(path, evidence)
+
+
+def test_verify_file_unchanged_accepts_metadata_only_change_when_hash_matches(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "input.csv"
+    path.write_bytes(b"abc")
+    evidence = capture_file_evidence(path)
+    original_stat = path.stat()
+
+    os.utime(
+        path,
+        ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns + 1_000_000),
+    )
+
+    verify_file_unchanged(path, evidence)

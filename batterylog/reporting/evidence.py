@@ -47,8 +47,8 @@ def capture_file_evidence(path: str | Path) -> FileEvidence:
 
 
 def verify_file_unchanged(path: str | Path, evidence: FileEvidence) -> None:
-    stat = Path(path).stat()
-    if stat.st_size != evidence.size_bytes or stat.st_mtime_ns != evidence.mtime_ns:
+    current = capture_file_evidence(path)
+    if current.sha256 != evidence.sha256:
         raise ValueError(f"Evidence file changed during analysis: {evidence.name}")
 
 

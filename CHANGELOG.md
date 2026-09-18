@@ -2,6 +2,25 @@
 
 All notable changes to BatteryLog are documented here.
 
+## 0.6.1 - 2026-09-19
+
+### Fixed
+
+- Removed per-event chained pandas row/column indexing from violation construction; signal lookup now uses precomputed NumPy matrices.
+- Report provenance verification now re-hashes source/config files after analysis instead of relying only on file size and modification time.
+- Invalid numeric input errors now identify the first failing data row, DataFrame index, column, and value.
+
+### Changed
+
+- Legacy Python arguments `imbalance_limit_v` and `temp_warning_c` now emit `DeprecationWarning`. Use `ValidationLimits` through `limits=` instead.
+- Legacy threshold arguments remain backward compatible for now and continue to override the corresponding `ValidationLimits` fields when both are supplied.
+
+### Testing
+
+- Added Hypothesis property-based tests for contiguous and time-gap-aware event grouping invariants.
+- Added a reproducible synthetic event-builder benchmark under `benchmarks/`.
+- Added a regression test proving that restoring file size/mtime cannot bypass post-analysis SHA-256 evidence verification.
+
 ## 0.6.0 - 2026-09-18
 
 ### Added
