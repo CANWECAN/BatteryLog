@@ -2,6 +2,28 @@
 
 All notable changes to BatteryLog are documented here.
 
+## 0.5.0 - 2026-09-18
+
+### Added
+
+- Configurable time-gap-aware violation event grouping through `event_detection.max_gap_s`
+- CLI override through `--max-event-gap-s`
+- `ValidationConfig` and `EventDetectionConfig` public configuration models
+- `analysis_options.max_event_gap_s` provenance in machine-readable results and HTML reports
+
+### Compatibility
+
+- Existing row-contiguity event grouping remains the default when no maximum gap is configured.
+- Existing `load_validation_limits()` and `limits=` Python API usage remain supported.
+- Result schema remains version `1`; the new analysis-options field is additive.
+
+### Correctness
+
+- A timestamp gap greater than the configured maximum starts a new event.
+- A timestamp gap exactly equal to the configured maximum remains in the same event.
+- Duplicate timestamps remain in the same event.
+- Timestamp-gap comparison is normalized to avoid binary floating-point noise incorrectly splitting boundary events.
+
 ## 0.4.0 - 2026-09-18
 
 First tagged public release.

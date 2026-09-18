@@ -6,16 +6,40 @@ import pandas as pd
 from batterylog.models import RuleCode, ViolationEvent
 
 
-def contiguous_true_ranges(mask: pd.Series) -> list[tuple[int, int]]:
+def contiguous_true_ranges(
+    mask: pd.Series,
+    *,
+    timestamps: pd.Series | None = None,
+    max_gap_s: float | None = None,
+) -> list[tuple[int, int]]:
+    if max_gap_s is not None:
+        if timestamps is None:
+            raise ValueError("timestamps are required when max_gap_s is configured")
+        if len(timestamps) != len(mask):
+            raise ValueError("timestamps and mask must have the same length")
+
     ranges: list[tuple[int, int]] = []
     start: int | None = None
+    previous_active_position: int | None = None
 
     for position, active in enumerate(mask.to_numpy(dtype=bool)):
-        if active and start is None:
-            start = position
-        elif not active and start is not None:
+        if active:
+            if start is None:
+                start = position
+            elif max_gap_s is not None and previous_active_position is not None:
+                gap_s = round(
+                    float(timestamps.iloc[position] - timestamps.iloc[previous_active_position]),
+                    12,
+                )
+                if gap_s > round(max_gap_s, 12):
+                    ranges.append((start, position - 1))
+                    start = position
+
+            previous_active_position = position
+        elif start is not None:
             ranges.append((start, position - 1))
             start = None
+            previous_active_position = None
 
     if start is not None:
         ranges.append((start, len(mask) - 1))
@@ -29,10 +53,16 @@ def build_imbalance_events(
     cell_cols: list[str],
     delta_v: pd.Series,
     limit_v: float,
+    *,
+    max_gap_s: float | None = None,
 ) -> list[ViolationEvent]:
     events: list[ViolationEvent] = []
 
-    for start, end in contiguous_true_ranges(delta_v > limit_v):
+    for start, end in contiguous_true_ranges(
+        delta_v > limit_v,
+        timestamps=timestamps,
+        max_gap_s=max_gap_s,
+    ):
         segment = delta_v.iloc[start : end + 1]
         peak_pos = start + int(np.argmax(segment.to_numpy()))
         peak_cells = numeric.iloc[peak_pos][cell_cols]
@@ -72,10 +102,15 @@ def _build_extreme_events(
     unit: str,
     violates: Callable[[pd.Series, float], pd.Series],
     peak_offset: Callable[[np.ndarray], int],
+    max_gap_s: float | None = None,
 ) -> list[ViolationEvent]:
     events: list[ViolationEvent] = []
 
-    for start, end in contiguous_true_ranges(violates(row_extreme, limit)):
+    for start, end in contiguous_true_ranges(
+        violates(row_extreme, limit),
+        timestamps=timestamps,
+        max_gap_s=max_gap_s,
+    ):
         segment = row_extreme.iloc[start : end + 1]
         peak_pos = start + peak_offset(segment.to_numpy())
         measured = float(row_extreme.iloc[peak_pos])
@@ -109,6 +144,7 @@ def build_high_events(
     limit: float,
     code: RuleCode,
     unit: str,
+    max_gap_s: float | None = None,
 ) -> list[ViolationEvent]:
     return _build_extreme_events(
         numeric=numeric,
@@ -120,6 +156,7 @@ def build_high_events(
         unit=unit,
         violates=lambda values, threshold: values > threshold,
         peak_offset=lambda values: int(np.argmax(values)),
+        max_gap_s=max_gap_s,
     )
 
 
@@ -132,6 +169,7 @@ def build_low_events(
     limit: float,
     code: RuleCode,
     unit: str,
+    max_gap_s: float | None = None,
 ) -> list[ViolationEvent]:
     return _build_extreme_events(
         numeric=numeric,
@@ -143,4 +181,5 @@ def build_low_events(
         unit=unit,
         violates=lambda values, threshold: values < threshold,
         peak_offset=lambda values: int(np.argmin(values)),
+        max_gap_s=max_gap_s,
     )

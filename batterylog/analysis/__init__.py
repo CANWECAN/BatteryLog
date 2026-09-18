@@ -1,5 +1,6 @@
 from batterylog.models import (
     RESULT_SCHEMA_VERSION,
+    AnalysisOptions,
     AnalysisResult,
     AppliedLimits,
     ResultSchemaVersion,
@@ -12,6 +13,7 @@ from .core import analyze_battery_log
 
 __all__ = [
     "RESULT_SCHEMA_VERSION",
+    "AnalysisOptions",
     "AnalysisResult",
     "AppliedLimits",
     "ResultSchemaVersion",

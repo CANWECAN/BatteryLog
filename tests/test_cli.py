@@ -235,3 +235,46 @@ def test_cli_refuses_hardlink_alias_of_input_as_report(tmp_path, capsys) -> None
     assert exc.value.code == 2
     assert "must not overwrite the input log" in capsys.readouterr().err
     assert source.read_text(encoding="utf-8").startswith("timestamp_s,")
+
+
+def test_cli_max_event_gap_overrides_yaml_and_splits_events(
+    tmp_path,
+    capsys,
+) -> None:
+    source = tmp_path / "sparse.csv"
+    source.write_text(
+        "timestamp_s,temp_c,cell_1_v,cell_2_v\n0.0,25,4.0,3.8\n0.4,25,4.0,3.8\n5.0,25,4.0,3.8\n",
+        encoding="utf-8",
+    )
+    config = tmp_path / "validation.yaml"
+    config.write_text(
+        "limits:\n  cell_voltage:\n    max_delta_v: 0.08\nevent_detection:\n  max_gap_s: 10.0\n",
+        encoding="utf-8",
+    )
+
+    exit_code = run(
+        [
+            str(source),
+            "--config",
+            str(config),
+            "--max-event-gap-s",
+            "0.5",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    imbalance_events = [
+        event for event in payload["violations"] if event["code"] == "CELL_IMBALANCE_HIGH"
+    ]
+
+    assert exit_code == 1
+    assert payload["analysis_options"] == {"max_event_gap_s": 0.5}
+    assert len(imbalance_events) == 2
+
+
+def test_cli_rejects_invalid_max_event_gap(capsys) -> None:
+    with pytest.raises(SystemExit) as exc:
+        run([str(SAMPLE), "--max-event-gap-s", "-0.1"])
+
+    assert exc.value.code == 2
+    assert "max_gap_s must be non-negative" in capsys.readouterr().err

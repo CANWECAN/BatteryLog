@@ -22,6 +22,10 @@ class AppliedLimits(TypedDict):
     temperature_max_c: float | None
 
 
+class AnalysisOptions(TypedDict):
+    max_event_gap_s: float | None
+
+
 class ViolationEvent(TypedDict):
     code: RuleCode
     start_time_s: float
@@ -38,6 +42,7 @@ class AnalysisResult(TypedDict):
     validation_status: ValidationStatus
     rules_evaluated: list[RuleCode]
     limits_applied: AppliedLimits
+    analysis_options: AnalysisOptions
     rows_analyzed: int
     cells_detected: int
     temperature_sensors_detected: int

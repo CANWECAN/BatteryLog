@@ -22,6 +22,7 @@ The preview below is generated from the repository's included sample CSV and val
 - Detect excessive cell-voltage imbalance
 - Detect high and low temperature events
 - Group consecutive failing samples into one violation event
+- Optionally split sparse failing samples using a configurable maximum timestamp gap
 - Record event start, end, and worst-case timestamps
 - Record measured value, engineering limit, unit, and implicated signals
 - Support one or more cell-voltage and temperature signals
@@ -86,6 +87,9 @@ limits:
   temperature:
     min_c: -20
     max_c: 55
+
+event_detection:
+  max_gap_s: 2.0
 ```
 
 The values in `examples/validation.example.yaml` are illustrative only. They are not universal safety limits or chemistry defaults. Validation limits must come from the tested cell/pack specification, operating state, BMS strategy, and test plan.
@@ -103,6 +107,10 @@ CLI override > YAML config
 A rule is active only when a numeric limit is explicitly supplied. A YAML value of `null` disables that rule.
 
 Unknown config keys are rejected instead of silently ignored, so spelling mistakes do not disable a validation rule unnoticed.
+
+The `event_detection.max_gap_s` value controls event segmentation only. It is not a battery safety limit. When configured, adjacent failing rows are kept in the same event only when their timestamp gap is less than or equal to the configured value. A larger gap starts a new event.
+
+If `max_gap_s` is omitted or `null`, BatteryLog preserves the original row-contiguity behavior.
 
 ## Validation status
 
@@ -124,7 +132,7 @@ Package versions and result-schema versions are intentionally independent. A pac
 
 ## Event semantics
 
-A violation is not reported once per failing row. Consecutive samples that violate the same rule are grouped into one event.
+A violation is not reported once per failing row. By default, consecutive failing rows are grouped into one event. When `event_detection.max_gap_s` is configured, a timestamp gap greater than that value starts a new event even if no passing row exists between the samples. A gap exactly on the configured boundary remains in the same event.
 
 Each event stores:
 
@@ -181,13 +189,13 @@ Use a YAML config:
 .\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv --config examples\validation.example.yaml
 ```
 
-Override a YAML value from the CLI:
+Override YAML values from the CLI:
 
 ```powershell
-.\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv --config examples\validation.example.yaml --cell-max-v 4.15 --temp-max-c 50
+.\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv --config examples\validation.example.yaml --cell-max-v 4.15 --temp-max-c 50 --max-event-gap-s 0.5
 ```
 
-The existing `--temp-warning-c` option remains available as an alias for `--temp-max-c`.
+The existing `--temp-warning-c` option remains available as an alias for `--temp-max-c`. CLI overrides take precedence over YAML values.
 
 Generate a self-contained HTML report:
 
@@ -213,7 +221,7 @@ This allows CI/HIL pipelines to distinguish a true PASS from a validation failur
 ## Python API
 
 ```python
-from batterylog import ValidationLimits, analyze_battery_log
+from batterylog import EventDetectionConfig, ValidationLimits, analyze_battery_log
 
 limits = ValidationLimits(
     cell_min_v=2.8,
@@ -226,6 +234,7 @@ limits = ValidationLimits(
 result = analyze_battery_log(
     "examples/sample_battery_log.csv",
     limits=limits,
+    event_detection=EventDetectionConfig(max_gap_s=0.5),
 )
 
 for event in result["violations"]:
@@ -235,11 +244,17 @@ for event in result["violations"]:
 YAML can also be loaded programmatically:
 
 ```python
-from batterylog import analyze_battery_log, load_validation_limits
+from batterylog import analyze_battery_log, load_validation_config
 
-limits = load_validation_limits("examples/validation.example.yaml")
-result = analyze_battery_log("test.csv", limits=limits)
+config = load_validation_config("examples/validation.example.yaml")
+result = analyze_battery_log(
+    "test.csv",
+    limits=config.limits,
+    event_detection=config.event_detection,
+)
 ```
+
+The older `load_validation_limits()` helper remains available for callers that intentionally need only the engineering-limit portion of a config file.
 
 ## Engineering notes
 
@@ -247,7 +262,7 @@ The analyzer fails closed on invalid required sensor values. A missing cell or t
 
 Event grouping currently uses row contiguity. A future version may add a maximum allowed time gap so sparse logs can distinguish physically separate events even when no passing sample exists between them.
 
-Planned follow-on work includes report plots, time-gap-aware event grouping, MF4/MDF support, CAN/DBC decoding, configurable signal mapping, richer rule metadata, and larger-log processing.
+Planned follow-on work includes report plots, MF4/MDF support, CAN/DBC decoding, configurable signal mapping, richer rule metadata, and larger-log processing.
 
 ## Status
 

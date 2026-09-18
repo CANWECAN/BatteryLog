@@ -65,6 +65,15 @@ def _metadata_rows(
     return "".join(_metric_row(label, value) for label, value in items)
 
 
+def _analysis_options_rows(result: AnalysisResult) -> str:
+    max_gap_s = result["analysis_options"]["max_event_gap_s"]
+    if max_gap_s is None:
+        rendered = "Row contiguity only"
+    else:
+        rendered = f"{max_gap_s:.12g} s"
+    return _metric_row("Maximum event gap", rendered)
+
+
 def _violation_rows(result: AnalysisResult) -> str:
     rows: list[str] = []
     for event in result["violations"]:
@@ -184,7 +193,7 @@ code {{ font-family: ui-monospace, Consolas, monospace; }}
 <section>
 <h2>Validation configuration</h2>
 <p>Rules evaluated: <code>{escape(rules)}</code></p>
-<table><tbody>{_limits_rows(result)}</tbody></table>
+<table><tbody>{_limits_rows(result)}{_analysis_options_rows(result)}</tbody></table>
 </section>
 <section>
 <h2>Violation events</h2>
