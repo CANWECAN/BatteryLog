@@ -4,10 +4,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from batterylog.config import ValidationLimits, override_validation_limits
+from batterylog.config import EventDetectionConfig, ValidationLimits, override_validation_limits
 from batterylog.loaders import load_battery_csv
 from batterylog.models import (
     RESULT_SCHEMA_VERSION,
+    AnalysisOptions,
     AnalysisResult,
     AppliedLimits,
     RuleCode,
@@ -78,6 +79,10 @@ def _limits_snapshot(limits: ValidationLimits) -> AppliedLimits:
     }
 
 
+def _analysis_options_snapshot(config: EventDetectionConfig) -> AnalysisOptions:
+    return {"max_event_gap_s": config.max_gap_s}
+
+
 def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
     codes: list[RuleCode] = []
     if limits.imbalance_max_v is not None:
@@ -99,12 +104,14 @@ def analyze_battery_log(
     temp_warning_c: float | None = None,
     *,
     limits: ValidationLimits | None = None,
+    event_detection: EventDetectionConfig | None = None,
 ) -> AnalysisResult:
     resolved_limits = _resolve_limits(
         limits,
         imbalance_limit_v,
         temp_warning_c,
     )
+    resolved_event_detection = event_detection or EventDetectionConfig()
 
     df = load_battery_csv(path)
     if df.empty:
@@ -150,6 +157,7 @@ def analyze_battery_log(
                 cell_cols,
                 delta_v,
                 resolved_limits.imbalance_max_v,
+                max_gap_s=resolved_event_detection.max_gap_s,
             )
         )
     if resolved_limits.cell_max_v is not None:
@@ -162,6 +170,7 @@ def analyze_battery_log(
                 limit=resolved_limits.cell_max_v,
                 code="CELL_OVERVOLTAGE",
                 unit="V",
+                max_gap_s=resolved_event_detection.max_gap_s,
             )
         )
     if resolved_limits.cell_min_v is not None:
@@ -174,6 +183,7 @@ def analyze_battery_log(
                 limit=resolved_limits.cell_min_v,
                 code="CELL_UNDERVOLTAGE",
                 unit="V",
+                max_gap_s=resolved_event_detection.max_gap_s,
             )
         )
     if resolved_limits.temperature_max_c is not None:
@@ -186,6 +196,7 @@ def analyze_battery_log(
                 limit=resolved_limits.temperature_max_c,
                 code="TEMPERATURE_HIGH",
                 unit="degC",
+                max_gap_s=resolved_event_detection.max_gap_s,
             )
         )
     if resolved_limits.temperature_min_c is not None:
@@ -198,6 +209,7 @@ def analyze_battery_log(
                 limit=resolved_limits.temperature_min_c,
                 code="TEMPERATURE_LOW",
                 unit="degC",
+                max_gap_s=resolved_event_detection.max_gap_s,
             )
         )
 
@@ -215,6 +227,7 @@ def analyze_battery_log(
         "validation_status": validation_status,
         "rules_evaluated": rules_evaluated,
         "limits_applied": _limits_snapshot(resolved_limits),
+        "analysis_options": _analysis_options_snapshot(resolved_event_detection),
         "rows_analyzed": len(df),
         "cells_detected": len(cell_cols),
         "temperature_sensors_detected": len(temp_cols),

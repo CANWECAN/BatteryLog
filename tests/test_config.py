@@ -3,8 +3,12 @@ from pathlib import Path
 import pytest
 
 from batterylog.config import (
+    EventDetectionConfig,
+    ValidationConfig,
     ValidationLimits,
+    load_validation_config,
     load_validation_limits,
+    override_event_detection,
     override_validation_limits,
 )
 
@@ -166,3 +170,99 @@ limits:
 
     with pytest.raises(ValueError, match="Invalid YAML"):
         load_validation_limits(path)
+
+
+def test_load_validation_config_includes_event_detection(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        """
+schema_version: 1
+limits:
+  cell_voltage:
+    max_delta_v: 0.08
+event_detection:
+  max_gap_s: 0.5
+""",
+    )
+
+    config = load_validation_config(path)
+
+    assert config == ValidationConfig(
+        limits=ValidationLimits(imbalance_max_v=0.08),
+        event_detection=EventDetectionConfig(max_gap_s=0.5),
+    )
+
+
+def test_load_validation_limits_remains_backward_compatible_with_event_config(
+    tmp_path: Path,
+) -> None:
+    path = _write(
+        tmp_path,
+        """
+limits:
+  temperature:
+    max_c: 50
+event_detection:
+  max_gap_s: 1.0
+""",
+    )
+
+    limits = load_validation_limits(path)
+
+    assert limits == ValidationLimits(temperature_max_c=50.0)
+
+
+@pytest.mark.parametrize(
+    ("content", "exception_type", "message"),
+    [
+        (
+            "event_detection: []\n",
+            TypeError,
+            "event_detection must be a mapping",
+        ),
+        (
+            "event_detection:\n  unknown: 1\n",
+            ValueError,
+            "Unknown event_detection key",
+        ),
+        (
+            "event_detection:\n  max_gap_s: fast\n",
+            TypeError,
+            "event_detection.max_gap_s must be a number",
+        ),
+        (
+            "event_detection:\n  max_gap_s: -0.1\n",
+            ValueError,
+            "max_gap_s must be non-negative",
+        ),
+        (
+            "event_detection:\n  max_gap_s: .inf\n",
+            ValueError,
+            "must be finite",
+        ),
+    ],
+)
+def test_invalid_event_detection_config_is_rejected(
+    tmp_path: Path,
+    content: str,
+    exception_type: type[Exception],
+    message: str,
+) -> None:
+    with pytest.raises(exception_type, match=message):
+        load_validation_config(_write(tmp_path, content))
+
+
+@pytest.mark.parametrize("value", ["0.5", True])
+def test_event_detection_config_rejects_non_numeric_values(value: object) -> None:
+    with pytest.raises(TypeError, match="must be a number or null"):
+        EventDetectionConfig(max_gap_s=value)  # type: ignore[arg-type]
+
+
+def test_override_event_detection_changes_only_explicit_value() -> None:
+    base = EventDetectionConfig(max_gap_s=1.0)
+
+    unchanged = override_event_detection(base)
+    updated = override_event_detection(base, max_gap_s=0.25)
+
+    assert unchanged is base
+    assert updated == EventDetectionConfig(max_gap_s=0.25)

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 import batterylog.reporting.evidence as evidence_module
-from batterylog import ValidationLimits, analyze_battery_log
+from batterylog import EventDetectionConfig, ValidationLimits, analyze_battery_log
 from batterylog.reporting import (
     FileEvidence,
     ReportMetadata,
@@ -234,3 +234,25 @@ def test_report_metadata_falls_back_when_distribution_is_unavailable(
     )
 
     assert metadata.batterylog_version == "unknown"
+
+
+def test_report_displays_event_grouping_semantics() -> None:
+    result = analyze_battery_log(
+        SAMPLE,
+        limits=ValidationLimits(imbalance_max_v=0.08),
+        event_detection=EventDetectionConfig(max_gap_s=0.5),
+    )
+
+    html = render_html_report(result)
+
+    assert "Maximum event gap" in html
+    assert "0.5 s" in html
+
+
+def test_report_labels_default_grouping_as_row_contiguity() -> None:
+    result = analyze_battery_log(SAMPLE)
+
+    html = render_html_report(result)
+
+    assert "Maximum event gap" in html
+    assert "Row contiguity only" in html

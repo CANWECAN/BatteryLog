@@ -1,4 +1,4 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from math import isfinite
 from pathlib import Path
 from typing import Any
@@ -37,6 +37,15 @@ _UniqueKeySafeLoader.add_constructor(
 )
 
 
+def _validate_optional_number(name: str, value: float | None) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{name} must be a number or null")
+    if not isfinite(value):
+        raise ValueError(f"{name} must be finite or null")
+
+
 @dataclass(frozen=True)
 class ValidationLimits:
     cell_min_v: float | None = None
@@ -53,12 +62,7 @@ class ValidationLimits:
             ("temperature_min_c", self.temperature_min_c),
             ("temperature_max_c", self.temperature_max_c),
         ):
-            if value is None:
-                continue
-            if isinstance(value, bool) or not isinstance(value, (int, float)):
-                raise TypeError(f"{name} must be a number or null")
-            if not isfinite(value):
-                raise ValueError(f"{name} must be finite or null")
+            _validate_optional_number(name, value)
 
         if self.imbalance_max_v is not None and self.imbalance_max_v < 0:
             raise ValueError("imbalance_max_v must be non-negative or null")
@@ -74,6 +78,22 @@ class ValidationLimits:
             and self.temperature_min_c >= self.temperature_max_c
         ):
             raise ValueError("temperature_min_c must be lower than temperature_max_c")
+
+
+@dataclass(frozen=True)
+class EventDetectionConfig:
+    max_gap_s: float | None = None
+
+    def __post_init__(self) -> None:
+        _validate_optional_number("max_gap_s", self.max_gap_s)
+        if self.max_gap_s is not None and self.max_gap_s < 0:
+            raise ValueError("max_gap_s must be non-negative or null")
+
+
+@dataclass(frozen=True)
+class ValidationConfig:
+    limits: ValidationLimits = field(default_factory=ValidationLimits)
+    event_detection: EventDetectionConfig = field(default_factory=EventDetectionConfig)
 
 
 def _require_mapping(name: str, value: Any) -> dict[str, Any]:
@@ -104,7 +124,7 @@ def _optional_number(name: str, value: Any) -> float | None:
     return number
 
 
-def load_validation_limits(path: str | Path) -> ValidationLimits:
+def _load_config_root(path: str | Path) -> dict[str, Any]:
     config_path = Path(path)
     try:
         raw = yaml.load(
@@ -119,7 +139,11 @@ def load_validation_limits(path: str | Path) -> ValidationLimits:
     if raw is None:
         raw = {}
     root = _require_mapping("config", raw)
-    _reject_unknown_keys("top-level", root, {"schema_version", "limits"})
+    _reject_unknown_keys(
+        "top-level",
+        root,
+        {"schema_version", "limits", "event_detection"},
+    )
 
     schema_version = root.get("schema_version", 1)
     if isinstance(schema_version, bool) or not isinstance(schema_version, int):
@@ -127,6 +151,10 @@ def load_validation_limits(path: str | Path) -> ValidationLimits:
     if schema_version != 1:
         raise ValueError(f"Unsupported schema_version: {schema_version!r}")
 
+    return root
+
+
+def _parse_limits(root: dict[str, Any]) -> ValidationLimits:
     limits_raw = _require_mapping("limits", root.get("limits", {}))
     _reject_unknown_keys("limits", limits_raw, {"cell_voltage", "temperature"})
 
@@ -175,6 +203,33 @@ def load_validation_limits(path: str | Path) -> ValidationLimits:
     )
 
 
+def _parse_event_detection(root: dict[str, Any]) -> EventDetectionConfig:
+    raw = _require_mapping(
+        "event_detection",
+        root.get("event_detection", {}),
+    )
+    _reject_unknown_keys("event_detection", raw, {"max_gap_s"})
+    defaults = EventDetectionConfig()
+    return EventDetectionConfig(
+        max_gap_s=_optional_number(
+            "event_detection.max_gap_s",
+            raw.get("max_gap_s", defaults.max_gap_s),
+        )
+    )
+
+
+def load_validation_config(path: str | Path) -> ValidationConfig:
+    root = _load_config_root(path)
+    return ValidationConfig(
+        limits=_parse_limits(root),
+        event_detection=_parse_event_detection(root),
+    )
+
+
+def load_validation_limits(path: str | Path) -> ValidationLimits:
+    return load_validation_config(path).limits
+
+
 def override_validation_limits(
     limits: ValidationLimits,
     *,
@@ -196,3 +251,13 @@ def override_validation_limits(
             updates[name] = value
 
     return replace(limits, **updates)
+
+
+def override_event_detection(
+    config: EventDetectionConfig,
+    *,
+    max_gap_s: float | None = None,
+) -> EventDetectionConfig:
+    if max_gap_s is None:
+        return config
+    return replace(config, max_gap_s=max_gap_s)

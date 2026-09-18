@@ -5,8 +5,9 @@ from pathlib import Path
 
 from .analysis.core import analyze_battery_log
 from .config import (
-    ValidationLimits,
-    load_validation_limits,
+    ValidationConfig,
+    load_validation_config,
+    override_event_detection,
     override_validation_limits,
 )
 from .models import AnalysisResult
@@ -61,18 +62,31 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         help="Override maximum allowed temperature",
     )
+    parser.add_argument(
+        "--max-event-gap-s",
+        type=float,
+        help="Override maximum timestamp gap within one violation event",
+    )
     return parser
 
 
-def _resolve_cli_limits(args: argparse.Namespace) -> ValidationLimits:
-    limits = load_validation_limits(args.config) if args.config else ValidationLimits()
-    return override_validation_limits(
-        limits,
+def _resolve_cli_config(args: argparse.Namespace) -> ValidationConfig:
+    base = load_validation_config(args.config) if args.config else ValidationConfig()
+    limits = override_validation_limits(
+        base.limits,
         cell_min_v=args.cell_min_v,
         cell_max_v=args.cell_max_v,
         imbalance_max_v=args.imbalance_limit_v,
         temperature_min_c=args.temp_min_c,
         temperature_max_c=args.temp_max_c,
+    )
+    event_detection = override_event_detection(
+        base.event_detection,
+        max_gap_s=args.max_event_gap_s,
+    )
+    return ValidationConfig(
+        limits=limits,
+        event_detection=event_detection,
     )
 
 
@@ -119,8 +133,12 @@ def run(argv: Sequence[str] | None = None) -> int:
             else None
         )
 
-        limits = _resolve_cli_limits(args)
-        result = analyze_battery_log(input_path, limits=limits)
+        validation_config = _resolve_cli_config(args)
+        result = analyze_battery_log(
+            input_path,
+            limits=validation_config.limits,
+            event_detection=validation_config.event_detection,
+        )
 
         if report_path is not None:
             verify_file_unchanged(input_path, source_evidence)

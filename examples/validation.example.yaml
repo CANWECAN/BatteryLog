@@ -12,3 +12,9 @@ limits:
   temperature:
     min_c: -20
     max_c: 55
+
+# Analysis semantics, not a battery safety limit.
+# Consecutive failing samples separated by more than this gap start
+# separate violation events.
+event_detection:
+  max_gap_s: 2.0

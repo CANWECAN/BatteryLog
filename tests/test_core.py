@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from batterylog import ValidationLimits, analyze_battery_log
+from batterylog import EventDetectionConfig, ValidationLimits, analyze_battery_log
 
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
@@ -363,3 +363,103 @@ def test_result_contains_applied_limit_snapshot() -> None:
         "temperature_min_c": -20.0,
         "temperature_max_c": 55.0,
     }
+
+
+def test_default_event_grouping_preserves_row_contiguity_for_sparse_failures(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "sparse.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v,cell_2_v\n"
+        "1.0,25,4.00,3.80\n"
+        "1.5,25,4.00,3.80\n"
+        "800.0,25,4.00,3.80\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_battery_log(
+        path,
+        limits=ValidationLimits(imbalance_max_v=0.08),
+    )
+    events = [event for event in result["violations"] if event["code"] == "CELL_IMBALANCE_HIGH"]
+
+    assert result["analysis_options"] == {"max_event_gap_s": None}
+    assert len(events) == 1
+    assert events[0]["start_time_s"] == 1.0
+    assert events[0]["end_time_s"] == 800.0
+
+
+def test_max_event_gap_splits_sparse_failures_and_keeps_boundary_samples(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "gap.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v,cell_2_v\n"
+        "1.0,25,4.00,3.80\n"
+        "1.5,25,4.00,3.80\n"
+        "1.5,25,4.00,3.80\n"
+        "2.1,25,4.00,3.80\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_battery_log(
+        path,
+        limits=ValidationLimits(imbalance_max_v=0.08),
+        event_detection=EventDetectionConfig(max_gap_s=0.5),
+    )
+    events = [event for event in result["violations"] if event["code"] == "CELL_IMBALANCE_HIGH"]
+
+    assert result["analysis_options"] == {"max_event_gap_s": 0.5}
+    assert len(events) == 2
+    assert events[0]["start_time_s"] == 1.0
+    assert events[0]["end_time_s"] == 1.5
+    assert events[1]["start_time_s"] == 2.1
+    assert events[1]["end_time_s"] == 2.1
+
+
+def test_max_event_gap_applies_to_generic_high_event_rules(tmp_path: Path) -> None:
+    path = tmp_path / "temperature_gap.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v\n0.0,50,3.80\n0.4,51,3.80\n5.0,52,3.80\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_battery_log(
+        path,
+        limits=ValidationLimits(temperature_max_c=45.0),
+        event_detection=EventDetectionConfig(max_gap_s=0.5),
+    )
+    events = [event for event in result["violations"] if event["code"] == "TEMPERATURE_HIGH"]
+
+    assert len(events) == 2
+    assert events[0]["start_time_s"] == 0.0
+    assert events[0]["end_time_s"] == 0.4
+    assert events[0]["peak_time_s"] == 0.4
+    assert events[1]["start_time_s"] == 5.0
+
+
+@pytest.mark.parametrize("value", [-0.01, float("inf"), float("nan")])
+def test_invalid_event_gap_values_are_rejected(value: float) -> None:
+    with pytest.raises(ValueError):
+        EventDetectionConfig(max_gap_s=value)
+
+
+def test_event_gap_exact_decimal_boundary_is_not_split_by_float_noise(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "float_gap.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v,cell_2_v\n0.1,25,4.0,3.8\n0.4,25,4.0,3.8\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_battery_log(
+        path,
+        limits=ValidationLimits(imbalance_max_v=0.08),
+        event_detection=EventDetectionConfig(max_gap_s=0.3),
+    )
+    events = [event for event in result["violations"] if event["code"] == "CELL_IMBALANCE_HIGH"]
+
+    assert len(events) == 1
+    assert events[0]["start_time_s"] == 0.1
+    assert events[0]["end_time_s"] == 0.4
