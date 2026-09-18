@@ -14,6 +14,11 @@ def test_sample_log_returns_structured_violation_events() -> None:
         temp_warning_c=45.0,
     )
 
+    assert result["validation_status"] == "FAIL"
+    assert result["rules_evaluated"] == [
+        "CELL_IMBALANCE_HIGH",
+        "TEMPERATURE_HIGH",
+    ]
     assert result["rows_analyzed"] == 5
     assert result["cells_detected"] == 4
     assert result["temperature_sensors_detected"] == 1
@@ -91,6 +96,11 @@ def test_custom_limits_can_clear_violations() -> None:
         imbalance_limit_v=0.11,
         temp_warning_c=50.0,
     )
+    assert result["validation_status"] == "PASS"
+    assert result["rules_evaluated"] == [
+        "CELL_IMBALANCE_HIGH",
+        "TEMPERATURE_HIGH",
+    ]
     assert result["violations"] == []
 
 
@@ -200,6 +210,8 @@ def test_all_rules_can_be_disabled() -> None:
 
     result = analyze_battery_log(SAMPLE, limits=limits)
 
+    assert result["validation_status"] == "NOT_EVALUATED"
+    assert result["rules_evaluated"] == []
     assert result["violations"] == []
 
 
@@ -241,6 +253,8 @@ def test_imbalance_event_reports_all_tied_extreme_cells(tmp_path: Path) -> None:
 def test_default_analysis_computes_metrics_without_assuming_limits() -> None:
     result = analyze_battery_log(SAMPLE)
 
+    assert result["validation_status"] == "NOT_EVALUATED"
+    assert result["rules_evaluated"] == []
     assert result["max_delta_v"] == pytest.approx(0.10)
     assert result["max_temperature_c"] == pytest.approx(48.0)
     assert result["violations"] == []
@@ -319,4 +333,12 @@ def test_values_exactly_on_limits_do_not_violate(tmp_path: Path) -> None:
 
     result = analyze_battery_log(path, limits=limits)
 
+    assert result["validation_status"] == "PASS"
+    assert result["rules_evaluated"] == [
+        "CELL_IMBALANCE_HIGH",
+        "CELL_OVERVOLTAGE",
+        "CELL_UNDERVOLTAGE",
+        "TEMPERATURE_HIGH",
+        "TEMPERATURE_LOW",
+    ]
     assert result["violations"] == []

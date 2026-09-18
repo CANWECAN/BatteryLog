@@ -20,6 +20,8 @@ Battery validation often involves repetitive checks across long measurement logs
 - Record measured value, engineering limit, unit, and implicated signals
 - Support one or more cell-voltage and temperature signals
 - Reject missing, non-numeric, non-finite, or time-disordered required data
+- Emit explicit `NOT_EVALUATED`, `PASS`, or `FAIL` validation status
+- Report which rules were actually evaluated
 - Emit machine-readable JSON from the CLI
 - Run as a Python API
 
@@ -92,6 +94,18 @@ CLI override > YAML config
 A rule is active only when a numeric limit is explicitly supplied. A YAML value of `null` disables that rule.
 
 Unknown config keys are rejected instead of silently ignored, so spelling mistakes do not disable a validation rule unnoticed.
+
+## Validation status
+
+BatteryLog separates "no violations" from "no validation was performed":
+
+| Status | Meaning |
+| --- | --- |
+| `NOT_EVALUATED` | no engineering rule had an active numeric limit; metrics were computed only |
+| `PASS` | at least one engineering rule was evaluated and no violations were found |
+| `FAIL` | at least one evaluated rule produced a violation |
+
+The result also contains `rules_evaluated`, so downstream reports can show exactly which checks participated in the status decision.
 
 ## Event semantics
 

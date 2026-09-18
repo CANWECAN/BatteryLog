@@ -26,6 +26,11 @@ def test_cli_emits_structured_json(monkeypatch, capsys) -> None:
     main()
 
     payload = json.loads(capsys.readouterr().out)
+    assert payload["validation_status"] == "FAIL"
+    assert payload["rules_evaluated"] == [
+        "CELL_IMBALANCE_HIGH",
+        "TEMPERATURE_HIGH",
+    ]
     assert payload["max_delta_v"] == 0.1
     assert payload["temperature_sensors_detected"] == 1
     assert payload["violations"][0] == {
@@ -57,6 +62,7 @@ def test_cli_accepts_custom_thresholds(monkeypatch, capsys) -> None:
     main()
 
     payload = json.loads(capsys.readouterr().out)
+    assert payload["validation_status"] == "PASS"
     assert payload["violations"] == []
 
 
@@ -97,6 +103,8 @@ def test_cli_loads_yaml_config_and_cli_overrides_it(monkeypatch, tmp_path, capsy
     main()
 
     payload = json.loads(capsys.readouterr().out)
+    assert payload["validation_status"] == "PASS"
+    assert payload["rules_evaluated"] == ["TEMPERATURE_HIGH"]
     assert payload["violations"] == []
 
 
@@ -125,5 +133,7 @@ def test_cli_without_limits_reports_metrics_only(monkeypatch, capsys) -> None:
     main()
 
     payload = json.loads(capsys.readouterr().out)
+    assert payload["validation_status"] == "NOT_EVALUATED"
+    assert payload["rules_evaluated"] == []
     assert payload["max_delta_v"] == 0.1
     assert payload["violations"] == []

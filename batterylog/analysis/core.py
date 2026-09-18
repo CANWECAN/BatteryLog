@@ -6,7 +6,7 @@ import pandas as pd
 
 from batterylog.config import ValidationLimits, override_validation_limits
 from batterylog.loaders import load_battery_csv
-from batterylog.models import AnalysisResult, ViolationEvent
+from batterylog.models import AnalysisResult, RuleCode, ViolationEvent
 
 from .rules import build_high_events, build_imbalance_events, build_low_events
 
@@ -62,6 +62,21 @@ def _resolve_limits(
     )
 
 
+def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
+    codes: list[RuleCode] = []
+    if limits.imbalance_max_v is not None:
+        codes.append("CELL_IMBALANCE_HIGH")
+    if limits.cell_max_v is not None:
+        codes.append("CELL_OVERVOLTAGE")
+    if limits.cell_min_v is not None:
+        codes.append("CELL_UNDERVOLTAGE")
+    if limits.temperature_max_c is not None:
+        codes.append("TEMPERATURE_HIGH")
+    if limits.temperature_min_c is not None:
+        codes.append("TEMPERATURE_LOW")
+    return codes
+
+
 def analyze_battery_log(
     path: str | Path,
     imbalance_limit_v: float | None = None,
@@ -108,6 +123,7 @@ def analyze_battery_log(
     row_max_temp = numeric[temp_cols].max(axis=1)
     row_min_temp = numeric[temp_cols].min(axis=1)
 
+    rules_evaluated = _active_rule_codes(resolved_limits)
     violations: list[ViolationEvent] = []
 
     if resolved_limits.imbalance_max_v is not None:
@@ -171,7 +187,16 @@ def analyze_battery_log(
 
     violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
 
+    if violations:
+        validation_status = "FAIL"
+    elif rules_evaluated:
+        validation_status = "PASS"
+    else:
+        validation_status = "NOT_EVALUATED"
+
     return {
+        "validation_status": validation_status,
+        "rules_evaluated": rules_evaluated,
         "rows_analyzed": len(df),
         "cells_detected": len(cell_cols),
         "temperature_sensors_detected": len(temp_cols),

@@ -1,8 +1,18 @@
-from typing import TypedDict
+from typing import Literal, TypedDict
+
+RuleCode = Literal[
+    "CELL_IMBALANCE_HIGH",
+    "CELL_OVERVOLTAGE",
+    "CELL_UNDERVOLTAGE",
+    "TEMPERATURE_HIGH",
+    "TEMPERATURE_LOW",
+]
+
+ValidationStatus = Literal["NOT_EVALUATED", "PASS", "FAIL"]
 
 
 class ViolationEvent(TypedDict):
-    code: str
+    code: RuleCode
     start_time_s: float
     end_time_s: float
     peak_time_s: float
@@ -13,6 +23,8 @@ class ViolationEvent(TypedDict):
 
 
 class AnalysisResult(TypedDict):
+    validation_status: ValidationStatus
+    rules_evaluated: list[RuleCode]
     rows_analyzed: int
     cells_detected: int
     temperature_sensors_detected: int
