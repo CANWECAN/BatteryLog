@@ -2,6 +2,18 @@
 
 All notable changes to BatteryLog are documented here.
 
+## Unreleased
+
+### Comparison semantics
+
+- Unified validation boundary comparisons behind one explicit policy.
+- High rules use strict `>`; low rules use strict `<`.
+- Values indistinguishable from a configured boundary at binary64 representation scale are treated as on-boundary, not as violations.
+- The representation guard uses a relative tolerance of `8 * float64 epsilon` and zero absolute tolerance; it is not an engineering or sensor tolerance.
+- Cell-imbalance, cell-voltage, temperature, and event-gap comparisons now use the same floating-point boundary policy.
+- Effective comparison semantics are recorded in machine-readable results and HTML reports.
+- Validation decisions no longer depend on decimal rounding of cell-voltage delta.
+
 ## 0.6.1 - 2026-09-19
 
 ### Fixed

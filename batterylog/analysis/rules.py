@@ -5,6 +5,8 @@ import pandas as pd
 
 from batterylog.models import RuleCode, ViolationEvent
 
+from .comparison import below_limit, exceeds_limit, exceeds_limit_scalar
+
 
 def contiguous_true_ranges(
     mask: pd.Series,
@@ -31,11 +33,10 @@ def contiguous_true_ranges(
                 start = position
             elif max_gap_s is not None and previous_active_position is not None:
                 assert timestamp_values is not None
-                gap_s = round(
-                    float(timestamp_values[position] - timestamp_values[previous_active_position]),
-                    12,
+                gap_s = float(
+                    timestamp_values[position] - timestamp_values[previous_active_position]
                 )
-                if gap_s > round(max_gap_s, 12):
+                if exceeds_limit_scalar(gap_s, max_gap_s):
                     ranges.append((start, position - 1))
                     start = position
 
@@ -66,7 +67,7 @@ def build_imbalance_events(
     timestamp_values = timestamps.to_numpy(dtype=float, copy=False)
 
     for start, end in contiguous_true_ranges(
-        delta_v > limit_v,
+        exceeds_limit(delta_v, limit_v),
         timestamps=timestamps,
         max_gap_s=max_gap_s,
     ):
@@ -158,7 +159,7 @@ def build_high_events(
         limit=limit,
         code=code,
         unit=unit,
-        violates=lambda values, threshold: values > threshold,
+        violates=exceeds_limit,
         peak_offset=lambda values: int(np.argmax(values)),
         max_gap_s=max_gap_s,
     )
@@ -183,7 +184,7 @@ def build_low_events(
         limit=limit,
         code=code,
         unit=unit,
-        violates=lambda values, threshold: values < threshold,
+        violates=below_limit,
         peak_offset=lambda values: int(np.argmin(values)),
         max_gap_s=max_gap_s,
     )

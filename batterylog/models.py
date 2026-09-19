@@ -13,6 +13,13 @@ RESULT_SCHEMA_VERSION: ResultSchemaVersion = 1
 
 ValidationStatus = Literal["NOT_EVALUATED", "PASS", "FAIL"]
 SignalMappingMode = Literal["canonical", "explicit"]
+ComparisonMode = Literal["strict_with_binary64_guard"]
+
+
+class ComparisonPolicyInfo(TypedDict):
+    mode: ComparisonMode
+    relative_tolerance: float
+    absolute_tolerance: float
 
 
 class AppliedLimits(TypedDict):
@@ -51,6 +58,7 @@ class AnalysisResult(TypedDict):
     rules_evaluated: list[RuleCode]
     limits_applied: AppliedLimits
     analysis_options: AnalysisOptions
+    comparison_policy: ComparisonPolicyInfo
     signal_mapping: SignalMappingInfo
     rows_analyzed: int
     cells_detected: int

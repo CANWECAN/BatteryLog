@@ -153,6 +153,22 @@ The `event_detection.max_gap_s` value controls event segmentation only. It is no
 
 If `max_gap_s` is omitted or `null`, BatteryLog preserves the original row-contiguity behavior.
 
+## Numerical comparison semantics
+
+Validation limits use strict engineering boundaries:
+
+- high-limit rules violate only when the measured value is strictly greater than the configured limit
+- low-limit rules violate only when the measured value is strictly less than the configured limit
+- a value on the configured boundary is not a violation
+
+BatteryLog applies a very small binary64 representation guard when deciding whether a computed floating-point value is effectively on the boundary. The relative guard is fixed at `8 * float64 epsilon` (approximately `1.776e-15`), while the absolute tolerance is `0.0`. This avoids applying one unit-dependent absolute allowance across volts, degrees Celsius, and seconds.
+
+This guard is **not** an engineering tolerance, sensor accuracy allowance, hysteresis, or calibration margin. Those belong in the test specification and must be reflected in the configured engineering limits themselves.
+
+The same comparison policy is used for cell overvoltage, cell undervoltage, cell imbalance, high/low temperature, and maximum event-gap boundaries. The effective policy is included in the machine-readable result as `comparison_policy` and rendered in HTML reports.
+
+Cell-delta values may still be rounded for serialized/display output to suppress unreadable subtraction artifacts; that presentation normalization does not participate in the validation decision.
+
 ## Validation status
 
 BatteryLog separates "no violations" from "no validation was performed":
