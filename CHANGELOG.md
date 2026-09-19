@@ -4,6 +4,13 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### Result contract
+
+- Added a formal Draft 2020-12 JSON Schema for result schema version 1.
+- Added CI tests that validate generated NOT_EVALUATED, PASS, and FAIL payloads against the schema.
+- The schema rejects unknown fields and encodes validation-status invariants.
+- The versioned schema artifact is included in the Python distribution package.
+
 ### Comparison semantics
 
 - Unified validation boundary comparisons behind one explicit policy.

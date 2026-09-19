@@ -31,6 +31,7 @@ The preview below is generated from the repository's vendor-style sample CSV and
 - Emit explicit `NOT_EVALUATED`, `PASS`, or `FAIL` validation status
 - Report which rules were actually evaluated
 - Emit a versioned machine-readable JSON result
+- Publish and CI-validate the result contract as Draft 2020-12 JSON Schema
 - Generate self-contained HTML validation reports
 - Record input/config SHA-256 provenance in HTML reports
 - Return CI-friendly process exit codes
@@ -185,7 +186,15 @@ The result also contains `rules_evaluated`, so downstream reports can show exact
 
 Machine-readable results include a separate `schema_version`. The current result schema is `1`.
 
-Package versions and result-schema versions are intentionally independent. A package release may add compatible features without changing the result schema; the schema version should change only when the machine-readable result contract changes incompatibly.
+The formal Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v1.json`](batterylog/schema/result-v1.json) and is included in the Python distribution package. CI validates generated `NOT_EVALUATED`, `PASS`, and `FAIL` results against this artifact.
+
+The schema rejects unknown top-level/nested fields and encodes status invariants such as:
+
+- `NOT_EVALUATED`: no rules evaluated and no violation events
+- `PASS`: at least one rule evaluated and no violation events
+- `FAIL`: at least one rule evaluated and at least one violation event
+
+Package versions and result-schema versions are intentionally independent. Package or implementation changes that do not alter the machine-readable payload may keep result schema version `1`. Because schema v1 is strict and rejects unknown fields, adding, removing, renaming, or changing the meaning/type of result fields requires a new versioned schema artifact and a new `schema_version`.
 
 ## Event semantics
 
