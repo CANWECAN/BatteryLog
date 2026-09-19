@@ -598,3 +598,50 @@ def test_non_finite_error_identifies_first_row_column_and_value(
     assert "index 1" in message
     assert "column 'temp_c'" in message
     assert "inf" in message
+
+
+def test_result_records_explicit_comparison_policy() -> None:
+    from batterylog.analysis.comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
+
+    result = analyze_battery_log(SAMPLE)
+
+    assert result["comparison_policy"] == {
+        "mode": "strict_with_binary64_guard",
+        "relative_tolerance": BINARY64_REL_TOL,
+        "absolute_tolerance": BINARY64_ABS_TOL,
+    }
+
+
+def test_meaningful_values_beyond_boundaries_still_violate(tmp_path: Path) -> None:
+    path = tmp_path / "comparison_boundaries.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v,cell_2_v\n"
+        "0,55.000000001,4.200000001,4.12\n"
+        "1,-20.000000001,2.799999999,2.80\n",
+        encoding="utf-8",
+    )
+    limits = ValidationLimits(
+        cell_min_v=2.8,
+        cell_max_v=4.2,
+        imbalance_max_v=0.08,
+        temperature_min_c=-20.0,
+        temperature_max_c=55.0,
+    )
+
+    result = analyze_battery_log(path, limits=limits)
+
+    assert result["validation_status"] == "FAIL"
+    assert set(result["rules_evaluated"]) == {
+        "CELL_IMBALANCE_HIGH",
+        "CELL_OVERVOLTAGE",
+        "CELL_UNDERVOLTAGE",
+        "TEMPERATURE_HIGH",
+        "TEMPERATURE_LOW",
+    }
+    assert {event["code"] for event in result["violations"]} == {
+        "CELL_IMBALANCE_HIGH",
+        "CELL_OVERVOLTAGE",
+        "CELL_UNDERVOLTAGE",
+        "TEMPERATURE_HIGH",
+        "TEMPERATURE_LOW",
+    }

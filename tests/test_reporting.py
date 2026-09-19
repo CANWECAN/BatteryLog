@@ -336,3 +336,14 @@ def test_verify_file_unchanged_accepts_metadata_only_change_when_hash_matches(
     )
 
     verify_file_unchanged(path, evidence)
+
+
+def test_report_displays_comparison_semantics() -> None:
+    result = analyze_battery_log(SAMPLE)
+
+    html = render_html_report(result)
+
+    assert "Comparison mode" in html
+    assert "binary64 boundary guard" in html
+    assert "Relative float tolerance" in html
+    assert "Absolute float tolerance" in html

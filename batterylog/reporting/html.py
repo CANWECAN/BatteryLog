@@ -74,6 +74,22 @@ def _analysis_options_rows(result: AnalysisResult) -> str:
     return _metric_row("Maximum event gap", rendered)
 
 
+def _comparison_policy_rows(result: AnalysisResult) -> str:
+    policy = result["comparison_policy"]
+    items = [
+        ("Comparison mode", "Strict > / < with binary64 boundary guard"),
+        (
+            "Relative float tolerance",
+            f"{policy['relative_tolerance']:.12g}",
+        ),
+        (
+            "Absolute float tolerance",
+            f"{policy['absolute_tolerance']:.12g}",
+        ),
+    ]
+    return "".join(_metric_row(label, value) for label, value in items)
+
+
 def _signal_mapping_rows(result: AnalysisResult) -> str:
     mapping = result["signal_mapping"]
 
@@ -220,7 +236,7 @@ code {{ font-family: ui-monospace, Consolas, monospace; }}
 <section>
 <h2>Validation configuration</h2>
 <p>Rules evaluated: <code>{escape(rules)}</code></p>
-<table><tbody>{_limits_rows(result)}{_analysis_options_rows(result)}{_signal_mapping_rows(result)}</tbody></table>
+<table><tbody>{_limits_rows(result)}{_analysis_options_rows(result)}{_comparison_policy_rows(result)}{_signal_mapping_rows(result)}</tbody></table>
 </section>
 <section>
 <h2>Violation events</h2>

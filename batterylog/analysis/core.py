@@ -17,12 +17,14 @@ from batterylog.models import (
     AnalysisOptions,
     AnalysisResult,
     AppliedLimits,
+    ComparisonPolicyInfo,
     RuleCode,
     SignalMappingInfo,
     ViolationEvent,
 )
 from batterylog.signals import canonicalize_battery_signals
 
+from .comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
 from .rules import build_high_events, build_imbalance_events, build_low_events
 
 CELL_SIGNAL_RE = re.compile(r"^cell_(\d+)_v$")
@@ -160,6 +162,14 @@ def _analysis_options_snapshot(config: EventDetectionConfig) -> AnalysisOptions:
     return {"max_event_gap_s": config.max_gap_s}
 
 
+def _comparison_policy_snapshot() -> ComparisonPolicyInfo:
+    return {
+        "mode": "strict_with_binary64_guard",
+        "relative_tolerance": BINARY64_REL_TOL,
+        "absolute_tolerance": BINARY64_ABS_TOL,
+    }
+
+
 def _signal_mapping_snapshot(mapping: SignalMapping | None) -> SignalMappingInfo:
     if mapping is None:
         return {
@@ -238,9 +248,7 @@ def analyze_battery_log(
 
     cell_max = numeric[cell_cols].max(axis=1)
     cell_min = numeric[cell_cols].min(axis=1)
-    # Normalize subtraction noise so values exactly on a configured boundary
-    # are not misclassified by binary floating-point representation.
-    delta_v = (cell_max - cell_min).round(12)
+    delta_v = cell_max - cell_min
     row_max_temp = numeric[temp_cols].max(axis=1)
     row_min_temp = numeric[temp_cols].min(axis=1)
 
@@ -326,6 +334,7 @@ def analyze_battery_log(
         "rules_evaluated": rules_evaluated,
         "limits_applied": _limits_snapshot(resolved_limits),
         "analysis_options": _analysis_options_snapshot(resolved_event_detection),
+        "comparison_policy": _comparison_policy_snapshot(),
         "signal_mapping": _signal_mapping_snapshot(signal_mapping),
         "rows_analyzed": len(df),
         "cells_detected": len(cell_cols),
