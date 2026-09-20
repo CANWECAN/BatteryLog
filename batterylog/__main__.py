@@ -3,17 +3,18 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from .analysis.core import analyze_battery_log
+from .analysis.core import analyze_battery_bytes, analyze_battery_log
 from .config import (
     ValidationConfig,
     ValidationLimits,
     load_validation_config,
+    load_validation_config_bytes,
     override_event_detection,
 )
 from .models import AnalysisResult
 from .reporting import (
     build_report_metadata,
-    capture_file_evidence,
+    capture_file_snapshot,
     render_json_result,
     verify_file_unchanged,
     write_html_report,
@@ -125,8 +126,13 @@ def _resolve_cli_limit(
     return current
 
 
-def _resolve_cli_config(args: argparse.Namespace) -> ValidationConfig:
-    base = load_validation_config(args.config) if args.config else ValidationConfig()
+def _resolve_cli_config(
+    args: argparse.Namespace,
+    *,
+    base: ValidationConfig | None = None,
+) -> ValidationConfig:
+    if base is None:
+        base = load_validation_config(args.config) if args.config else ValidationConfig()
     limits = ValidationLimits(
         cell_min_v=_resolve_cli_limit(
             base.limits.cell_min_v,
@@ -211,28 +217,49 @@ def run(argv: Sequence[str] | None = None) -> int:
         if _paths_refer_to_same_file(json_out_path, report_path):
             raise ValueError("JSON output path must not overwrite the HTML report")
 
-        source_evidence = capture_file_evidence(input_path) if report_path else None
-        config_evidence = (
-            capture_file_evidence(config_path)
-            if report_path is not None and config_path is not None
-            else None
-        )
+        if report_path is not None:
+            source_snapshot = capture_file_snapshot(input_path)
+            config_snapshot = (
+                capture_file_snapshot(config_path) if config_path is not None else None
+            )
+            base_config = (
+                load_validation_config_bytes(
+                    config_snapshot.data,
+                    source_name=str(config_path),
+                )
+                if config_snapshot is not None
+                else ValidationConfig()
+            )
+            validation_config = _resolve_cli_config(args, base=base_config)
+            result = analyze_battery_bytes(
+                source_snapshot.data,
+                limits=validation_config.limits,
+                event_detection=validation_config.event_detection,
+                signal_mapping=validation_config.signals,
+            )
+        else:
+            source_snapshot = None
+            config_snapshot = None
+            validation_config = _resolve_cli_config(args)
+            result = analyze_battery_log(
+                input_path,
+                limits=validation_config.limits,
+                event_detection=validation_config.event_detection,
+                signal_mapping=validation_config.signals,
+            )
 
-        validation_config = _resolve_cli_config(args)
-        result = analyze_battery_log(
-            input_path,
-            limits=validation_config.limits,
-            event_detection=validation_config.event_detection,
-            signal_mapping=validation_config.signals,
-        )
         json_text = render_json_result(result)
 
         if report_path is not None:
-            verify_file_unchanged(input_path, source_evidence)
-            if config_path is not None and config_evidence is not None:
-                verify_file_unchanged(config_path, config_evidence)
+            assert source_snapshot is not None
+            verify_file_unchanged(input_path, source_snapshot.evidence)
+            if config_path is not None and config_snapshot is not None:
+                verify_file_unchanged(config_path, config_snapshot.evidence)
 
-            metadata = build_report_metadata(source_evidence, config_evidence)
+            metadata = build_report_metadata(
+                source_snapshot.evidence,
+                config_snapshot.evidence if config_snapshot is not None else None,
+            )
             write_html_report(
                 result,
                 report_path,

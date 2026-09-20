@@ -17,6 +17,7 @@ from batterylog.reporting import (
     ReportMetadata,
     build_report_metadata,
     capture_file_evidence,
+    capture_file_snapshot,
     render_html_report,
     render_json_result,
     sha256_file,
@@ -165,23 +166,37 @@ def test_verify_file_unchanged_rejects_modified_file(tmp_path: Path) -> None:
         verify_file_unchanged(path, evidence)
 
 
-def test_capture_rejects_file_changed_while_hashing(
+def test_snapshot_evidence_hashes_the_exact_captured_bytes(tmp_path: Path) -> None:
+    path = tmp_path / "input.csv"
+    path.write_bytes(b"abc")
+
+    snapshot = capture_file_snapshot(path)
+
+    assert snapshot.data == b"abc"
+    assert snapshot.evidence.sha256 == (
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    )
+    assert snapshot.evidence.size_bytes == len(snapshot.data)
+
+
+def test_capture_rejects_file_changed_while_snapshotting(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "input.csv"
     path.write_bytes(b"abc")
-    original_sha256 = evidence_module.sha256_file
+    original_read_bytes = Path.read_bytes
 
-    def hash_then_mutate(value: str | Path) -> str:
-        digest = original_sha256(value)
-        Path(value).write_bytes(b"changed-size")
-        return digest
+    def read_then_mutate(value: Path) -> bytes:
+        data = original_read_bytes(value)
+        if value == path:
+            value.write_bytes(b"changed-size")
+        return data
 
-    monkeypatch.setattr(evidence_module, "sha256_file", hash_then_mutate)
+    monkeypatch.setattr(Path, "read_bytes", read_then_mutate)
 
-    with pytest.raises(ValueError, match="changed while hashing"):
-        capture_file_evidence(path)
+    with pytest.raises(ValueError, match="changed while snapshotting"):
+        capture_file_snapshot(path)
 
 
 def test_build_report_metadata_normalizes_time_to_utc(tmp_path: Path) -> None:
@@ -392,3 +407,23 @@ def test_json_renderer_rejects_non_finite_result_values() -> None:
 
     with pytest.raises(ValueError, match="Out of range float values"):
         render_json_result(result)
+
+
+def test_capture_rejects_snapshot_length_that_disagrees_with_file_size(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "input.csv"
+    path.write_bytes(b"abc")
+    original_read_bytes = Path.read_bytes
+
+    def return_truncated_snapshot(value: Path) -> bytes:
+        data = original_read_bytes(value)
+        if value == path:
+            return data[:-1]
+        return data
+
+    monkeypatch.setattr(Path, "read_bytes", return_truncated_snapshot)
+
+    with pytest.raises(ValueError, match="size changed while snapshotting"):
+        capture_file_snapshot(path)

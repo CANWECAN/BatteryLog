@@ -9,6 +9,7 @@ from batterylog.config import (
     ValidationConfig,
     ValidationLimits,
     load_validation_config,
+    load_validation_config_bytes,
     load_validation_limits,
     override_event_detection,
     override_validation_limits,
@@ -516,3 +517,18 @@ def test_validation_config_rejects_invalid_component_types(
 ) -> None:
     with pytest.raises(TypeError, match=message):
         ValidationConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_validation_config_bytes_match_path_loader(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "limits:\n  cell_voltage:\n    max_v: 4.2\nevent_detection:\n  max_gap_s: 0.5\n",
+    )
+
+    from_path = load_validation_config(path)
+    from_bytes = load_validation_config_bytes(
+        path.read_bytes(),
+        source_name=str(path),
+    )
+
+    assert from_bytes == from_path
