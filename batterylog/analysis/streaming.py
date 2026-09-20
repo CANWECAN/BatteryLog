@@ -6,7 +6,11 @@ from typing import BinaryIO
 import pandas as pd
 
 from batterylog.config import EventDetectionConfig, SignalMapping, ValidationLimits
-from batterylog.loaders import CsvFileLoader, CsvPathLoader, MeasurementLoader
+from batterylog.loaders import (
+    MeasurementLoader,
+    measurement_loader_for_file,
+    measurement_loader_for_path,
+)
 from batterylog.models import RESULT_SCHEMA_VERSION, AnalysisResult, RuleCode, ViolationEvent
 from batterylog.signals import canonicalize_battery_signals
 
@@ -405,7 +409,7 @@ def analyze_battery_log_streaming(
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
     return analyze_measurement_loader(
-        CsvPathLoader(Path(path)),
+        measurement_loader_for_path(path),
         imbalance_limit_v,
         temp_warning_c,
         limits=limits,
@@ -419,12 +423,13 @@ def analyze_battery_file_streaming(
     imbalance_limit_v: float | None = None,
     temp_warning_c: float | None = None,
     *,
+    source_name: str | Path | None = None,
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
     return analyze_measurement_loader(
-        CsvFileLoader(handle),
+        measurement_loader_for_file(handle, source_name=source_name),
         imbalance_limit_v,
         temp_warning_c,
         limits=limits,

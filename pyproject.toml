@@ -26,6 +26,9 @@ Issues = "https://github.com/CANWECAN/BatteryLog/issues"
 batterylog = "batterylog.__main__:main"
 
 [project.optional-dependencies]
+mf4 = [
+  "asammdf>=8.8,<9",
+]
 dev = [
   "hypothesis>=6",
   "jsonschema>=4",

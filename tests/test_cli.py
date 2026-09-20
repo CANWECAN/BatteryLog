@@ -81,6 +81,28 @@ def test_cli_reports_validation_errors_as_runtime_exit(tmp_path, capsys) -> None
     assert "No cell voltage columns" in capsys.readouterr().err
 
 
+def test_cli_reports_missing_mf4_extra_with_install_hint(tmp_path, capsys, monkeypatch) -> None:
+    from batterylog.loaders import mf4 as mf4_module
+
+    source = tmp_path / "capture.mf4"
+    source.write_bytes(b"not-read-before-dependency-check")
+
+    def missing_dependency():
+        raise ImportError(
+            "MF4/MDF support requires the optional 'mf4' dependency; "
+            "install with 'pip install batterylog[mf4]'"
+        )
+
+    monkeypatch.setattr(mf4_module, "_load_asammdf", missing_dependency)
+
+    exit_code = run([str(source)])
+
+    captured = capsys.readouterr()
+    assert exit_code == EXIT_RUNTIME_ERROR
+    assert captured.out == ""
+    assert "pip install batterylog[mf4]" in captured.err
+
+
 def test_cli_loads_yaml_config_and_cli_overrides_it(tmp_path, capsys) -> None:
     config = tmp_path / "validation.yaml"
     config.write_text(

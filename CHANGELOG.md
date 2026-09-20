@@ -8,6 +8,10 @@ All notable changes to BatteryLog are documented here.
 
 - Introduced a format-neutral measurement-loader contract so source adapters can feed the same chunked validation engine without adding format branches to the rule engine.
 - Routed both path-backed and file-backed CSV analysis through dedicated loader adapters while preserving existing CSV behavior.
+- Added optional MDF/MF4 ingestion behind the `mf4` extra using `asammdf` with a 64 MiB output-DataFrame chunk target.
+- Added explicit MDF channel ambiguity checks, physical-unit validation, preserved master timestamps, and fail-closed no-interpolation alignment semantics.
+- Added real MDF4 integration tests for CSV equivalence, vendor signal mapping, misaligned rasters, duplicate channel names, and HTML evidence reports.
+- Gated tagged releases on dedicated MDF/MF4 integration jobs across Python 3.11-3.14 and Windows.
 
 ### Large-log analysis
 
