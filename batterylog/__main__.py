@@ -3,7 +3,8 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from .analysis.core import analyze_battery_bytes, analyze_battery_log
+from .analysis.core import analyze_battery_log
+from .analysis.streaming import analyze_battery_file_streaming
 from .config import (
     EventDetectionConfig,
     ValidationConfig,
@@ -21,6 +22,7 @@ from .reporting import (
     write_html_report,
     write_json_result,
 )
+from .reporting.evidence import capture_file_backed_snapshot
 
 EXIT_PASS = 0
 EXIT_VALIDATION_FAIL = 1
@@ -226,28 +228,40 @@ def run(argv: Sequence[str] | None = None) -> int:
             raise ValueError("JSON output path must not overwrite the HTML report")
 
         if report_path is not None:
-            source_snapshot = capture_file_snapshot(input_path)
-            config_snapshot = (
-                capture_file_snapshot(config_path) if config_path is not None else None
-            )
-            base_config = (
-                load_validation_config_bytes(
-                    config_snapshot.data,
-                    source_name=str(config_path),
+            with capture_file_backed_snapshot(input_path) as source_snapshot:
+                config_snapshot = (
+                    capture_file_snapshot(config_path) if config_path is not None else None
                 )
-                if config_snapshot is not None
-                else ValidationConfig()
-            )
-            validation_config = _resolve_cli_config(args, base=base_config)
-            result = analyze_battery_bytes(
-                source_snapshot.data,
-                limits=validation_config.limits,
-                event_detection=validation_config.event_detection,
-                signal_mapping=validation_config.signals,
-            )
+                base_config = (
+                    load_validation_config_bytes(
+                        config_snapshot.data,
+                        source_name=str(config_path),
+                    )
+                    if config_snapshot is not None
+                    else ValidationConfig()
+                )
+                validation_config = _resolve_cli_config(args, base=base_config)
+                result = analyze_battery_file_streaming(
+                    source_snapshot.handle,
+                    limits=validation_config.limits,
+                    event_detection=validation_config.event_detection,
+                    signal_mapping=validation_config.signals,
+                )
+
+                verify_file_unchanged(input_path, source_snapshot.evidence)
+                if config_path is not None and config_snapshot is not None:
+                    verify_file_unchanged(config_path, config_snapshot.evidence)
+
+                metadata = build_report_metadata(
+                    source_snapshot.evidence,
+                    config_snapshot.evidence if config_snapshot is not None else None,
+                )
+                write_html_report(
+                    result,
+                    report_path,
+                    metadata=metadata,
+                )
         else:
-            source_snapshot = None
-            config_snapshot = None
             validation_config = _resolve_cli_config(args)
             result = analyze_battery_log(
                 input_path,
@@ -257,22 +271,6 @@ def run(argv: Sequence[str] | None = None) -> int:
             )
 
         json_text = render_json_result(result)
-
-        if report_path is not None:
-            assert source_snapshot is not None
-            verify_file_unchanged(input_path, source_snapshot.evidence)
-            if config_path is not None and config_snapshot is not None:
-                verify_file_unchanged(config_path, config_snapshot.evidence)
-
-            metadata = build_report_metadata(
-                source_snapshot.evidence,
-                config_snapshot.evidence if config_snapshot is not None else None,
-            )
-            write_html_report(
-                result,
-                report_path,
-                metadata=metadata,
-            )
 
         if json_out_path is not None:
             write_json_result(result, json_out_path)

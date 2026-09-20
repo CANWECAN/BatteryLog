@@ -3,6 +3,7 @@ import io
 from collections import Counter
 from collections.abc import Iterator
 from pathlib import Path
+from typing import BinaryIO
 
 import pandas as pd
 
@@ -47,6 +48,27 @@ def _read_header_from_path(path: str | Path) -> list[str]:
     return _validate_header(header)
 
 
+def _read_header_from_binary_file(handle: BinaryIO) -> list[str]:
+    handle.seek(0)
+    text = io.TextIOWrapper(handle, encoding="utf-8-sig", newline="")
+    try:
+        reader = csv.reader(text)
+        try:
+            header = next(reader)
+        except StopIteration as exc:
+            raise ValueError("Battery log is empty") from exc
+    finally:
+        text.detach()
+        handle.seek(0)
+
+    return _validate_header(header)
+
+
+def _validate_chunk_rows(chunk_rows: int) -> None:
+    if isinstance(chunk_rows, bool) or not isinstance(chunk_rows, int) or chunk_rows <= 0:
+        raise ValueError("chunk_rows must be a positive integer")
+
+
 def load_battery_csv_bytes(data: bytes) -> pd.DataFrame:
     _read_header_from_bytes(data)
     return pd.read_csv(io.BytesIO(data), encoding="utf-8-sig")
@@ -61,8 +83,7 @@ def iter_battery_csv(
     *,
     chunk_rows: int,
 ) -> Iterator[pd.DataFrame]:
-    if isinstance(chunk_rows, bool) or not isinstance(chunk_rows, int) or chunk_rows <= 0:
-        raise ValueError("chunk_rows must be a positive integer")
+    _validate_chunk_rows(chunk_rows)
 
     source = Path(path)
     _read_header_from_path(source)
@@ -71,3 +92,22 @@ def iter_battery_csv(
         encoding="utf-8-sig",
         chunksize=chunk_rows,
     )
+
+
+def iter_battery_csv_file(
+    handle: BinaryIO,
+    *,
+    chunk_rows: int,
+) -> Iterator[pd.DataFrame]:
+    _validate_chunk_rows(chunk_rows)
+    _read_header_from_binary_file(handle)
+
+    reader = pd.read_csv(
+        handle,
+        encoding="utf-8-sig",
+        chunksize=chunk_rows,
+    )
+    try:
+        yield from reader
+    finally:
+        reader.close()

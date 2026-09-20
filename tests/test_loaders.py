@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from batterylog.loaders import load_battery_csv, load_battery_csv_bytes
+from batterylog.loaders import iter_battery_csv_file, load_battery_csv, load_battery_csv_bytes
 
 
 def test_empty_csv_is_rejected(tmp_path: Path) -> None:
@@ -55,3 +55,20 @@ def test_byte_loader_matches_path_loader(tmp_path: Path) -> None:
     from_bytes = load_battery_csv_bytes(path.read_bytes())
 
     assert from_bytes.equals(from_path)
+
+
+def test_binary_file_chunk_loader_matches_path_loader(tmp_path: Path) -> None:
+    path = tmp_path / "input.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v\n0,25,3.8\n1,26,3.9\n2,27,4.0\n",
+        encoding="utf-8",
+    )
+
+    expected = load_battery_csv(path)
+    with path.open("rb") as handle:
+        chunks = list(iter_battery_csv_file(handle, chunk_rows=2))
+        assert not handle.closed
+
+    assert len(chunks) == 2
+    assert chunks[0].equals(expected.iloc[:2])
+    assert chunks[1].equals(expected.iloc[2:])
