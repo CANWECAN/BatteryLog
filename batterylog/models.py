@@ -8,8 +8,8 @@ RuleCode = Literal[
     "TEMPERATURE_LOW",
 ]
 
-ResultSchemaVersion = Literal[1]
-RESULT_SCHEMA_VERSION: ResultSchemaVersion = 1
+ResultSchemaVersion = Literal[2]
+RESULT_SCHEMA_VERSION: ResultSchemaVersion = 2
 
 ValidationStatus = Literal["NOT_EVALUATED", "PASS", "FAIL"]
 SignalMappingMode = Literal["canonical", "explicit"]

@@ -200,17 +200,21 @@ The result also contains `rules_evaluated`, so downstream reports can show exact
 
 ## Result schema
 
-Machine-readable results include a separate `schema_version`. The current result schema is `1`.
+Machine-readable analysis results include their own `schema_version`. The current **result schema is 2**.
 
-The formal Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v1.json`](batterylog/schema/result-v1.json) and is included in the Python distribution package. CI validates generated `NOT_EVALUATED`, `PASS`, and `FAIL` results against this artifact.
+The formal Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v2.json`](batterylog/schema/result-v2.json) and is included in the Python distribution package. CI validates generated `NOT_EVALUATED`, `PASS`, and `FAIL` results against this artifact.
 
-The schema rejects unknown top-level/nested fields and encodes status invariants such as:
+Result schema version 2 is BatteryLog's **first formally frozen result contract**. Historical `schema_version: 1` results from the 0.4.x–0.6.x development line evolved additively before a strict schema artifact existed, so BatteryLog does not claim one strict v1 schema for all of those payloads.
+
+The result schema rejects unknown top-level/nested fields and encodes status invariants such as:
 
 - `NOT_EVALUATED`: no rules evaluated and no violation events
 - `PASS`: at least one rule evaluated and no violation events
 - `FAIL`: at least one rule evaluated and at least one violation event
 
-Package versions and result-schema versions are intentionally independent. Package or implementation changes that do not alter the machine-readable payload may keep result schema version `1`. Because schema v1 is strict and rejects unknown fields, adding, removing, renaming, or changing the meaning/type of result fields requires a new versioned schema artifact and a new `schema_version`.
+Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The YAML config format currently remains `schema_version: 1`; that value does **not** mean result schema version 1.
+
+From result schema v2 onward, adding, removing, renaming, changing the required status/type/meaning of result fields, or otherwise changing the machine-readable wire contract requires a new result-schema version. The full policy and historical rationale are documented in [`docs/RESULT_SCHEMA_VERSIONING.md`](docs/RESULT_SCHEMA_VERSIONING.md).
 
 ## Event semantics
 
