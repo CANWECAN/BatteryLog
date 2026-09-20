@@ -8,6 +8,22 @@ The current version focuses on deterministic CSV analysis, configurable validati
 
 Battery validation often involves repetitive checks across long measurement logs. BatteryLog turns those checks into reproducible software so violations can be traced to when they happened, how severe they were, and which signals were involved.
 
+## Open source and real-world use
+
+BatteryLog is open-source software licensed under the [Apache License 2.0](LICENSE). Commercial, internal, research, and educational use are welcome subject to the license terms.
+
+Using BatteryLog on real battery/BMS validation data? If your confidentiality requirements allow it, please consider sharing **anonymized** engineering feedback through GitHub, such as:
+
+- validation scenarios and test shapes
+- dataset size and performance measurements
+- vendor signal-naming patterns
+- integration experience
+- bugs, edge cases, and unexpected results
+
+You do **not** need to publish proprietary test data to use BatteryLog. Even a short report such as "tested on a 96-cell, 1.2M-row HIL log" is useful for improving the project and documenting real-world adoption.
+
+If BatteryLog supports research, validation, or engineering work, please cite or link the repository. Citation metadata is available in [`CITATION.cff`](CITATION.cff), and attribution information is recorded in [`NOTICE`](NOTICE).
+
 ## Report preview
 
 The preview below is generated from the repository's vendor-style sample CSV and explicit signal-mapping config.

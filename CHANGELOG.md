@@ -4,6 +4,14 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### Licensing and attribution
+
+- Licensed BatteryLog under the Apache License 2.0.
+- Added PEP 639 SPDX package metadata and explicit LICENSE/NOTICE distribution files.
+- Added a NOTICE attribution file with the canonical project repository.
+- Added CITATION.cff metadata so GitHub and other tooling can generate software citations.
+- Documented that commercial/internal use is welcome and invited anonymized real-world validation feedback.
+
 ### CLI contract
 
 - Refactored `run()` to return integer codes for expected CLI outcomes; `main()` is now the single `SystemExit` boundary.
