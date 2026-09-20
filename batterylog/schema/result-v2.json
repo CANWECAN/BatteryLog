@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/CANWECAN/BatteryLog/blob/main/batterylog/schema/result-v1.json",
-  "title": "BatteryLog Analysis Result v1",
-  "description": "Machine-readable result contract for BatteryLog result schema version 1.",
+  "$id": "https://raw.githubusercontent.com/CANWECAN/BatteryLog/v0.7.0/batterylog/schema/result-v2.json",
+  "title": "BatteryLog Analysis Result v2",
+  "description": "First formally frozen machine-readable result contract for BatteryLog, result schema version 2.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -25,7 +25,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": 1
+      "const": 2
     },
     "validation_status": {
       "enum": ["NOT_EVALUATED", "PASS", "FAIL"]

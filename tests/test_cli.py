@@ -30,7 +30,7 @@ def test_cli_fail_emits_json_and_returns_exit_1(capsys) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 1
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["validation_status"] == "FAIL"
     assert payload["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",

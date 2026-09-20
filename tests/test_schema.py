@@ -6,10 +6,16 @@ import pytest
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
-from batterylog import ValidationLimits, analyze_battery_log, load_validation_config
+from batterylog import (
+    RESULT_SCHEMA_VERSION,
+    ValidationLimits,
+    analyze_battery_log,
+    load_validation_config,
+)
 
 ROOT = Path(__file__).parents[1]
-SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v1.json"
+SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v2.json"
+LEGACY_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v1.json"
 SAMPLE = ROOT / "examples" / "sample_battery_log.csv"
 VENDOR_SAMPLE = ROOT / "examples" / "vendor_battery_log.csv"
 VENDOR_CONFIG = ROOT / "examples" / "vendor_mapping.example.yaml"
@@ -47,7 +53,7 @@ def _results_for_all_statuses() -> list[dict[str, object]]:
     return [not_evaluated, passed, failed]
 
 
-def test_generated_results_validate_against_schema_v1(
+def test_generated_results_validate_against_schema_v2(
     validator: Draft202012Validator,
 ) -> None:
     for result in _results_for_all_statuses():
@@ -129,6 +135,40 @@ def test_schema_rejects_rule_unit_mismatch(
     )
     assert result["violations"][0]["code"] == "CELL_IMBALANCE_HIGH"
     result["violations"][0]["unit"] = "degC"
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
+def test_schema_artifact_matches_runtime_version(
+    result_schema: dict[str, object],
+) -> None:
+    assert RESULT_SCHEMA_VERSION == 2
+    assert SCHEMA_PATH.name == f"result-v{RESULT_SCHEMA_VERSION}.json"
+    assert result_schema["title"] == "BatteryLog Analysis Result v2"
+    assert result_schema["$id"] == (
+        "https://raw.githubusercontent.com/CANWECAN/BatteryLog/"
+        "v0.7.0/batterylog/schema/result-v2.json"
+    )
+    assert "/main/" not in str(result_schema["$id"])
+    assert "/blob/" not in str(result_schema["$id"])
+
+    properties = result_schema["properties"]
+    assert isinstance(properties, dict)
+    schema_version = properties["schema_version"]
+    assert isinstance(schema_version, dict)
+    assert schema_version["const"] == RESULT_SCHEMA_VERSION
+
+
+def test_no_strict_legacy_v1_schema_is_published() -> None:
+    assert not LEGACY_SCHEMA_PATH.exists()
+
+
+def test_schema_v2_rejects_legacy_result_version_number(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(analyze_battery_log(SAMPLE))
+    result["schema_version"] = 1  # type: ignore[typeddict-item]
 
     with pytest.raises(ValidationError):
         validator.validate(result)

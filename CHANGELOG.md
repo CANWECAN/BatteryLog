@@ -36,10 +36,14 @@ All notable changes to BatteryLog are documented here.
 
 ### Result contract
 
-- Added a formal Draft 2020-12 JSON Schema for result schema version 1.
-- Added CI tests that validate generated NOT_EVALUATED, PASS, and FAIL payloads against the schema.
-- The schema rejects unknown fields and encodes validation-status invariants.
-- The versioned schema artifact is included in the Python distribution package.
+- Promoted the current machine-readable result contract to result schema version 2.
+- Result schema v2 is the first formally frozen BatteryLog result contract.
+- Historical result schema v1 is documented as a legacy, pre-formal marker because 0.4.x-0.6.x payloads evolved while retaining `schema_version: 1`.
+- Replaced the misleading strict `result-v1.json` artifact with `result-v2.json`.
+- The v2 Draft 2020-12 schema rejects unknown fields and encodes validation-status invariants.
+- The v2 schema uses an immutable v0.7.0 tag-addressed raw URL as its canonical `$id`.
+- Added CI tests tying the runtime schema constant, artifact filename, schema `const`, and canonical identifier together.
+- Documented that YAML configuration schema version 1 and result schema version 2 are independent contracts.
 
 ### Comparison semantics
 
@@ -130,7 +134,7 @@ First tagged public release.
 - Self-contained HTML validation reports
 - Input-log and validation-config SHA-256 provenance
 - BatteryLog version and UTC generation metadata in reports
-- Machine-readable result `schema_version` (currently `1`)
+- Machine-readable result `schema_version` (introduced as `1`)
 - CI-friendly process exit codes for PASS, FAIL, error, and NOT_EVALUATED
 - Applied-limit snapshot in analysis results
 - Atomic HTML report writing
