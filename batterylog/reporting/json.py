@@ -27,14 +27,13 @@ def write_json_result(
     temp_path: Path | None = None
     try:
         with NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
+            mode="wb",
             dir=path.parent,
             prefix=f".{path.name}.",
             suffix=".tmp",
             delete=False,
         ) as handle:
-            handle.write(content)
+            handle.write(content.encode("utf-8"))
             temp_path = Path(handle.name)
 
         temp_path.replace(path)
