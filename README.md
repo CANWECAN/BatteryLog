@@ -32,7 +32,8 @@ The preview below is generated from the repository's vendor-style sample CSV and
 
 ## Current capabilities
 
-- Analyze CSV battery logs
+- Analyze CSV battery logs in bounded row chunks on the standard file-analysis path
+- Preserve violation events, extrema, and timestamp-ordering checks across chunk boundaries
 - Map vendor-specific timestamp, cell-voltage, and temperature channel names into a canonical signal model
 - Load validation limits from YAML
 - Detect cell overvoltage and undervoltage
@@ -261,13 +262,14 @@ Run the quality gate:
 .\.venv\Scripts\python.exe -m pytest -q --cov=batterylog --cov-fail-under=95
 ```
 
-Run the synthetic worst-case event-construction benchmark separately from CI:
+Run profiling benchmarks separately from CI:
 
 ```powershell
 .\.venv\Scripts\python.exe benchmarks\benchmark_event_builders.py --rows 300000 --signals 20
+.\.venv\Scripts\python.exe benchmarks\benchmark_csv_analysis.py --rows 200000 --cells 100
 ```
 
-The benchmark intentionally creates many short events. It is a profiling aid, not a pass/fail CI timing gate.
+The event-builder benchmark intentionally creates many short events. The CSV benchmark generates a temporary canonical log and reports end-to-end analysis time plus `tracemalloc` Python-heap peak usage. Both are profiling aids, not pass/fail CI timing gates.
 
 ## CLI usage
 
@@ -396,9 +398,11 @@ BatteryLog still re-hashes the on-disk files before writing the report to detect
 
 The security and trust boundaries of this evidence model are documented in [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md). SHA-256 provenance binds results to analyzed bytes; it does not authenticate the origin of the data or digitally sign the generated report.
 
-The current CSV loader still materializes the complete file in memory. Evidence-report mode additionally retains the immutable source snapshot while analysis runs, so bounded-memory multi-million-row processing requires the separate streaming work planned for large-log support.
+The standard CSV file-analysis path processes the input in 50,000-row chunks. Global extrema, timestamp ordering, and active violation-event state are carried across chunk boundaries, so analysis memory no longer grows with the total CSV row count. The machine-readable result still materializes its violation-event list, so workloads that intentionally produce extremely large numbers of distinct events can still consume memory proportional to the result itself.
 
-Planned follow-on work includes report plots, MF4/MDF support, CAN/DBC decoding, richer rule metadata, larger-log processing.
+HTML evidence-report mode currently retains the immutable source byte snapshot and analyzes that snapshot in memory to preserve the exact-byte provenance invariant. Making that path bounded-memory requires a separate snapshot design that does not weaken provenance; this remains part of the large-log work.
+
+Planned follow-on work includes bounded-memory evidence reports, report plots, MF4/MDF support, CAN/DBC decoding, and richer rule metadata.
 
 ## Status
 
