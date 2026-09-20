@@ -43,3 +43,71 @@ jobs:
       - run: python -m ruff check .
       - run: python -m pip check
       - run: python -m pytest -q --cov=batterylog --cov-report=term-missing --cov-fail-under=95
+
+  package:
+    runs-on: ubuntu-24.04
+    outputs:
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: python -m pip install build twine PyYAML packaging
+      - name: Check release version
+        id: version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: python scripts/check_release_version.py
+      - name: Build sdist and wheel from sdist
+        run: python -m build
+      - run: python -m twine check --strict dist/*
+      - name: Validate both installed distributions outside checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          for artifact in "$GITHUB_WORKSPACE"/dist/*.whl "$GITHUB_WORKSPACE"/dist/*.tar.gz; do
+            env_dir=$(mktemp -d)
+            python -m venv "$env_dir/venv"
+            "$env_dir/venv/bin/python" -m pip install "$artifact" jsonschema
+            "$env_dir/venv/bin/python" -m pip check
+            (cd "$env_dir" && "$env_dir/venv/bin/python" "$GITHUB_WORKSPACE/scripts/check_installed_package.py" "$version" "$GITHUB_WORKSPACE/examples/sample_battery_log.csv")
+          done
+      - name: Compute checksums
+        working-directory: dist
+        run: sha256sum -- *.whl *.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    needs: [test, windows, package]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist
+      - name: Publish verified tag artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.package.outputs.prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum --check SHA256SUMS)
+          flags=()
+          if [[ "$PRERELEASE" == "true" ]]; then
+            flags+=(--prerelease --latest=false)
+          fi
+          gh release create "$RELEASE_TAG" dist/* --verify-tag --generate-notes "${flags[@]}"

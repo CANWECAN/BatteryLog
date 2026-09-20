@@ -709,3 +709,27 @@ def test_report_provenance_parses_exact_config_snapshot_during_restore_race(
     assert payload["validation_status"] == "PASS"
     assert payload["limits_applied"]["cell_max_v"] == 4.2
     assert hashlib.sha256(original_config).hexdigest() in report.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("options", "expected_gap", "expected_events"),
+    [([], 0.5, 2), (["--max-event-gap-s", "10"], 10.0, 1), (["--no-max-event-gap-s"], None, 1)],
+)
+def test_cli_event_gap_three_states(tmp_path, capsys, options, expected_gap, expected_events):
+    source = tmp_path / "sparse.csv"
+    source.write_text("timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,4,3.8\n5,25,4,3.8\n")
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        "limits:\n  cell_voltage:\n    max_delta_v: 0.08\nevent_detection:\n  max_gap_s: 0.5\n"
+    )
+    assert run([str(source), "--config", str(config), *options]) == 1
+    result = json.loads(capsys.readouterr().out)
+    assert result["analysis_options"]["max_event_gap_s"] == expected_gap
+    assert len(result["violations"]) == expected_events
+
+
+def test_cli_event_gap_disable_conflicts_with_numeric_override(capsys):
+    assert run([str(SAMPLE), "--max-event-gap-s", "1", "--no-max-event-gap-s"]) == 2
+    output = capsys.readouterr()
+    assert not output.out
+    assert "not allowed with argument" in output.err
