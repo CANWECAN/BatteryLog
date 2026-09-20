@@ -23,6 +23,7 @@ All notable changes to BatteryLog are documented here.
 - Rendered configured limit lines from the effective result limits and violation intervals/worst-case markers from structured `AnalysisResult` events rather than re-evaluating rules from plot data.
 - Kept JSON/result schema v2 unchanged and kept plot collection off the standard non-report analysis path.
 - Added CSV and real MDF4 CLI report tests covering plot generation, provenance, deterministic rendering, and event-marker sourcing.
+- Hardened plot evidence after adversarial review: malformed per-point envelopes/deltas, non-finite or out-of-domain events, reversed event timing, and unmapped rule codes now fail closed; instantaneous events use exact vertical markers and single-row plots show explicit samples.
 
 ### Large-log analysis
 

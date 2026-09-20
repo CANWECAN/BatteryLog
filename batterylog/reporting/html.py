@@ -223,9 +223,13 @@ code {{ font-family: ui-monospace, Consolas, monospace; }}
 .series-primary, .series-secondary {{ fill: none; stroke-width: 1.7; vector-effect: non-scaling-stroke; }}
 .series-primary {{ stroke: #2563eb; }}
 .series-secondary {{ stroke: #16a34a; }}
+.series-sample {{ stroke: white; stroke-width: 1; vector-effect: non-scaling-stroke; }}
+.series-primary-sample {{ fill: #2563eb; }}
+.series-secondary-sample {{ fill: #16a34a; }}
 .limit-line {{ stroke: #d97706; stroke-width: 1.4; stroke-dasharray: 7 5; vector-effect: non-scaling-stroke; }}
 .limit-label {{ fill: #d97706; font-size: 11px; }}
 .violation-window {{ fill: #dc2626; fill-opacity: 0.10; }}
+.violation-instant {{ stroke: #dc2626; stroke-width: 1.5; stroke-opacity: 0.65; vector-effect: non-scaling-stroke; }}
 .violation-peak {{ fill: #dc2626; stroke: white; stroke-width: 1.5; vector-effect: non-scaling-stroke; }}
 .plot-note {{ margin-top: -4px; }}
 </style>

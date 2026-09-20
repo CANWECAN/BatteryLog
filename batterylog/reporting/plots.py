@@ -20,6 +20,7 @@ _TICK_COUNT = 5
 _VOLTAGE_CODES = frozenset({"CELL_UNDERVOLTAGE", "CELL_OVERVOLTAGE"})
 _DELTA_CODES = frozenset({"CELL_IMBALANCE_HIGH"})
 _TEMPERATURE_CODES = frozenset({"TEMPERATURE_LOW", "TEMPERATURE_HIGH"})
+_ALL_PLOT_CODES = _VOLTAGE_CODES | _DELTA_CODES | _TEMPERATURE_CODES
 
 GeometryBuilder = Callable[[tuple[ReportSeriesPoint, ...], float, float, float, float], str]
 
@@ -91,7 +92,17 @@ def _polyline(
         f"{_attr_number(_y(accessor(point), y_min, y_max))}"
         for point in points
     )
-    return f'<polyline class="{css_class}" points="{coordinates}" />'
+    polyline = f'<polyline class="{css_class}" points="{coordinates}" />'
+    if len(points) != 1:
+        return polyline
+
+    point = points[0]
+    sample_x = _x(point.timestamp_s, x_start, x_end)
+    sample_y = _y(accessor(point), y_min, y_max)
+    return (
+        polyline + f'<circle class="series-sample {css_class}-sample" '
+        f'cx="{_attr_number(sample_x)}" cy="{_attr_number(sample_y)}" r="3" />'
+    )
 
 
 def _envelope_polygon(
@@ -134,16 +145,24 @@ def _event_windows(
         start_x = min(max(_x(event["start_time_s"], x_start, x_end), _LEFT), plot_right)
         end_x = min(max(_x(event["end_time_s"], x_start, x_end), _LEFT), plot_right)
         left = min(start_x, end_x)
-        width = max(abs(end_x - start_x), 1.5)
-        if left + width > plot_right:
-            left = max(_LEFT, plot_right - width)
+        width = abs(end_x - start_x)
         code = escape(event["code"])
-        parts.append(
-            f'<rect class="violation-window" x="{_attr_number(left)}" y="{_attr_number(_TOP)}" '
-            f'width="{_attr_number(width)}" height="{_attr_number(_PLOT_HEIGHT)}" '
-            f'data-code="{code}" data-start-time-s="{_fmt(event["start_time_s"])}" '
-            f'data-end-time-s="{_fmt(event["end_time_s"])}" />'
-        )
+        if width == 0.0:
+            parts.append(
+                f'<line class="violation-instant" x1="{_attr_number(left)}" '
+                f'x2="{_attr_number(left)}" y1="{_attr_number(_TOP)}" '
+                f'y2="{_attr_number(_TOP + _PLOT_HEIGHT)}" data-code="{code}" '
+                f'data-start-time-s="{_fmt(event["start_time_s"])}" '
+                f'data-end-time-s="{_fmt(event["end_time_s"])}" />'
+            )
+        else:
+            parts.append(
+                f'<rect class="violation-window" x="{_attr_number(left)}" '
+                f'y="{_attr_number(_TOP)}" width="{_attr_number(width)}" '
+                f'height="{_attr_number(_PLOT_HEIGHT)}" data-code="{code}" '
+                f'data-start-time-s="{_fmt(event["start_time_s"])}" '
+                f'data-end-time-s="{_fmt(event["end_time_s"])}" />'
+            )
 
     return "".join(parts)
 
@@ -412,9 +431,45 @@ def _validate_report_series(result: AnalysisResult, series: ReportSeries) -> Non
             raise ValueError("Report-series plot values must be finite")
         if previous_timestamp is not None and point.timestamp_s < previous_timestamp:
             raise ValueError("Report-series timestamps must be non-decreasing")
+        if point.cell_min_v > point.cell_max_v:
+            raise ValueError("Report-series cell-voltage envelope is inverted")
+        if point.temperature_min_c > point.temperature_max_c:
+            raise ValueError("Report-series temperature envelope is inverted")
+        expected_delta = point.cell_max_v - point.cell_min_v
+        if not isclose(
+            point.cell_delta_v,
+            expected_delta,
+            rel_tol=1e-12,
+            abs_tol=1e-12,
+        ):
+            raise ValueError("Report-series cell delta is inconsistent with its voltage envelope")
         previous_row = point.row_index
         previous_timestamp = point.timestamp_s
 
+    domain_start = series.points[0].timestamp_s
+    domain_end = series.points[-1].timestamp_s
+    for event in result["violations"]:
+        if event["code"] not in _ALL_PLOT_CODES:
+            raise ValueError(f"Violation code {event['code']!r} has no report-plot mapping")
+        event_values = (
+            event["start_time_s"],
+            event["end_time_s"],
+            event["peak_time_s"],
+            event["measured_value"],
+            event["limit_value"],
+        )
+        if not all(isfinite(value) for value in event_values):
+            raise ValueError("Violation event contains non-finite plot evidence")
+        if event["start_time_s"] > event["end_time_s"]:
+            raise ValueError("Violation event start time must not exceed its end time")
+        if not event["start_time_s"] <= event["peak_time_s"] <= event["end_time_s"]:
+            raise ValueError("Violation event peak time must lie inside its event interval")
+        if event["start_time_s"] < domain_start or event["end_time_s"] > domain_end:
+            raise ValueError("Violation event lies outside the report-series time domain")
+
+    # AnalysisResult.max_delta_v is rounded to 12 decimal places upstream. The
+    # 1e-12 absolute guard tolerance below intentionally exceeds the maximum
+    # ±0.5e-12 rounding error while still catching materially mismatched series.
     extrema = (
         ("max_cell_voltage_v", max(point.cell_max_v for point in series.points)),
         ("min_cell_voltage_v", min(point.cell_min_v for point in series.points)),

@@ -1,10 +1,14 @@
+from copy import deepcopy
 from dataclasses import replace
 from io import BytesIO
+from typing import get_args
 
 import pytest
 
 from batterylog import ValidationLimits
 from batterylog.analysis.streaming import analyze_battery_file_with_report_series
+from batterylog.models import RuleCode
+from batterylog.reporting import plots as plots_module
 from batterylog.reporting.plots import render_report_plots
 
 
@@ -85,6 +89,26 @@ def test_plot_violation_markers_come_from_result_even_when_peak_row_is_not_retai
         assert f'data-measured-value="{event["measured_value"]:.8g}"' in html
 
 
+def test_delta_rounding_residue_does_not_trip_extrema_guard() -> None:
+    source = BytesIO(
+        b"timestamp_s,cell_1_v,cell_2_v,temp_c\n"
+        b"0,3.7,3.6,25\n"
+        b"1,3.8000000000005,3.7,25\n"
+        b"2,3.7,3.6,25\n"
+    )
+    result, series = analyze_battery_file_with_report_series(
+        source,
+        source_name="rounding.csv",
+        limits=ValidationLimits(imbalance_max_v=0.05),
+        max_points=12,
+    )
+
+    retained_max = max(point.cell_delta_v for point in series.points)
+    assert retained_max != result["max_delta_v"]
+    assert abs(retained_max - result["max_delta_v"]) < 1e-12
+    assert "Cell-voltage delta" in render_report_plots(result, series)
+
+
 def test_plot_rendering_is_deterministic() -> None:
     result, series = _result_and_series()
 
@@ -104,7 +128,7 @@ def test_plot_renderer_rejects_series_from_different_result() -> None:
 
 def test_plot_renderer_rejects_same_length_series_with_mismatched_extrema() -> None:
     result, series = _result_and_series()
-    bad_point = replace(series.points[1], cell_max_v=4.29)
+    bad_point = replace(series.points[1], cell_max_v=4.29, cell_delta_v=0.39)
     mismatched = replace(series, points=(series.points[0], bad_point, *series.points[2:]))
 
     with pytest.raises(ValueError, match="does not preserve AnalysisResult extrema"):
@@ -132,6 +156,33 @@ def test_plot_renderer_rejects_missing_boundary_rows() -> None:
     malformed = replace(series, points=series.points[1:])
 
     with pytest.raises(ValueError, match="must retain the first and last source rows"):
+        render_report_plots(result, malformed)
+
+
+def test_plot_renderer_rejects_inverted_cell_voltage_envelope() -> None:
+    result, series = _result_and_series()
+    bad_point = replace(series.points[0], cell_min_v=3.95, cell_max_v=3.80)
+    malformed = replace(series, points=(bad_point, *series.points[1:]))
+
+    with pytest.raises(ValueError, match="cell-voltage envelope is inverted"):
+        render_report_plots(result, malformed)
+
+
+def test_plot_renderer_rejects_inverted_temperature_envelope() -> None:
+    result, series = _result_and_series()
+    bad_point = replace(series.points[0], temperature_min_c=30.0, temperature_max_c=20.0)
+    malformed = replace(series, points=(bad_point, *series.points[1:]))
+
+    with pytest.raises(ValueError, match="temperature envelope is inverted"):
+        render_report_plots(result, malformed)
+
+
+def test_plot_renderer_rejects_delta_inconsistent_with_voltage_envelope() -> None:
+    result, series = _result_and_series()
+    bad_point = replace(series.points[0], cell_delta_v=0.02)
+    malformed = replace(series, points=(bad_point, *series.points[1:]))
+
+    with pytest.raises(ValueError, match="cell delta is inconsistent"):
         render_report_plots(result, malformed)
 
 
@@ -166,6 +217,59 @@ def test_plot_renderer_rejects_timestamp_regression() -> None:
         render_report_plots(result, malformed)
 
 
+def test_plot_renderer_rejects_non_finite_violation_evidence() -> None:
+    result, series = _result_and_series()
+    malformed = deepcopy(result)
+    malformed["violations"][0]["peak_time_s"] = float("nan")
+
+    with pytest.raises(ValueError, match="non-finite plot evidence"):
+        render_report_plots(malformed, series)
+
+
+def test_plot_renderer_rejects_violation_outside_series_time_domain() -> None:
+    result, series = _result_and_series()
+    malformed = deepcopy(result)
+    malformed["violations"][0]["start_time_s"] = 999.0
+    malformed["violations"][0]["end_time_s"] = 999.0
+    malformed["violations"][0]["peak_time_s"] = 999.0
+
+    with pytest.raises(ValueError, match="outside the report-series time domain"):
+        render_report_plots(malformed, series)
+
+
+def test_plot_renderer_rejects_peak_outside_event_interval() -> None:
+    result, series = _result_and_series()
+    malformed = deepcopy(result)
+    event = malformed["violations"][0]
+    event["peak_time_s"] = event["end_time_s"] + 0.5
+
+    with pytest.raises(ValueError, match="peak time must lie inside"):
+        render_report_plots(malformed, series)
+
+
+def test_plot_renderer_rejects_event_with_reversed_time_interval() -> None:
+    result, series = _result_and_series()
+    malformed = deepcopy(result)
+    event = malformed["violations"][0]
+    event["start_time_s"], event["end_time_s"] = event["end_time_s"], event["start_time_s"]
+
+    with pytest.raises(ValueError, match="start time must not exceed"):
+        render_report_plots(malformed, series)
+
+
+def test_plot_renderer_rejects_unmapped_violation_code() -> None:
+    result, series = _result_and_series()
+    malformed = deepcopy(result)
+    malformed["violations"][0]["code"] = "FUTURE_RULE"  # type: ignore[typeddict-item]
+
+    with pytest.raises(ValueError, match="has no report-plot mapping"):
+        render_report_plots(malformed, series)
+
+
+def test_all_current_rule_codes_have_plot_mapping() -> None:
+    assert set(get_args(RuleCode)) == plots_module._ALL_PLOT_CODES
+
+
 def test_plot_renderer_handles_empty_result_geometry_contract() -> None:
     result, series = _result_and_series()
     empty_result = result.copy()
@@ -194,6 +298,15 @@ def test_single_timestamp_and_constant_values_render_without_non_finite_geometry
     assert "Cell-voltage envelope" in html
     assert ">0.005 V</text>" in html
     assert ">-0.005 V</text>" in html
+    assert html.count('class="series-sample ') == 5
+
+
+def test_instantaneous_violation_uses_vertical_marker_without_fake_duration() -> None:
+    result, series = _result_and_series()
+    html = render_report_plots(result, series)
+
+    assert 'class="violation-instant"' in html
+    assert 'data-start-time-s="1" data-end-time-s="1"' in html
 
 
 def test_plot_note_discloses_downsampling_strategy() -> None:
