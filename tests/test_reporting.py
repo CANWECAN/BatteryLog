@@ -407,3 +407,23 @@ def test_json_renderer_rejects_non_finite_result_values() -> None:
 
     with pytest.raises(ValueError, match="Out of range float values"):
         render_json_result(result)
+
+
+def test_capture_rejects_snapshot_length_that_disagrees_with_file_size(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "input.csv"
+    path.write_bytes(b"abc")
+    original_read_bytes = Path.read_bytes
+
+    def return_truncated_snapshot(value: Path) -> bytes:
+        data = original_read_bytes(value)
+        if value == path:
+            return data[:-1]
+        return data
+
+    monkeypatch.setattr(Path, "read_bytes", return_truncated_snapshot)
+
+    with pytest.raises(ValueError, match="size changed while snapshotting"):
+        capture_file_snapshot(path)
