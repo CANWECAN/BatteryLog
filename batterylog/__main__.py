@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .analysis.core import analyze_battery_bytes, analyze_battery_log
 from .config import (
+    EventDetectionConfig,
     ValidationConfig,
     ValidationLimits,
     load_validation_config,
@@ -106,10 +107,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Disable maximum temperature validation",
     )
-    parser.add_argument(
+    event_gap_group = parser.add_mutually_exclusive_group()
+    event_gap_group.add_argument(
         "--max-event-gap-s",
         type=float,
         help="Override maximum timestamp gap within one violation event",
+    )
+    event_gap_group.add_argument(
+        "--no-max-event-gap-s",
+        action="store_true",
+        help="Disable the YAML event-gap limit and group by row contiguity only",
     )
     return parser
 
@@ -160,9 +167,10 @@ def _resolve_cli_config(
             args.no_temp_max_c,
         ),
     )
-    event_detection = override_event_detection(
-        base.event_detection,
-        max_gap_s=args.max_event_gap_s,
+    event_detection = (
+        EventDetectionConfig(max_gap_s=None)
+        if args.no_max_event_gap_s
+        else override_event_detection(base.event_detection, max_gap_s=args.max_event_gap_s)
     )
     return ValidationConfig(
         limits=limits,

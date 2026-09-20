@@ -305,6 +305,8 @@ Available disable options are `--no-cell-min-v`, `--no-cell-max-v`, `--no-imbala
 
 The existing `--temp-warning-c` option remains available as an alias for `--temp-max-c`; `--no-temp-warning-c` is likewise an alias for `--no-temp-max-c`. A numeric override and its matching disable option are mutually exclusive and produce a CLI usage error when supplied together.
 
+Use `--no-max-event-gap-s` to disable a YAML event-gap limit and return to row-contiguity grouping. Omitting both event-gap options preserves YAML; `--max-event-gap-s N` overrides it. The numeric and disable options are mutually exclusive. Explicit disable is recorded as `analysis_options.max_event_gap_s: null`.
+
 Generate a self-contained HTML report:
 
 ```powershell
@@ -396,8 +398,12 @@ The security and trust boundaries of this evidence model are documented in [`doc
 
 The current CSV loader still materializes the complete file in memory. Evidence-report mode additionally retains the immutable source snapshot while analysis runs, so bounded-memory multi-million-row processing requires the separate streaming work planned for large-log support.
 
-Planned follow-on work includes report plots, MF4/MDF support, CAN/DBC decoding, richer rule metadata, automated release artifacts, and larger-log processing.
+Planned follow-on work includes report plots, MF4/MDF support, CAN/DBC decoding, richer rule metadata, larger-log processing.
 
 ## Status
 
 Early MVP. The API may change while the validation model is expanded.
+
+## Release artifacts
+
+Tagged releases build wheel/sdist artifacts in CI after the Linux and Windows checks pass. Each release includes SHA-256 checksums; package and tag versions must agree. See [the release procedure](docs/RELEASING.md).
