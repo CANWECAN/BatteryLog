@@ -143,10 +143,10 @@ This is deliberate: voltage, temperature, and imbalance limits must come from th
 Precedence is:
 
 ```text
-CLI override > YAML config
+CLI numeric override / CLI explicit disable > YAML config
 ```
 
-A rule is active only when a numeric limit is explicitly supplied. A YAML value of `null` disables that rule.
+A rule is active only when its effective limit is numeric. A YAML value of `null` disables that rule, and the CLI can explicitly disable an active YAML rule with the corresponding `--no-*` option.
 
 Unknown config keys are rejected instead of silently ignored, so spelling mistakes do not disable a validation rule unnoticed.
 
@@ -275,7 +275,15 @@ Override YAML values from the CLI:
 .\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv --config examples\validation.example.yaml --cell-max-v 4.15 --temp-max-c 50 --max-event-gap-s 0.5
 ```
 
-The existing `--temp-warning-c` option remains available as an alias for `--temp-max-c`. CLI overrides take precedence over YAML values.
+Disable rules that are active in YAML:
+
+```powershell
+.\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv --config examples\validation.example.yaml --no-cell-max-v --no-temp-max-c
+```
+
+Available disable options are `--no-cell-min-v`, `--no-cell-max-v`, `--no-imbalance-limit-v`, `--no-temp-min-c`, and `--no-temp-max-c`.
+
+The existing `--temp-warning-c` option remains available as an alias for `--temp-max-c`; `--no-temp-warning-c` is likewise an alias for `--no-temp-max-c`. A numeric override and its matching disable option are mutually exclusive and produce a CLI usage error when supplied together.
 
 Generate a self-contained HTML report:
 

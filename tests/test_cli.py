@@ -340,3 +340,120 @@ def test_cli_reports_mapping_errors_as_exit_2(tmp_path, capsys) -> None:
 
     assert exc.value.code == 2
     assert "matched no cell-voltage columns" in capsys.readouterr().err
+
+
+ALL_LIMITS_YAML = (
+    "limits:\n"
+    "  cell_voltage:\n"
+    "    min_v: 3.6\n"
+    "    max_v: 3.9\n"
+    "    max_delta_v: 0.08\n"
+    "  temperature:\n"
+    "    min_c: 29\n"
+    "    max_c: 45\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("disable_flag", "limit_field", "rule_code"),
+    [
+        ("--no-cell-min-v", "cell_min_v", "CELL_UNDERVOLTAGE"),
+        ("--no-cell-max-v", "cell_max_v", "CELL_OVERVOLTAGE"),
+        ("--no-imbalance-limit-v", "imbalance_max_v", "CELL_IMBALANCE_HIGH"),
+        ("--no-temp-min-c", "temperature_min_c", "TEMPERATURE_LOW"),
+        ("--no-temp-max-c", "temperature_max_c", "TEMPERATURE_HIGH"),
+    ],
+)
+def test_cli_can_disable_each_yaml_rule(
+    tmp_path,
+    capsys,
+    disable_flag: str,
+    limit_field: str,
+    rule_code: str,
+) -> None:
+    config = tmp_path / "validation.yaml"
+    config.write_text(ALL_LIMITS_YAML, encoding="utf-8")
+
+    exit_code = run(
+        [
+            str(SAMPLE),
+            "--config",
+            str(config),
+            disable_flag,
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["limits_applied"][limit_field] is None
+    assert rule_code not in payload["rules_evaluated"]
+    assert len(payload["rules_evaluated"]) == 4
+
+
+@pytest.mark.parametrize(
+    ("numeric_args", "disable_flag"),
+    [
+        (["--cell-min-v", "3.5"], "--no-cell-min-v"),
+        (["--cell-max-v", "4.2"], "--no-cell-max-v"),
+        (["--imbalance-limit-v", "0.1"], "--no-imbalance-limit-v"),
+        (["--temp-min-c", "-20"], "--no-temp-min-c"),
+        (["--temp-max-c", "50"], "--no-temp-max-c"),
+    ],
+)
+def test_cli_rejects_numeric_and_disable_override_for_same_rule(
+    capsys,
+    numeric_args: list[str],
+    disable_flag: str,
+) -> None:
+    with pytest.raises(SystemExit) as exc:
+        run([str(SAMPLE), *numeric_args, disable_flag])
+
+    assert exc.value.code == 2
+    assert "not allowed with argument" in capsys.readouterr().err
+
+
+def test_cli_no_temp_warning_alias_disables_yaml_temperature_max(
+    tmp_path,
+    capsys,
+) -> None:
+    config = tmp_path / "validation.yaml"
+    config.write_text(
+        "limits:\n  temperature:\n    max_c: 45\n",
+        encoding="utf-8",
+    )
+
+    exit_code = run(
+        [
+            str(SAMPLE),
+            "--config",
+            str(config),
+            "--no-temp-warning-c",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 3
+    assert payload["validation_status"] == "NOT_EVALUATED"
+    assert payload["limits_applied"]["temperature_max_c"] is None
+    assert payload["rules_evaluated"] == []
+
+
+def test_cli_unspecified_limit_options_preserve_yaml_values(
+    tmp_path,
+    capsys,
+) -> None:
+    config = tmp_path / "validation.yaml"
+    config.write_text(ALL_LIMITS_YAML, encoding="utf-8")
+
+    exit_code = run([str(SAMPLE), "--config", str(config)])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["limits_applied"] == {
+        "cell_min_v": 3.6,
+        "cell_max_v": 3.9,
+        "imbalance_max_v": 0.08,
+        "temperature_min_c": 29.0,
+        "temperature_max_c": 45.0,
+    }
+    assert len(payload["rules_evaluated"]) == 5
