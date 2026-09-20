@@ -1,4 +1,3 @@
-import re
 import warnings
 from pathlib import Path
 
@@ -22,48 +21,14 @@ from batterylog.models import (
     SignalMappingInfo,
     ViolationEvent,
 )
-from batterylog.signals import canonicalize_battery_signals
+from batterylog.signals import canonicalize_battery_signals, find_canonical_signal_columns
 
 from .comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
 from .rules import build_high_events, build_imbalance_events, build_low_events
 
-CELL_SIGNAL_RE = re.compile(r"^cell_(\d+)_v$")
-TEMP_SIGNAL_RE = re.compile(r"^temp_(\d+)_c$")
-
-
-def _indexed_signal_columns(
-    columns: pd.Index,
-    pattern: re.Pattern[str],
-    kind: str,
-) -> list[str]:
-    indexed: list[tuple[int, str]] = []
-    seen_indexes: dict[int, str] = {}
-
-    for column in columns:
-        match = pattern.fullmatch(str(column))
-        if match is None:
-            continue
-
-        index = int(match.group(1))
-        if index in seen_indexes:
-            previous = seen_indexes[index]
-            raise ValueError(f"Duplicate {kind} signal index {index}: {previous!r} and {column!r}")
-        seen_indexes[index] = str(column)
-        indexed.append((index, str(column)))
-
-    indexed.sort(key=lambda item: (item[0], item[1]))
-    return [column for _, column in indexed]
-
 
 def _find_signal_columns(columns: pd.Index) -> tuple[list[str], list[str]]:
-    cell_cols = _indexed_signal_columns(columns, CELL_SIGNAL_RE, "cell")
-    indexed_temp_cols = _indexed_signal_columns(columns, TEMP_SIGNAL_RE, "temperature")
-
-    if "temp_c" in columns and indexed_temp_cols:
-        raise ValueError("Legacy temp_c cannot be combined with indexed temp_<n>_c signals")
-
-    temp_cols = ["temp_c"] if "temp_c" in columns else indexed_temp_cols
-    return cell_cols, temp_cols
+    return find_canonical_signal_columns(columns)
 
 
 def _warn_legacy_threshold_arguments(

@@ -2,7 +2,7 @@
 
 BatteryLog is an engineering toolkit for validating EV battery test logs from the command line or Python.
 
-The current version focuses on deterministic CSV analysis, configurable validation rules, structured violation events, explicit validation status, and self-contained HTML evidence reports.
+The current version focuses on deterministic CSV analysis, optional MDF/MF4 ingestion, configurable validation rules, structured violation events, explicit validation status, and self-contained HTML evidence reports.
 
 ## Why it exists
 
@@ -33,6 +33,7 @@ The preview below is generated from the repository's vendor-style sample CSV and
 ## Current capabilities
 
 - Analyze CSV battery logs in bounded row chunks in both standard analysis and HTML evidence-report paths
+- Optionally ingest ASAM MDF/MF4 measurement files through the same chunked validation engine
 - Preserve violation events, extrema, and timestamp-ordering checks across chunk boundaries
 - Map vendor-specific timestamp, cell-voltage, and temperature channel names into a canonical signal model
 - Load validation limits from YAML
@@ -114,6 +115,30 @@ A tested vendor-style example is included:
 
 ```powershell
 .\.venv\Scripts\batterylog.exe examples\vendor_battery_log.csv --config examples\vendor_mapping.example.yaml
+```
+
+## Optional MDF/MF4 ingestion
+
+MDF/MF4 support is isolated behind the optional `mf4` dependency so the core installation remains lightweight. From a development checkout:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,mf4]"
+```
+
+Installed distributions use the standard Python extra syntax `batterylog[mf4]`. Files ending in `.mf4` or `.mdf` are dispatched to the MDF loader automatically; other paths continue to use the CSV loader.
+
+The MDF adapter consumes already-decoded physical measurement channels. It deliberately disables automatic bus-logging processing; raw CAN/LIN decoding and DBC-driven extraction are separate future capabilities.
+
+For canonical MDF channels, use names such as `cell_1_v`, `cell_2_v`, and `temp_1_c`. With an explicit `signals` mapping, BatteryLog selects the mapped vendor channels and uses the MDF master time as the source timestamp. The configured `signals.timestamp` name is assigned to that master time before the existing canonicalization step, so the same mapping contract can be reused across CSV and MDF inputs.
+
+MDF timestamps are preserved as stored; BatteryLog does not silently shift the master to start at zero. Channel alignment is fail-closed: the first MDF implementation disables interpolation. If selected channels use different timestamp rasters, missing aligned samples become `NaN` and are rejected by the existing required-data validation instead of being silently interpolated.
+
+MDF unit metadata is validated before data reaches the rule engine. Cell-voltage channels must identify volts (`V`, `volt`, or `volts`) and temperature channels must identify degrees Celsius (`degC`, `°C`, or `Celsius`). Missing units and units requiring conversion, such as `mV` or Fahrenheit, are rejected; automatic unit conversion is not yet supported.
+
+Example:
+
+```powershell
+.\.venv\Scripts\batterylog.exe test-run.mf4 --config validation.yaml --report battery-report.html
 ```
 
 ## Validation rules
@@ -391,19 +416,19 @@ The analyzer fails closed on invalid required sensor values. A missing cell or t
 
 Event grouping uses row contiguity by default and can optionally split sparse failures with `event_detection.max_gap_s`.
 
-Signal mapping deliberately does not infer units or perform unit conversion. Future loaders that expose measurement-unit metadata should validate units explicitly before the canonical data reaches the rule engine.
+Signal mapping deliberately does not infer units or perform unit conversion. CSV inputs remain responsible for canonical engineering units. The MDF/MF4 loader uses available channel metadata to validate volts and degrees Celsius explicitly before canonical data reaches the rule engine.
 
-HTML evidence generation copies the source CSV into a private temporary-file snapshot while computing SHA-256 in the same streaming pass. Analysis then consumes that exact snapshot in 50,000-row chunks. The optional YAML config remains an immutable byte snapshot. This keeps the provenance content-addressed: the bytes named by the report hashes are the bytes that produced the result, without retaining the source CSV as one large Python `bytes` object.
+HTML evidence generation copies the source measurement file into a private temporary-file snapshot while computing SHA-256 in the same streaming pass. Analysis then consumes that exact snapshot through the selected loader. CSV uses 50,000-row chunks; MDF/MF4 requests 64 MiB output DataFrame chunks from `asammdf`. The optional YAML config remains an immutable byte snapshot. This keeps the provenance content-addressed: the bytes named by the report hashes are the bytes that produced the result, without retaining the full source measurement as one large Python `bytes` object.
 
 BatteryLog still re-hashes the on-disk source/config before writing the report to detect ordinary later drift. That final content check is streamed and ignores metadata-only changes; it is a secondary guard rather than the basis of the provenance guarantee. A file that is changed and restored between checks cannot cause different bytes to be analyzed under the recorded snapshot hash.
 
 The security and trust boundaries of this evidence model are documented in [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md). SHA-256 provenance binds results to analyzed bytes; it does not authenticate the origin of the data or digitally sign the generated report.
 
-Both standard CSV analysis and HTML evidence-report analysis process source data in 50,000-row chunks. Global extrema, timestamp ordering, and active violation-event state are carried across chunk boundaries, so Python heap usage no longer grows with total CSV row count under ordinary event density. The machine-readable result still materializes its violation-event list, so workloads that intentionally produce extremely large numbers of distinct events can consume memory proportional to the result itself.
+CSV standard analysis and HTML evidence-report analysis use 50,000-row source chunks. MDF/MF4 requests output DataFrame chunks targeting 64 MiB from `asammdf`; this is an output-chunk target, not yet a measured end-to-end RSS guarantee for the third-party MDF filtering path. Global extrema, timestamp ordering, and active violation-event state are carried across analyzer chunk boundaries. The machine-readable result still materializes its violation-event list, so workloads that intentionally produce extremely large numbers of distinct events can consume memory proportional to the result itself.
 
-Evidence-report mode requires temporary storage approximately proportional to the source CSV size while the report is being generated. The temporary snapshot is closed and removed automatically when analysis finishes. The optional YAML config is still retained in memory and therefore contributes memory proportional to config size.
+Evidence-report mode requires temporary storage approximately proportional to the source measurement-file size while the report is being generated. The temporary snapshot is closed and removed automatically when analysis finishes. The optional YAML config is still retained in memory and therefore contributes memory proportional to config size.
 
-Planned follow-on work includes report plots, MF4/MDF support, CAN/DBC decoding, richer rule metadata, and signed evidence manifests.
+Planned follow-on work includes report plots, CAN/DBC decoding, richer rule metadata, broader unit-conversion policy, and signed evidence manifests.
 
 ## Status
 
@@ -411,4 +436,4 @@ Early MVP. The API may change while the validation model is expanded.
 
 ## Release artifacts
 
-Tagged releases build wheel/sdist artifacts in CI after the Linux and Windows checks pass. Each release includes SHA-256 checksums; package and tag versions must agree. See [the release procedure](docs/RELEASING.md).
+Tagged releases build wheel/sdist artifacts in CI after the core Linux/Windows and optional MF4 integration checks pass. Each release includes SHA-256 checksums; package and tag versions must agree. See [the release procedure](docs/RELEASING.md).

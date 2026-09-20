@@ -44,6 +44,32 @@ jobs:
       - run: python -m pip check
       - run: python -m pytest -q --cov=batterylog --cov-report=term-missing --cov-fail-under=95
 
+  mf4:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            python-version: "3.11"
+          - os: ubuntu-24.04
+            python-version: "3.12"
+          - os: ubuntu-24.04
+            python-version: "3.13"
+          - os: ubuntu-24.04
+            python-version: "3.14"
+          - os: windows-latest
+            python-version: "3.13"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev,mf4]"
+      - run: python -m pip check
+      - run: python -m pytest -q tests/test_mf4_integration.py tests/test_mf4_loader.py
+
   package:
     runs-on: ubuntu-24.04
     outputs:
@@ -73,6 +99,17 @@ jobs:
             "$env_dir/venv/bin/python" -m pip check
             (cd "$env_dir" && "$env_dir/venv/bin/python" "$GITHUB_WORKSPACE/scripts/check_installed_package.py" "$version" "$GITHUB_WORKSPACE/examples/sample_battery_log.csv")
           done
+      - name: Validate MF4 wheel extra outside checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          wheel=$(printf '%s\n' "$GITHUB_WORKSPACE"/dist/*.whl)
+          env_dir=$(mktemp -d)
+          python -m venv "$env_dir/venv"
+          "$env_dir/venv/bin/python" -m pip install "${wheel}[mf4]"
+          "$env_dir/venv/bin/python" -m pip check
+          (cd "$env_dir" && "$env_dir/venv/bin/python" "$GITHUB_WORKSPACE/scripts/check_installed_mf4_package.py" "$version")
       - name: Compute checksums
         working-directory: dist
         run: sha256sum -- *.whl *.tar.gz > SHA256SUMS
@@ -84,7 +121,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
-    needs: [test, windows, package]
+    needs: [test, windows, mf4, package]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

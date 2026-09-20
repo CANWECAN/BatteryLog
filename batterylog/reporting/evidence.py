@@ -109,8 +109,9 @@ def capture_file_backed_snapshot(path: str | Path) -> Iterator[FileBackedSnapsho
     file_path = Path(path)
 
     with file_path.open("rb") as source, TemporaryFile(mode="w+b") as snapshot_file:
+        snapshot_handle = getattr(snapshot_file, "file", snapshot_file)
         before = os.fstat(source.fileno())
-        digest, size_bytes = _stream_hash(source, destination=snapshot_file)
+        digest, size_bytes = _stream_hash(source, destination=snapshot_handle)
         after = os.fstat(source.fileno())
 
         evidence = _evidence_from_stable_read(
@@ -122,9 +123,9 @@ def capture_file_backed_snapshot(path: str | Path) -> Iterator[FileBackedSnapsho
             after_size=after.st_size,
             after_mtime_ns=after.st_mtime_ns,
         )
-        snapshot_file.flush()
-        snapshot_file.seek(0)
-        yield FileBackedSnapshot(handle=snapshot_file, evidence=evidence)
+        snapshot_handle.flush()
+        snapshot_handle.seek(0)
+        yield FileBackedSnapshot(handle=snapshot_handle, evidence=evidence)
 
 
 def capture_file_evidence(path: str | Path) -> FileEvidence:

@@ -33,7 +33,7 @@ EXIT_RUNTIME_ERROR = 4
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Analyze EV battery test data.")
-    parser.add_argument("path", help="Path to a battery CSV log")
+    parser.add_argument("path", help="Path to a battery CSV or MDF/MF4 measurement")
     parser.add_argument(
         "--config",
         help="Path to a YAML validation configuration",
@@ -243,6 +243,7 @@ def run(argv: Sequence[str] | None = None) -> int:
                 validation_config = _resolve_cli_config(args, base=base_config)
                 result = analyze_battery_file_streaming(
                     source_snapshot.handle,
+                    source_name=input_path.name,
                     limits=validation_config.limits,
                     event_detection=validation_config.event_detection,
                     signal_mapping=validation_config.signals,
@@ -276,7 +277,7 @@ def run(argv: Sequence[str] | None = None) -> int:
             write_json_result(result, json_out_path)
 
         exit_code = _validation_exit_code(result)
-    except (OSError, TypeError, ValueError) as exc:
+    except (ImportError, OSError, TypeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_RUNTIME_ERROR
 

@@ -4,9 +4,9 @@ BatteryLog is a validation and reporting tool. Its evidence metadata is intended
 
 ## Protected provenance invariant
 
-For HTML evidence reports, BatteryLog copies the source CSV into a private temporary-file snapshot while hashing that same byte stream. CSV analysis consumes that snapshot in bounded chunks. The optional YAML configuration is captured as an immutable in-memory byte snapshot.
+For HTML evidence reports, BatteryLog copies the source measurement file into a private temporary-file snapshot while hashing that same byte stream. The selected CSV or MDF/MF4 loader consumes that snapshot in bounded chunks. The optional YAML configuration is captured as an immutable in-memory byte snapshot.
 
-The SHA-256 values recorded in the report are computed from those exact snapshots, and the CSV/YAML parsers consume the same snapshots.
+The SHA-256 values recorded in the report are computed from those exact snapshots, and the measurement/config parsers consume the same snapshots.
 
 Therefore:
 
@@ -38,14 +38,14 @@ If origin authentication or post-generation tamper evidence is required, a highe
 
 ## Input trust
 
-BatteryLog treats CSV and YAML inputs as untrusted data and validates their structure and required numeric content. HTML report rendering escapes user-controlled text before embedding it.
+BatteryLog treats CSV, MDF/MF4, and YAML inputs as untrusted data and validates their structure, selected-channel metadata where available, and required numeric content. HTML report rendering escapes user-controlled text before embedding it.
 
 Validation limits are engineering inputs. BatteryLog does not infer universal safe limits.
 
 ## Memory and temporary-storage tradeoff
 
-Standard CSV analysis and HTML evidence-report analysis both process source data in bounded chunks and carry validation state across chunk boundaries, so Python heap usage does not grow with total CSV row count under ordinary event density. The returned violation-event list is still materialized and can grow with the number of distinct events.
+CSV analysis processes source data in fixed row chunks and carries validation state across chunk boundaries. MDF/MF4 requests 64 MiB output DataFrame chunks from the optional `asammdf` loader; that target does not by itself establish a total-process RSS bound for third-party filtering internals. The returned violation-event list is still materialized and can grow with the number of distinct events.
 
-Evidence-report mode achieves this without weakening exact-byte provenance by storing the immutable source snapshot in a private temporary file. Temporary storage therefore scales approximately with source CSV size and must be available for the duration of report generation. The snapshot is closed and removed automatically afterward.
+Evidence-report mode achieves this without weakening exact-byte provenance by storing the immutable source snapshot in a private temporary file. Temporary storage therefore scales approximately with source measurement-file size and must be available for the duration of report generation. The snapshot is closed and removed automatically afterward.
 
 The optional YAML configuration remains an in-memory byte snapshot, so unusually large configuration files still contribute memory proportional to config size.
