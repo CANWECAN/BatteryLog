@@ -428,7 +428,9 @@ CSV standard analysis and HTML evidence-report analysis use 50,000-row source ch
 
 Evidence-report mode requires temporary storage approximately proportional to the source measurement-file size while the report is being generated. The temporary snapshot is closed and removed automatically when analysis finishes. The optional YAML config is still retained in memory and therefore contributes memory proportional to config size.
 
-Planned follow-on work includes report plots, CAN/DBC decoding, richer rule metadata, broader unit-conversion policy, and signed evidence manifests.
+Time-series plot preparation is intentionally separate from `AnalysisResult`: the reducer consumes row-level extrema already computed by the streaming analyzer and never recalculates PASS/FAIL decisions, limits, or violation events. Inputs within the configured point budget remain lossless; larger inputs use deterministic extrema-preserving reduction that is independent of loader chunk boundaries. The detailed contract is documented in [`docs/REPORT_SERIES.md`](docs/REPORT_SERIES.md).
+
+Planned follow-on work includes rendering the prepared report series as self-contained plots, CAN/DBC decoding, richer rule metadata, broader unit-conversion policy, and signed evidence manifests.
 
 ## Status
 

@@ -27,6 +27,11 @@ from .core import (
     _signal_mapping_snapshot,
     _warn_legacy_threshold_arguments,
 )
+from .report_series import (
+    DEFAULT_REPORT_SERIES_MAX_POINTS,
+    ReportSeries,
+    ReportSeriesCollector,
+)
 from .rules import (
     build_high_events,
     build_imbalance_events,
@@ -145,6 +150,7 @@ def _analyze_battery_chunks(
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
     signal_mapping: SignalMapping | None = None,
+    report_series_collector: ReportSeriesCollector | None = None,
 ) -> AnalysisResult:
     _warn_legacy_threshold_arguments(
         imbalance_limit_v,
@@ -217,6 +223,17 @@ def _analyze_battery_chunks(
         delta_v = cell_max - cell_min
         row_max_temp = numeric[temp_cols].max(axis=1)
         row_min_temp = numeric[temp_cols].min(axis=1)
+
+        if report_series_collector is not None:
+            report_series_collector.consume_chunk(
+                row_offset=rows_analyzed,
+                timestamps=timestamps.to_numpy(dtype=float, copy=False),
+                cell_min=cell_min.to_numpy(dtype=float, copy=False),
+                cell_max=cell_max.to_numpy(dtype=float, copy=False),
+                cell_delta=delta_v.to_numpy(dtype=float, copy=False),
+                temperature_min=row_min_temp.to_numpy(dtype=float, copy=False),
+                temperature_max=row_max_temp.to_numpy(dtype=float, copy=False),
+            )
 
         chunk_max_cell = float(cell_max.max())
         chunk_min_cell = float(cell_min.min())
@@ -399,6 +416,29 @@ def analyze_measurement_loader(
     )
 
 
+def analyze_measurement_loader_with_report_series(
+    loader: MeasurementLoader,
+    imbalance_limit_v: float | None = None,
+    temp_warning_c: float | None = None,
+    *,
+    limits: ValidationLimits | None = None,
+    event_detection: EventDetectionConfig | None = None,
+    signal_mapping: SignalMapping | None = None,
+    max_points: int = DEFAULT_REPORT_SERIES_MAX_POINTS,
+) -> tuple[AnalysisResult, ReportSeries]:
+    collector = ReportSeriesCollector(max_points=max_points)
+    result = _analyze_battery_chunks(
+        loader.iter_chunks(signal_mapping=signal_mapping),
+        imbalance_limit_v,
+        temp_warning_c,
+        limits=limits,
+        event_detection=event_detection,
+        signal_mapping=signal_mapping,
+        report_series_collector=collector,
+    )
+    return result, collector.finish()
+
+
 def analyze_battery_log_streaming(
     path: str | Path,
     imbalance_limit_v: float | None = None,
@@ -435,4 +475,26 @@ def analyze_battery_file_streaming(
         limits=limits,
         event_detection=event_detection,
         signal_mapping=signal_mapping,
+    )
+
+
+def analyze_battery_file_with_report_series(
+    handle: BinaryIO,
+    imbalance_limit_v: float | None = None,
+    temp_warning_c: float | None = None,
+    *,
+    source_name: str | Path | None = None,
+    limits: ValidationLimits | None = None,
+    event_detection: EventDetectionConfig | None = None,
+    signal_mapping: SignalMapping | None = None,
+    max_points: int = DEFAULT_REPORT_SERIES_MAX_POINTS,
+) -> tuple[AnalysisResult, ReportSeries]:
+    return analyze_measurement_loader_with_report_series(
+        measurement_loader_for_file(handle, source_name=source_name),
+        imbalance_limit_v,
+        temp_warning_c,
+        limits=limits,
+        event_detection=event_detection,
+        signal_mapping=signal_mapping,
+        max_points=max_points,
     )
