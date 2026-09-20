@@ -18,9 +18,11 @@ from batterylog.reporting import (
     build_report_metadata,
     capture_file_evidence,
     render_html_report,
+    render_json_result,
     sha256_file,
     verify_file_unchanged,
     write_html_report,
+    write_json_result,
 )
 
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
@@ -347,3 +349,46 @@ def test_report_displays_comparison_semantics() -> None:
     assert "binary64 boundary guard" in html
     assert "Relative float tolerance" in html
     assert "Absolute float tolerance" in html
+
+
+def test_json_result_writer_matches_canonical_renderer(tmp_path: Path) -> None:
+    result = analyze_battery_log(
+        SAMPLE,
+        limits=ValidationLimits(imbalance_max_v=0.11),
+    )
+    output = tmp_path / "result.json"
+
+    returned = write_json_result(result, output)
+
+    assert returned == output
+    expected = render_json_result(result)
+    assert output.read_text(encoding="utf-8") == expected
+    assert output.read_bytes() == expected.encode("utf-8")
+    assert list(tmp_path.glob(".*.tmp")) == []
+
+
+def test_json_result_writer_cleans_temp_file_on_replace_failure(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    result = analyze_battery_log(SAMPLE)
+    output = tmp_path / "result.json"
+
+    def fail_replace(self: Path, target: Path) -> Path:
+        raise OSError("simulated JSON replace failure")
+
+    monkeypatch.setattr(Path, "replace", fail_replace)
+
+    with pytest.raises(OSError, match="simulated JSON replace failure"):
+        write_json_result(result, output)
+
+    assert not output.exists()
+    assert list(tmp_path.glob(".*.tmp")) == []
+
+
+def test_json_renderer_rejects_non_finite_result_values() -> None:
+    result = analyze_battery_log(SAMPLE)
+    result["max_cell_voltage_v"] = float("nan")
+
+    with pytest.raises(ValueError, match="Out of range float values"):
+        render_json_result(result)

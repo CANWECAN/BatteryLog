@@ -4,6 +4,14 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### CLI contract
+
+- Refactored `run()` to return integer codes for expected CLI outcomes; `main()` is now the single `SystemExit` boundary.
+- Reserved exit code `2` for CLI usage/parsing errors and moved input/config/analysis/report/output errors to exit code `4`.
+- Added `--json-out` for atomically written UTF-8 JSON while preserving JSON on stdout.
+- Added collision guards preventing JSON output from overwriting input/config/HTML report paths.
+- Existing 0.6.x automation that interprets runtime exit code `2` must update to code `4` for the 0.7.0 line.
+
 ### CLI rule control
 
 - Added explicit `--no-*` CLI options for disabling validation rules that are active in YAML.

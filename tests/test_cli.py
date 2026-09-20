@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from batterylog.__main__ import main, run
+from batterylog.__main__ import (
+    EXIT_RUNTIME_ERROR,
+    EXIT_USAGE_ERROR,
+    main,
+    run,
+)
 
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
@@ -60,17 +65,16 @@ def test_cli_without_limits_returns_not_evaluated_exit_3(capsys) -> None:
     assert payload["violations"] == []
 
 
-def test_cli_reports_validation_errors_as_exit_2(tmp_path, capsys) -> None:
+def test_cli_reports_validation_errors_as_runtime_exit(tmp_path, capsys) -> None:
     bad = tmp_path / "bad.csv"
     bad.write_text(
         "timestamp_s,temp_c,current_a\n0,25,0\n",
         encoding="utf-8",
     )
 
-    with pytest.raises(SystemExit) as exc:
-        run([str(bad)])
+    exit_code = run([str(bad)])
 
-    assert exc.value.code == 2
+    assert exit_code == EXIT_RUNTIME_ERROR
     assert "No cell voltage columns" in capsys.readouterr().err
 
 
@@ -98,17 +102,16 @@ def test_cli_loads_yaml_config_and_cli_overrides_it(tmp_path, capsys) -> None:
     assert payload["limits_applied"]["temperature_max_c"] == 50.0
 
 
-def test_cli_reports_config_errors_as_exit_2(tmp_path, capsys) -> None:
+def test_cli_reports_config_errors_as_runtime_exit(tmp_path, capsys) -> None:
     config = tmp_path / "bad.yaml"
     config.write_text(
         "limits:\n  cell_voltage:\n    max_v: wrong\n",
         encoding="utf-8",
     )
 
-    with pytest.raises(SystemExit) as exc:
-        run([str(SAMPLE), "--config", str(config)])
+    exit_code = run([str(SAMPLE), "--config", str(config)])
 
-    assert exc.value.code == 2
+    assert exit_code == EXIT_RUNTIME_ERROR
     assert "must be a number" in capsys.readouterr().err
 
 
@@ -174,10 +177,9 @@ def test_cli_refuses_to_overwrite_input_with_report(tmp_path, capsys) -> None:
     original = SAMPLE.read_text(encoding="utf-8")
     source.write_text(original, encoding="utf-8")
 
-    with pytest.raises(SystemExit) as exc:
-        run([str(source), "--report", str(source)])
+    exit_code = run([str(source), "--report", str(source)])
 
-    assert exc.value.code == 2
+    assert exit_code == EXIT_RUNTIME_ERROR
     assert "must not overwrite the input log" in capsys.readouterr().err
     assert source.read_text(encoding="utf-8") == original
 
@@ -187,18 +189,17 @@ def test_cli_refuses_to_overwrite_config_with_report(tmp_path, capsys) -> None:
     original = "limits:\n  temperature:\n    max_c: 50\n"
     config.write_text(original, encoding="utf-8")
 
-    with pytest.raises(SystemExit) as exc:
-        run(
-            [
-                str(SAMPLE),
-                "--config",
-                str(config),
-                "--report",
-                str(config),
-            ]
-        )
+    exit_code = run(
+        [
+            str(SAMPLE),
+            "--config",
+            str(config),
+            "--report",
+            str(config),
+        ]
+    )
 
-    assert exc.value.code == 2
+    assert exit_code == EXIT_RUNTIME_ERROR
     assert "must not overwrite the validation config" in capsys.readouterr().err
     assert config.read_text(encoding="utf-8") == original
 
@@ -229,10 +230,9 @@ def test_cli_refuses_hardlink_alias_of_input_as_report(tmp_path, capsys) -> None
     alias = tmp_path / "report.html"
     os.link(source, alias)
 
-    with pytest.raises(SystemExit) as exc:
-        run([str(source), "--report", str(alias)])
+    exit_code = run([str(source), "--report", str(alias)])
 
-    assert exc.value.code == 2
+    assert exit_code == EXIT_RUNTIME_ERROR
     assert "must not overwrite the input log" in capsys.readouterr().err
     assert source.read_text(encoding="utf-8").startswith("timestamp_s,")
 
@@ -272,11 +272,10 @@ def test_cli_max_event_gap_overrides_yaml_and_splits_events(
     assert len(imbalance_events) == 2
 
 
-def test_cli_rejects_invalid_max_event_gap(capsys) -> None:
-    with pytest.raises(SystemExit) as exc:
-        run([str(SAMPLE), "--max-event-gap-s", "-0.1"])
+def test_cli_rejects_invalid_max_event_gap_as_runtime_error(capsys) -> None:
+    exit_code = run([str(SAMPLE), "--max-event-gap-s", "-0.1"])
 
-    assert exc.value.code == 2
+    assert exit_code == EXIT_RUNTIME_ERROR
     assert "max_gap_s must be non-negative" in capsys.readouterr().err
 
 
@@ -318,7 +317,7 @@ def test_cli_applies_explicit_signal_mapping_from_yaml(tmp_path, capsys) -> None
     assert payload["violations"][0]["signals"] == ["cell_2_v", "cell_1_v"]
 
 
-def test_cli_reports_mapping_errors_as_exit_2(tmp_path, capsys) -> None:
+def test_cli_reports_mapping_errors_as_runtime_exit(tmp_path, capsys) -> None:
     source = tmp_path / "vendor.csv"
     source.write_text(
         "Time_s,OtherCell,T_Module_01\n0.0,3.8,25\n",
@@ -335,10 +334,9 @@ def test_cli_reports_mapping_errors_as_exit_2(tmp_path, capsys) -> None:
         encoding="utf-8",
     )
 
-    with pytest.raises(SystemExit) as exc:
-        run([str(source), "--config", str(config)])
+    exit_code = run([str(source), "--config", str(config)])
 
-    assert exc.value.code == 2
+    assert exit_code == EXIT_RUNTIME_ERROR
     assert "matched no cell-voltage columns" in capsys.readouterr().err
 
 
@@ -405,10 +403,9 @@ def test_cli_rejects_numeric_and_disable_override_for_same_rule(
     numeric_args: list[str],
     disable_flag: str,
 ) -> None:
-    with pytest.raises(SystemExit) as exc:
-        run([str(SAMPLE), *numeric_args, disable_flag])
+    exit_code = run([str(SAMPLE), *numeric_args, disable_flag])
 
-    assert exc.value.code == 2
+    assert exit_code == EXIT_USAGE_ERROR
     assert "not allowed with argument" in capsys.readouterr().err
 
 
@@ -457,3 +454,146 @@ def test_cli_unspecified_limit_options_preserve_yaml_values(
         "temperature_max_c": 45.0,
     }
     assert len(payload["rules_evaluated"]) == 5
+
+
+def test_run_returns_usage_code_instead_of_raising_for_bad_arguments(capsys) -> None:
+    exit_code = run([str(SAMPLE), "--definitely-not-a-real-option"])
+
+    captured = capsys.readouterr()
+    assert exit_code == EXIT_USAGE_ERROR
+    assert "unrecognized arguments" in captured.err
+
+
+def test_run_returns_zero_for_help(capsys) -> None:
+    exit_code = run(["--help"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "Analyze EV battery test data." in captured.out
+
+
+def test_main_is_the_single_system_exit_boundary_for_runtime_errors(
+    monkeypatch,
+    tmp_path,
+    capsys,
+) -> None:
+    bad = tmp_path / "bad.csv"
+    bad.write_text(
+        "timestamp_s,temp_c,current_a\n0,25,0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sys, "argv", ["batterylog", str(bad)])
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code == EXIT_RUNTIME_ERROR
+    assert "No cell voltage columns" in capsys.readouterr().err
+
+
+def test_cli_json_out_writes_same_utf8_payload_as_stdout(
+    tmp_path,
+    capsys,
+) -> None:
+    output = tmp_path / "result.json"
+
+    exit_code = run(
+        [
+            str(SAMPLE),
+            "--imbalance-limit-v",
+            "0.11",
+            "--json-out",
+            str(output),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    stdout_payload = json.loads(captured.out)
+    file_bytes = output.read_bytes()
+    assert not file_bytes.startswith(b"\xef\xbb\xbf")
+    file_payload = json.loads(file_bytes.decode("utf-8"))
+    assert file_payload == stdout_payload
+    assert output.read_text(encoding="utf-8") == captured.out
+
+
+@pytest.mark.parametrize(
+    ("target_kind", "expected_message"),
+    [
+        ("input", "must not overwrite the input log"),
+        ("config", "must not overwrite the validation config"),
+        ("report", "must not overwrite the HTML report"),
+    ],
+)
+def test_cli_json_out_refuses_output_path_collisions(
+    tmp_path,
+    capsys,
+    target_kind: str,
+    expected_message: str,
+) -> None:
+    source = tmp_path / "input.csv"
+    source.write_text(SAMPLE.read_text(encoding="utf-8"), encoding="utf-8")
+    config = tmp_path / "validation.yaml"
+    config.write_text(
+        "limits:\n  temperature:\n    max_c: 50\n",
+        encoding="utf-8",
+    )
+    report = tmp_path / "report.html"
+
+    if target_kind == "input":
+        json_out = source
+        extra_args: list[str] = []
+    elif target_kind == "config":
+        json_out = config
+        extra_args = ["--config", str(config)]
+    else:
+        json_out = report
+        extra_args = ["--report", str(report)]
+
+    exit_code = run(
+        [
+            str(source),
+            *extra_args,
+            "--json-out",
+            str(json_out),
+        ]
+    )
+
+    assert exit_code == EXIT_RUNTIME_ERROR
+    assert expected_message in capsys.readouterr().err
+    assert source.read_text(encoding="utf-8") == SAMPLE.read_text(encoding="utf-8")
+    assert config.read_text(encoding="utf-8") == ("limits:\n  temperature:\n    max_c: 50\n")
+    if target_kind == "report":
+        assert not report.exists()
+
+
+def test_cli_report_preserves_json_stdout_contract(tmp_path, capsys) -> None:
+    report = tmp_path / "report.html"
+
+    exit_code = run(
+        [
+            str(SAMPLE),
+            "--imbalance-limit-v",
+            "0.11",
+            "--report",
+            str(report),
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["validation_status"] == "PASS"
+    assert report.exists()
+
+
+def test_cli_json_out_refuses_hardlink_alias_of_input(tmp_path, capsys) -> None:
+    source = tmp_path / "input.csv"
+    source.write_text(SAMPLE.read_text(encoding="utf-8"), encoding="utf-8")
+    alias = tmp_path / "result.json"
+    os.link(source, alias)
+
+    exit_code = run([str(source), "--json-out", str(alias)])
+
+    assert exit_code == EXIT_RUNTIME_ERROR
+    assert "must not overwrite the input log" in capsys.readouterr().err
+    assert source.read_text(encoding="utf-8") == SAMPLE.read_text(encoding="utf-8")
