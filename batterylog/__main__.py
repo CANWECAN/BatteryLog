@@ -1,5 +1,5 @@
 import argparse
-import json
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -14,14 +14,17 @@ from .models import AnalysisResult
 from .reporting import (
     build_report_metadata,
     capture_file_evidence,
+    render_json_result,
     verify_file_unchanged,
     write_html_report,
+    write_json_result,
 )
 
 EXIT_PASS = 0
 EXIT_VALIDATION_FAIL = 1
-EXIT_ERROR = 2
+EXIT_USAGE_ERROR = 2
 EXIT_NOT_EVALUATED = 3
+EXIT_RUNTIME_ERROR = 4
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,6 +37,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--report",
         help="Write a self-contained HTML validation report",
+    )
+    parser.add_argument(
+        "--json-out",
+        help="Write the JSON result atomically as UTF-8; stdout is still emitted",
     )
     cell_min_group = parser.add_mutually_exclusive_group()
     cell_min_group.add_argument(
@@ -182,17 +189,27 @@ def _validation_exit_code(result: AnalysisResult) -> int:
 
 def run(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        return int(exc.code or EXIT_PASS)
 
     try:
         input_path = Path(args.path).resolve()
         report_path = Path(args.report).resolve() if args.report else None
+        json_out_path = Path(args.json_out).resolve() if args.json_out else None
         config_path = Path(args.config).resolve() if args.config else None
 
         if _paths_refer_to_same_file(report_path, input_path):
             raise ValueError("Report output path must not overwrite the input log")
         if _paths_refer_to_same_file(report_path, config_path):
             raise ValueError("Report output path must not overwrite the validation config")
+        if _paths_refer_to_same_file(json_out_path, input_path):
+            raise ValueError("JSON output path must not overwrite the input log")
+        if _paths_refer_to_same_file(json_out_path, config_path):
+            raise ValueError("JSON output path must not overwrite the validation config")
+        if _paths_refer_to_same_file(json_out_path, report_path):
+            raise ValueError("JSON output path must not overwrite the HTML report")
 
         source_evidence = capture_file_evidence(input_path) if report_path else None
         config_evidence = (
@@ -208,6 +225,7 @@ def run(argv: Sequence[str] | None = None) -> int:
             event_detection=validation_config.event_detection,
             signal_mapping=validation_config.signals,
         )
+        json_text = render_json_result(result)
 
         if report_path is not None:
             verify_file_unchanged(input_path, source_evidence)
@@ -221,11 +239,15 @@ def run(argv: Sequence[str] | None = None) -> int:
                 metadata=metadata,
             )
 
+        if json_out_path is not None:
+            write_json_result(result, json_out_path)
+
         exit_code = _validation_exit_code(result)
     except (OSError, TypeError, ValueError) as exc:
-        parser.exit(EXIT_ERROR, f"error: {exc}\n")
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_RUNTIME_ERROR
 
-    print(json.dumps(result, indent=2, sort_keys=True))
+    sys.stdout.write(json_text)
     return exit_code
 
 

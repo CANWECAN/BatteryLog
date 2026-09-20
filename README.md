@@ -291,20 +291,33 @@ Generate a self-contained HTML report:
 .\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv --config examples\validation.example.yaml --report battery-report.html
 ```
 
-The report contains the validation status, dataset summary, measured extrema, effective limits, evaluated rules, signal-mapping provenance, violation events, BatteryLog version, result-schema version, UTC generation timestamp, and SHA-256 provenance for the input log and optional YAML config.
+Write the canonical JSON result explicitly as UTF-8:
 
-The report path is not allowed to overwrite the input log or validation config.
+```powershell
+.\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv --config examples\validation.example.yaml --json-out battery-result.json
+```
+
+JSON remains the canonical stdout output for completed analyses, including when `--report` or `--json-out` is supplied. `--json-out` adds an atomically written UTF-8 file; it does not suppress stdout. This avoids relying on shell-specific redirection encodings while preserving the existing script-friendly stdout contract.
+
+The HTML report contains the validation status, dataset summary, measured extrema, effective limits, evaluated rules, signal-mapping provenance, violation events, BatteryLog version, result-schema version, UTC generation timestamp, and SHA-256 provenance for the input log and optional YAML config.
+
+Report and JSON output paths are not allowed to overwrite the input log or validation config, and the JSON and HTML output paths must be distinct.
 
 ## Process exit codes
 
 | Exit code | Meaning |
 | ---: | --- |
-| `0` | at least one rule was evaluated and all evaluated rules passed |
+| `0` | command completed successfully; for analysis, at least one rule was evaluated and all evaluated rules passed |
 | `1` | validation completed and at least one evaluated rule failed |
-| `2` | input, configuration, CLI, or report-generation error |
+| `2` | CLI usage/parsing error |
 | `3` | metrics were computed but no engineering rule was evaluated |
+| `4` | input, configuration, analysis, report-generation, or output-write error |
 
-This allows CI/HIL pipelines to distinguish a true PASS from a validation failure or an unevaluated dataset without parsing the JSON payload.
+`run()` returns these integer codes for expected CLI outcomes; `main()` is the single process boundary that raises `SystemExit(run())`. `--help` is treated as a successful CLI outcome and returns `0`.
+
+Compared with the 0.6.x line, runtime/data/config/report errors move from exit code `2` to `4`; code `2` is reserved for command-line usage errors.
+
+This allows CI/HIL pipelines to distinguish a true PASS, validation failure, unevaluated dataset, malformed command line, and runtime/input failure without parsing the JSON payload.
 
 ## Python API
 
