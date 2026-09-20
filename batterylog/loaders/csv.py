@@ -2,10 +2,15 @@ import csv
 import io
 from collections import Counter
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
 
 import pandas as pd
+
+from batterylog.config import SignalMapping
+
+DEFAULT_CSV_CHUNK_ROWS = 50_000
 
 
 def _validate_header(header: list[str]) -> list[str]:
@@ -111,3 +116,33 @@ def iter_battery_csv_file(
         yield from reader
     finally:
         reader.close()
+
+
+@dataclass(frozen=True)
+class CsvPathLoader:
+    path: Path
+    chunk_rows: int = DEFAULT_CSV_CHUNK_ROWS
+    source_format: str = "csv"
+
+    def iter_chunks(
+        self,
+        *,
+        signal_mapping: SignalMapping | None,
+    ) -> Iterator[pd.DataFrame]:
+        del signal_mapping
+        yield from iter_battery_csv(self.path, chunk_rows=self.chunk_rows)
+
+
+@dataclass(frozen=True)
+class CsvFileLoader:
+    handle: BinaryIO
+    chunk_rows: int = DEFAULT_CSV_CHUNK_ROWS
+    source_format: str = "csv"
+
+    def iter_chunks(
+        self,
+        *,
+        signal_mapping: SignalMapping | None,
+    ) -> Iterator[pd.DataFrame]:
+        del signal_mapping
+        yield from iter_battery_csv_file(self.handle, chunk_rows=self.chunk_rows)

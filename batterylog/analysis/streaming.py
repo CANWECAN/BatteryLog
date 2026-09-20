@@ -6,7 +6,7 @@ from typing import BinaryIO
 import pandas as pd
 
 from batterylog.config import EventDetectionConfig, SignalMapping, ValidationLimits
-from batterylog.loaders import iter_battery_csv, iter_battery_csv_file
+from batterylog.loaders import CsvFileLoader, CsvPathLoader, MeasurementLoader
 from batterylog.models import RESULT_SCHEMA_VERSION, AnalysisResult, RuleCode, ViolationEvent
 from batterylog.signals import canonicalize_battery_signals
 
@@ -29,8 +29,6 @@ from .rules import (
     build_low_events,
     contiguous_true_ranges,
 )
-
-DEFAULT_CSV_CHUNK_ROWS = 50_000
 
 
 def _merge_streaming_events(
@@ -192,7 +190,7 @@ def _analyze_battery_chunks(
             expected_cell_cols = cell_cols
             expected_temp_cols = temp_cols
         elif cell_cols != expected_cell_cols or temp_cols != expected_temp_cols:
-            raise ValueError("Canonical signal columns changed between CSV chunks")
+            raise ValueError("Canonical signal columns changed between measurement chunks")
 
         numeric_cols = ["timestamp_s", *cell_cols, *temp_cols]
         numeric = frame[numeric_cols].apply(pd.to_numeric, errors="coerce")
@@ -378,6 +376,25 @@ def _analyze_battery_chunks(
     }
 
 
+def analyze_measurement_loader(
+    loader: MeasurementLoader,
+    imbalance_limit_v: float | None = None,
+    temp_warning_c: float | None = None,
+    *,
+    limits: ValidationLimits | None = None,
+    event_detection: EventDetectionConfig | None = None,
+    signal_mapping: SignalMapping | None = None,
+) -> AnalysisResult:
+    return _analyze_battery_chunks(
+        loader.iter_chunks(signal_mapping=signal_mapping),
+        imbalance_limit_v,
+        temp_warning_c,
+        limits=limits,
+        event_detection=event_detection,
+        signal_mapping=signal_mapping,
+    )
+
+
 def analyze_battery_log_streaming(
     path: str | Path,
     imbalance_limit_v: float | None = None,
@@ -387,8 +404,8 @@ def analyze_battery_log_streaming(
     event_detection: EventDetectionConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
-    return _analyze_battery_chunks(
-        iter_battery_csv(path, chunk_rows=DEFAULT_CSV_CHUNK_ROWS),
+    return analyze_measurement_loader(
+        CsvPathLoader(Path(path)),
         imbalance_limit_v,
         temp_warning_c,
         limits=limits,
@@ -406,8 +423,8 @@ def analyze_battery_file_streaming(
     event_detection: EventDetectionConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
-    return _analyze_battery_chunks(
-        iter_battery_csv_file(handle, chunk_rows=DEFAULT_CSV_CHUNK_ROWS),
+    return analyze_measurement_loader(
+        CsvFileLoader(handle),
         imbalance_limit_v,
         temp_warning_c,
         limits=limits,
