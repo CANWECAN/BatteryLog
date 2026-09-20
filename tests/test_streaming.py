@@ -6,9 +6,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from batterylog import EventDetectionConfig, ValidationLimits
+from batterylog import EventDetectionConfig, SignalMapping, SignalPattern, ValidationLimits
 from batterylog.analysis.core import _analyze_battery_frame
-from batterylog.analysis.streaming import _analyze_battery_chunks
+from batterylog.analysis.streaming import _analyze_battery_chunks, analyze_measurement_loader
 from batterylog.loaders import iter_battery_csv, load_battery_csv
 
 LIMITS = ValidationLimits(
@@ -255,3 +255,42 @@ def test_csv_chunk_iterator_rejects_invalid_chunk_size(
 
     with pytest.raises(ValueError, match="chunk_rows must be a positive integer"):
         next(iter_battery_csv(path, chunk_rows=chunk_rows))
+
+
+class _FakeMeasurementLoader:
+    source_format = "fake"
+
+    def __init__(self, chunks: list[pd.DataFrame]) -> None:
+        self._chunks = chunks
+        self.seen_mapping: SignalMapping | None = None
+
+    def iter_chunks(
+        self,
+        *,
+        signal_mapping: SignalMapping | None,
+    ):
+        self.seen_mapping = signal_mapping
+        yield from self._chunks
+
+
+def test_generic_loader_contract_is_csv_independent() -> None:
+    raw = pd.DataFrame(
+        {
+            "time_vendor": [0.0, 1.0, 2.0],
+            "U_Cell_01": [3.8, 4.3, 3.8],
+            "U_Cell_02": [3.79, 3.9, 3.79],
+            "T_Mod_01": [25.0, 56.0, 25.0],
+        }
+    )
+    mapping = SignalMapping(
+        timestamp="time_vendor",
+        cell_voltage=SignalPattern(pattern=r"U_Cell_(?P<index>[0-9]+)"),
+        temperature=SignalPattern(pattern=r"T_Mod_(?P<index>[0-9]+)"),
+    )
+    loader = _FakeMeasurementLoader([raw.iloc[:2].copy(), raw.iloc[2:].copy()])
+
+    expected = _analyze_battery_frame(raw, limits=LIMITS, signal_mapping=mapping)
+    actual = analyze_measurement_loader(loader, limits=LIMITS, signal_mapping=mapping)
+
+    assert actual == expected
+    assert loader.seen_mapping is mapping

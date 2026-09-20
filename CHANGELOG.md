@@ -4,6 +4,11 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### Loader architecture
+
+- Introduced a format-neutral measurement-loader contract so source adapters can feed the same chunked validation engine without adding format branches to the rule engine.
+- Routed both path-backed and file-backed CSV analysis through dedicated loader adapters while preserving existing CSV behavior.
+
 ### Large-log analysis
 
 - Changed the standard CSV file-analysis path from whole-file materialization to 50,000-row chunked processing.
