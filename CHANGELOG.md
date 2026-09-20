@@ -4,6 +4,13 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### CLI rule control
+
+- Added explicit `--no-*` CLI options for disabling validation rules that are active in YAML.
+- Numeric overrides and matching disable options are mutually exclusive.
+- CLI disable/numeric decisions take precedence over YAML without changing the existing Python config-helper semantics.
+- Added `--no-temp-warning-c` as a compatibility alias for `--no-temp-max-c`.
+
 ### Result contract
 
 - Added a formal Draft 2020-12 JSON Schema for result schema version 1.
