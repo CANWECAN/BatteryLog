@@ -4,9 +4,9 @@ BatteryLog is a validation and reporting tool. Its evidence metadata is intended
 
 ## Protected provenance invariant
 
-For HTML evidence reports, BatteryLog captures the source CSV and optional YAML configuration into immutable byte snapshots before parsing.
+For HTML evidence reports, BatteryLog copies the source CSV into a private temporary-file snapshot while hashing that same byte stream. CSV analysis consumes that snapshot in bounded chunks. The optional YAML configuration is captured as an immutable in-memory byte snapshot.
 
-The SHA-256 values recorded in the report are computed from those exact byte snapshots, and the CSV/YAML parsers consume the same snapshots.
+The SHA-256 values recorded in the report are computed from those exact snapshots, and the CSV/YAML parsers consume the same snapshots.
 
 Therefore:
 
@@ -16,7 +16,7 @@ A source or configuration path may change after the snapshot is captured without
 
 ## Concurrent file changes
 
-BatteryLog performs a final on-disk re-hash before writing an HTML report. This detects ordinary source/config drift that occurs after snapshot capture.
+BatteryLog performs a final streamed on-disk re-hash before writing an HTML report. This detects ordinary source/config content drift that occurs after snapshot capture. Metadata-only changes do not fail this final check when file contents still hash identically.
 
 That final check is a secondary operational guard. It is not the basis of the provenance guarantee and is not treated as an unbypassable file-locking mechanism.
 
@@ -42,10 +42,10 @@ BatteryLog treats CSV and YAML inputs as untrusted data and validates their stru
 
 Validation limits are engineering inputs. BatteryLog does not infer universal safe limits.
 
-## Memory tradeoff
+## Memory and temporary-storage tradeoff
 
-Standard CSV file analysis is chunked and carries validation state across chunk boundaries, so analysis memory does not grow with the total input row count. The returned violation-event list is still materialized and can grow with the number of distinct events.
+Standard CSV analysis and HTML evidence-report analysis both process source data in bounded chunks and carry validation state across chunk boundaries, so Python heap usage does not grow with total CSV row count under ordinary event density. The returned violation-event list is still materialized and can grow with the number of distinct events.
 
-Evidence-report mode deliberately remains on the immutable in-memory source snapshot path. This preserves the exact-byte provenance invariant above, but means report generation still scales memory with source-file size.
+Evidence-report mode achieves this without weakening exact-byte provenance by storing the immutable source snapshot in a private temporary file. Temporary storage therefore scales approximately with source CSV size and must be available for the duration of report generation. The snapshot is closed and removed automatically afterward.
 
-Bounded-memory evidence for multi-million-row inputs requires a future streaming/content-addressed snapshot design that preserves the same provenance guarantee and is tracked separately from the current report snapshot model.
+The optional YAML configuration remains an in-memory byte snapshot, so unusually large configuration files still contribute memory proportional to config size.

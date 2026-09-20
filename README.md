@@ -32,7 +32,7 @@ The preview below is generated from the repository's vendor-style sample CSV and
 
 ## Current capabilities
 
-- Analyze CSV battery logs in bounded row chunks on the standard file-analysis path
+- Analyze CSV battery logs in bounded row chunks in both standard analysis and HTML evidence-report paths
 - Preserve violation events, extrema, and timestamp-ordering checks across chunk boundaries
 - Map vendor-specific timestamp, cell-voltage, and temperature channel names into a canonical signal model
 - Load validation limits from YAML
@@ -266,10 +266,11 @@ Run profiling benchmarks separately from CI:
 
 ```powershell
 .\.venv\Scripts\python.exe benchmarks\benchmark_event_builders.py --rows 300000 --signals 20
-.\.venv\Scripts\python.exe benchmarks\benchmark_csv_analysis.py --rows 200000 --cells 100
+.\.venv\Scripts\python.exe benchmarks\benchmark_csv_analysis.py --rows 200000 --cells 100 --mode analysis
+.\.venv\Scripts\python.exe benchmarks\benchmark_csv_analysis.py --rows 200000 --cells 100 --mode report
 ```
 
-The event-builder benchmark intentionally creates many short events. The CSV benchmark generates a temporary canonical log and reports end-to-end analysis time plus `tracemalloc` Python-heap peak usage. Both are profiling aids, not pass/fail CI timing gates.
+The event-builder benchmark intentionally creates many short events. The CSV benchmark generates a temporary canonical log and can profile either the Python analysis path or the full CLI HTML evidence-report path, reporting end-to-end time plus `tracemalloc` Python-heap peak usage. These are profiling aids, not pass/fail CI timing gates.
 
 ## CLI usage
 
@@ -392,17 +393,17 @@ Event grouping uses row contiguity by default and can optionally split sparse fa
 
 Signal mapping deliberately does not infer units or perform unit conversion. Future loaders that expose measurement-unit metadata should validate units explicitly before the canonical data reaches the rule engine.
 
-HTML evidence generation snapshots the source CSV and optional YAML config into immutable byte buffers. SHA-256 evidence is computed from those exact bytes, and parsing/analysis consumes the same buffers. This makes the report's provenance content-addressed: the bytes named by the report hash are the bytes that produced the result.
+HTML evidence generation copies the source CSV into a private temporary-file snapshot while computing SHA-256 in the same streaming pass. Analysis then consumes that exact snapshot in 50,000-row chunks. The optional YAML config remains an immutable byte snapshot. This keeps the provenance content-addressed: the bytes named by the report hashes are the bytes that produced the result, without retaining the source CSV as one large Python `bytes` object.
 
-BatteryLog still re-hashes the on-disk files before writing the report to detect ordinary later drift, but that final check is a secondary guard rather than the basis of the provenance guarantee. A file that is changed and restored between checks cannot cause different bytes to be analyzed under the original hash.
+BatteryLog still re-hashes the on-disk source/config before writing the report to detect ordinary later drift. That final content check is streamed and ignores metadata-only changes; it is a secondary guard rather than the basis of the provenance guarantee. A file that is changed and restored between checks cannot cause different bytes to be analyzed under the recorded snapshot hash.
 
 The security and trust boundaries of this evidence model are documented in [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md). SHA-256 provenance binds results to analyzed bytes; it does not authenticate the origin of the data or digitally sign the generated report.
 
-The standard CSV file-analysis path processes the input in 50,000-row chunks. Global extrema, timestamp ordering, and active violation-event state are carried across chunk boundaries, so analysis memory no longer grows with the total CSV row count. The machine-readable result still materializes its violation-event list, so workloads that intentionally produce extremely large numbers of distinct events can still consume memory proportional to the result itself.
+Both standard CSV analysis and HTML evidence-report analysis process source data in 50,000-row chunks. Global extrema, timestamp ordering, and active violation-event state are carried across chunk boundaries, so Python heap usage no longer grows with total CSV row count under ordinary event density. The machine-readable result still materializes its violation-event list, so workloads that intentionally produce extremely large numbers of distinct events can consume memory proportional to the result itself.
 
-HTML evidence-report mode currently retains the immutable source byte snapshot and analyzes that snapshot in memory to preserve the exact-byte provenance invariant. Making that path bounded-memory requires a separate snapshot design that does not weaken provenance; this remains part of the large-log work.
+Evidence-report mode requires temporary storage approximately proportional to the source CSV size while the report is being generated. The temporary snapshot is closed and removed automatically when analysis finishes. The optional YAML config is still retained in memory and therefore contributes memory proportional to config size.
 
-Planned follow-on work includes bounded-memory evidence reports, report plots, MF4/MDF support, CAN/DBC decoding, and richer rule metadata.
+Planned follow-on work includes report plots, MF4/MDF support, CAN/DBC decoding, richer rule metadata, and signed evidence manifests.
 
 ## Status
 

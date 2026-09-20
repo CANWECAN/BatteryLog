@@ -1,3 +1,4 @@
+import hashlib
 import os
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
@@ -25,6 +26,7 @@ from batterylog.reporting import (
     write_html_report,
     write_json_result,
 )
+from batterylog.reporting.evidence import capture_file_backed_snapshot
 
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
@@ -177,6 +179,21 @@ def test_snapshot_evidence_hashes_the_exact_captured_bytes(tmp_path: Path) -> No
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     )
     assert snapshot.evidence.size_bytes == len(snapshot.data)
+
+
+def test_file_backed_snapshot_hashes_the_exact_captured_bytes(tmp_path: Path) -> None:
+    path = tmp_path / "input.csv"
+    data = b"timestamp_s,temp_c,cell_1_v\n0,25,3.8\n"
+    path.write_bytes(data)
+
+    with capture_file_backed_snapshot(path) as snapshot:
+        handle = snapshot.handle
+        assert handle.read() == data
+        assert snapshot.evidence.sha256 == hashlib.sha256(data).hexdigest()
+        assert snapshot.evidence.size_bytes == len(data)
+        assert not handle.closed
+
+    assert handle.closed
 
 
 def test_capture_rejects_file_changed_while_snapshotting(
@@ -351,6 +368,22 @@ def test_verify_file_unchanged_accepts_metadata_only_change_when_hash_matches(
         path,
         ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns + 1_000_000),
     )
+
+    verify_file_unchanged(path, evidence)
+
+
+def test_verify_file_unchanged_streams_without_read_bytes(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "input.csv"
+    path.write_bytes(b"abc")
+    evidence = capture_file_evidence(path)
+
+    def fail_read_bytes(candidate: Path) -> bytes:
+        raise AssertionError(f"unexpected read_bytes for {candidate}")
+
+    monkeypatch.setattr(Path, "read_bytes", fail_read_bytes)
 
     verify_file_unchanged(path, evidence)
 

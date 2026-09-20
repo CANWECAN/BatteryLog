@@ -9,8 +9,10 @@ All notable changes to BatteryLog are documented here.
 - Changed the standard CSV file-analysis path from whole-file materialization to 50,000-row chunked processing.
 - Preserved global extrema, timestamp-order validation, event-gap semantics, and active violation events across chunk boundaries without changing result schema v2.
 - Added boundary-sensitive regression tests and differential property tests comparing chunked analysis against the whole-frame reference implementation.
-- Added an end-to-end CSV profiling benchmark that reports runtime and Python-heap peak usage, and included profiling scripts in source distributions.
-- Kept HTML evidence-report analysis on the immutable in-memory snapshot path for now so bounded-memory work does not weaken exact-byte provenance.
+- Extended the end-to-end CSV benchmark to profile both standard analysis and full CLI HTML evidence-report mode, and included profiling scripts in source distributions.
+- Moved HTML evidence source capture to a private temporary-file snapshot: SHA-256 is computed while copying, and analysis consumes the same snapshot in bounded chunks.
+- Changed the final source/config drift guard to streamed content hashing, avoiding whole-file byte materialization and accepting metadata-only changes when content is identical.
+- Preserved the exact-byte provenance invariant without changing result schema v2; optional YAML configuration remains an immutable in-memory byte snapshot.
 
 ## 0.7.0 - 2026-09-20
 

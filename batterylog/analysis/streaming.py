@@ -1,11 +1,12 @@
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import BinaryIO
 
 import pandas as pd
 
 from batterylog.config import EventDetectionConfig, SignalMapping, ValidationLimits
-from batterylog.loaders import iter_battery_csv
+from batterylog.loaders import iter_battery_csv, iter_battery_csv_file
 from batterylog.models import RESULT_SCHEMA_VERSION, AnalysisResult, RuleCode, ViolationEvent
 from batterylog.signals import canonicalize_battery_signals
 
@@ -388,6 +389,25 @@ def analyze_battery_log_streaming(
 ) -> AnalysisResult:
     return _analyze_battery_chunks(
         iter_battery_csv(path, chunk_rows=DEFAULT_CSV_CHUNK_ROWS),
+        imbalance_limit_v,
+        temp_warning_c,
+        limits=limits,
+        event_detection=event_detection,
+        signal_mapping=signal_mapping,
+    )
+
+
+def analyze_battery_file_streaming(
+    handle: BinaryIO,
+    imbalance_limit_v: float | None = None,
+    temp_warning_c: float | None = None,
+    *,
+    limits: ValidationLimits | None = None,
+    event_detection: EventDetectionConfig | None = None,
+    signal_mapping: SignalMapping | None = None,
+) -> AnalysisResult:
+    return _analyze_battery_chunks(
+        iter_battery_csv_file(handle, chunk_rows=DEFAULT_CSV_CHUNK_ROWS),
         imbalance_limit_v,
         temp_warning_c,
         limits=limits,

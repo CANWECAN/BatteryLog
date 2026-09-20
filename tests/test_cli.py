@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -612,28 +613,35 @@ def test_report_provenance_analyzes_exact_source_snapshot_during_restore_race(
     source.write_bytes(original)
     report = tmp_path / "report.html"
 
-    real_capture = cli_module.capture_file_snapshot
+    real_capture = cli_module.capture_file_backed_snapshot
     real_verify = cli_module.verify_file_unchanged
-    real_analyze = cli_module.analyze_battery_bytes
+    real_analyze = cli_module.analyze_battery_file_streaming
 
+    @contextmanager
     def capture_then_poison(path):
-        snapshot = real_capture(path)
-        if Path(path).resolve() == source.resolve():
-            source.write_bytes(poisoned)
-        return snapshot
+        with real_capture(path) as snapshot:
+            if Path(path).resolve() == source.resolve():
+                source.write_bytes(poisoned)
+            yield snapshot
 
-    def analyze_while_disk_is_poisoned(data, *args, **kwargs):
+    def analyze_while_disk_is_poisoned(handle, *args, **kwargs):
         assert source.read_bytes() == poisoned
-        assert data == original
-        return real_analyze(data, *args, **kwargs)
+        handle.seek(0)
+        assert handle.read() == original
+        handle.seek(0)
+        return real_analyze(handle, *args, **kwargs)
 
     def restore_then_verify(path, evidence):
         if Path(path).resolve() == source.resolve():
             source.write_bytes(original)
         return real_verify(path, evidence)
 
-    monkeypatch.setattr(cli_module, "capture_file_snapshot", capture_then_poison)
-    monkeypatch.setattr(cli_module, "analyze_battery_bytes", analyze_while_disk_is_poisoned)
+    monkeypatch.setattr(cli_module, "capture_file_backed_snapshot", capture_then_poison)
+    monkeypatch.setattr(
+        cli_module,
+        "analyze_battery_file_streaming",
+        analyze_while_disk_is_poisoned,
+    )
     monkeypatch.setattr(cli_module, "verify_file_unchanged", restore_then_verify)
 
     exit_code = run(
@@ -733,3 +741,37 @@ def test_cli_event_gap_disable_conflicts_with_numeric_override(capsys):
     output = capsys.readouterr()
     assert not output.out
     assert "not allowed with argument" in output.err
+
+
+def test_cli_report_does_not_materialize_source_bytes(
+    monkeypatch,
+    tmp_path,
+    capsys,
+) -> None:
+    source = tmp_path / "input.csv"
+    source.write_bytes(b"timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,3.80,3.79\n")
+    report = tmp_path / "report.html"
+    real_read_bytes = Path.read_bytes
+    guarded_source = source.resolve()
+
+    def guarded_read_bytes(candidate: Path) -> bytes:
+        if candidate.resolve() == guarded_source:
+            raise AssertionError("report source must not be materialized with Path.read_bytes()")
+        return real_read_bytes(candidate)
+
+    monkeypatch.setattr(Path, "read_bytes", guarded_read_bytes)
+
+    exit_code = run(
+        [
+            str(source),
+            "--cell-max-v",
+            "4.2",
+            "--report",
+            str(report),
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["validation_status"] == "PASS"
+    assert report.exists()
