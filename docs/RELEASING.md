@@ -20,7 +20,7 @@ Before tagging:
 3. Merge the reviewed changes and wait for CI.
 4. Create and push the corresponding tag, for example `v0.7.0` for version `0.7.0`.
 
-The tag, package version, and citation version must match exactly. The current
+The tag, package version, and citation version must match exactly. For example,
 `0.7.0.dev0` cannot be published as `v0.7.0`.
 
 Release publication deliberately does not overwrite existing release assets. If a

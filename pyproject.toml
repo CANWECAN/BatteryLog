@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "batterylog"
-version = "0.7.0.dev0"
+version = "0.7.0"
 description = "EV battery test-data analysis and validation toolkit"
 readme = "README.md"
 authors = [{ name = "Berk Ozfiliz" }]

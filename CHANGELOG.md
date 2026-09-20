@@ -4,13 +4,16 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+## 0.7.0 - 2026-09-20
+
 ### Release preparation
 
 - Added CI wheel/sdist build, strict metadata checks, and independent installation smoke tests.
 - Gated tagged release artifacts and SHA-256 checksums on Linux, Windows, and packaging checks.
 - Added exact tag/package/citation version validation and an explicit sdist manifest.
 - Added `--no-max-event-gap-s` to disable YAML event-gap segmentation from the CLI.
-- Refreshed the report preview for the current development version and result schema v2.
+- Refreshed the report preview for 0.7.0 and result schema v2.
+- Updated artifact upload/download CI actions to Node 24-based releases.
 
 ### Provenance hardening
 
