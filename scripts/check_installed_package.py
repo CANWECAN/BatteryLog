@@ -9,8 +9,13 @@ from pathlib import Path
 
 import jsonschema
 
+from batterylog.analysis.report_series import ReportSeriesCollector
+
 expected_version, sample = sys.argv[1:]
 assert version("batterylog") == expected_version
+empty_series = ReportSeriesCollector(max_points=12).finish()
+assert empty_series.source_rows == 0
+assert empty_series.points == ()
 schema = json.loads(files("batterylog").joinpath("schema/result-v2.json").read_text())
 jsonschema.Draft202012Validator.check_schema(schema)
 completed = subprocess.run(
