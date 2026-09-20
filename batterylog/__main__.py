@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from .analysis.core import analyze_battery_log
-from .analysis.streaming import analyze_battery_file_streaming
+from .analysis.streaming import analyze_battery_file_with_report_series
 from .config import (
     EventDetectionConfig,
     ValidationConfig,
@@ -241,7 +241,7 @@ def run(argv: Sequence[str] | None = None) -> int:
                     else ValidationConfig()
                 )
                 validation_config = _resolve_cli_config(args, base=base_config)
-                result = analyze_battery_file_streaming(
+                result, report_series = analyze_battery_file_with_report_series(
                     source_snapshot.handle,
                     source_name=input_path.name,
                     limits=validation_config.limits,
@@ -261,6 +261,7 @@ def run(argv: Sequence[str] | None = None) -> int:
                     result,
                     report_path,
                     metadata=metadata,
+                    series=report_series,
                 )
         else:
             validation_config = _resolve_cli_config(args)

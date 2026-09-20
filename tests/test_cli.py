@@ -169,6 +169,13 @@ def test_cli_writes_html_report_and_preserves_fail_exit_code(
     assert SAMPLE.name in html
     assert "Source SHA-256" in html
     assert "Not provided" in html
+    assert html.count('class="timeseries-chart"') == 3
+    assert "Cell-voltage envelope" in html
+    assert "Cell-voltage delta" in html
+    assert "Temperature envelope" in html
+    assert 'data-code="CELL_IMBALANCE_HIGH"' in html
+    assert 'data-code="TEMPERATURE_HIGH"' in html
+    assert "Validation events remain sourced from AnalysisResult" in html
 
 
 def test_cli_report_contains_config_provenance(tmp_path, capsys) -> None:
@@ -607,8 +614,12 @@ def test_cli_report_preserves_json_stdout_contract(tmp_path, capsys) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
+    assert payload["schema_version"] == 2
     assert payload["validation_status"] == "PASS"
+    assert "plot" not in payload
+    assert "report_series" not in payload
     assert report.exists()
+    assert report.read_text(encoding="utf-8").count('class="timeseries-chart"') == 3
 
 
 def test_cli_json_out_refuses_hardlink_alias_of_input(tmp_path, capsys) -> None:
@@ -637,7 +648,7 @@ def test_report_provenance_analyzes_exact_source_snapshot_during_restore_race(
 
     real_capture = cli_module.capture_file_backed_snapshot
     real_verify = cli_module.verify_file_unchanged
-    real_analyze = cli_module.analyze_battery_file_streaming
+    real_analyze = cli_module.analyze_battery_file_with_report_series
 
     @contextmanager
     def capture_then_poison(path):
@@ -661,7 +672,7 @@ def test_report_provenance_analyzes_exact_source_snapshot_during_restore_race(
     monkeypatch.setattr(cli_module, "capture_file_backed_snapshot", capture_then_poison)
     monkeypatch.setattr(
         cli_module,
-        "analyze_battery_file_streaming",
+        "analyze_battery_file_with_report_series",
         analyze_while_disk_is_poisoned,
     )
     monkeypatch.setattr(cli_module, "verify_file_unchanged", restore_then_verify)

@@ -2,9 +2,11 @@ from html import escape
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+from batterylog.analysis.report_series import ReportSeries
 from batterylog.models import AnalysisResult
 
 from .evidence import ReportMetadata
+from .plots import render_report_plots
 
 
 def _fmt_number(value: float | None) -> str:
@@ -175,6 +177,7 @@ def render_html_report(
     result: AnalysisResult,
     *,
     metadata: ReportMetadata | None = None,
+    series: ReportSeries | None = None,
 ) -> str:
     status = result["validation_status"]
     rules = ", ".join(result["rules_evaluated"]) or "None"
@@ -186,6 +189,7 @@ def render_html_report(
         if violations
         else "<p>No violation events were recorded.</p>"
     )
+    plot_section = render_report_plots(result, series) if series is not None else ""
 
     return f"""<!doctype html>
 <html lang="en">
@@ -205,6 +209,25 @@ table {{ width: 100%; border-collapse: collapse; }}
 th, td {{ border-bottom: 1px solid #8886; padding: 9px; text-align: left; vertical-align: top; }}
 code {{ font-family: ui-monospace, Consolas, monospace; }}
 .small {{ opacity: 0.8; }}
+.plot-card {{ border: 1px solid #8886; border-radius: 8px; padding: 12px; margin: 16px 0; overflow-x: auto; }}
+.plot-card figcaption {{ display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }}
+.plot-legend {{ font-size: 0.85rem; opacity: 0.85; }}
+.legend-primary::before, .legend-secondary::before {{ content: ""; display: inline-block; width: 18px; height: 3px; margin: 0 5px 3px 10px; vertical-align: middle; }}
+.legend-primary::before {{ background: #2563eb; }}
+.legend-secondary::before {{ background: #16a34a; }}
+.timeseries-chart {{ width: 100%; min-width: 680px; height: auto; display: block; }}
+.chart-grid {{ stroke: currentColor; stroke-opacity: 0.12; stroke-width: 1; }}
+.chart-axis {{ stroke: currentColor; stroke-opacity: 0.55; stroke-width: 1.2; }}
+.chart-tick {{ fill: currentColor; opacity: 0.72; font-size: 11px; }}
+.chart-envelope {{ fill: #3b82f6; fill-opacity: 0.12; stroke: none; }}
+.series-primary, .series-secondary {{ fill: none; stroke-width: 1.7; vector-effect: non-scaling-stroke; }}
+.series-primary {{ stroke: #2563eb; }}
+.series-secondary {{ stroke: #16a34a; }}
+.limit-line {{ stroke: #d97706; stroke-width: 1.4; stroke-dasharray: 7 5; vector-effect: non-scaling-stroke; }}
+.limit-label {{ fill: #d97706; font-size: 11px; }}
+.violation-window {{ fill: #dc2626; fill-opacity: 0.10; }}
+.violation-peak {{ fill: #dc2626; stroke: white; stroke-width: 1.5; vector-effect: non-scaling-stroke; }}
+.plot-note {{ margin-top: -4px; }}
 </style>
 </head>
 <body>
@@ -233,6 +256,7 @@ code {{ font-family: ui-monospace, Consolas, monospace; }}
 <h2>Measured extrema</h2>
 <table><tbody>{_measured_metric_rows(result)}</tbody></table>
 </section>
+{plot_section}
 <section>
 <h2>Validation configuration</h2>
 <p>Rules evaluated: <code>{escape(rules)}</code></p>
@@ -252,9 +276,10 @@ def write_html_report(
     output_path: str | Path,
     *,
     metadata: ReportMetadata | None = None,
+    series: ReportSeries | None = None,
 ) -> Path:
     path = Path(output_path)
-    content = render_html_report(result, metadata=metadata)
+    content = render_html_report(result, metadata=metadata, series=series)
 
     temp_path: Path | None = None
     try:

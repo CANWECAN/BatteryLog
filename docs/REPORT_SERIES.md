@@ -33,6 +33,20 @@ The reducer is deliberately independent of measurement-loader chunk sizes. Tests
 
 Downsampling can omit a non-global local shape feature inside a summarized interval. It must therefore never be the source of violation evidence. Report renderers must overlay violation intervals and worst-case markers from the existing `AnalysisResult["violations"]` events. This keeps PASS/FAIL semantics and auditable evidence independent from visualization decimation.
 
+## HTML rendering
+
+BatteryLog renders the report series directly as three inline SVG plots inside the self-contained HTML evidence report:
+
+- cell-voltage minimum/maximum envelope versus source timestamp
+- cell-voltage delta versus source timestamp
+- temperature minimum/maximum envelope versus source timestamp
+
+No external JavaScript, image files, fonts, or plotting package is required. SVG coordinates are deterministically derived from the retained `ReportSeries` points.
+
+The renderer does not infer engineering evidence from those points. Configured horizontal limit lines come from `AnalysisResult["limits_applied"]`. Shaded violation intervals, worst-case timestamps, worst-case measured values, and rule codes come from `AnalysisResult["violations"]`. Worst-case markers are rendered after the time-series geometry so they remain visually on top of downsampled lines/envelopes.
+
+The renderer performs fail-closed consistency checks before emitting SVG: `source_rows` must match `AnalysisResult["rows_analyzed"]`, retained rows/timestamps must be ordered and finite, the declared point budget must be respected, first/last source rows must remain present, and the retained global extrema must match the extrema recorded in `AnalysisResult`. These checks catch common mismatched or malformed series inputs, but they are not a cryptographic identity binding between two independently supplied objects. The CLI avoids that ambiguity by obtaining the result and report series from the same analyzer invocation over the same source snapshot. The JSON/result schema remains unchanged.
+
 ## Performance boundary
 
 The streaming analyzer passes already-computed NumPy metric arrays to the collector by chunk. After reduction begins, only extrema candidates from small globally aligned blocks are materialized as Python point objects. This keeps retained memory bounded by the configured report budget plus reducer working state and avoids creating one long-lived plot point per source row.
