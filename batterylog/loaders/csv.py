@@ -1,9 +1,24 @@
 import csv
 import io
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
 
 import pandas as pd
+
+
+def _validate_header(header: list[str]) -> list[str]:
+    if not header or all(not column for column in header):
+        raise ValueError("Battery log has no CSV header")
+    if any(not column for column in header):
+        raise ValueError("CSV header contains an empty column name")
+
+    duplicates = sorted(column for column, count in Counter(header).items() if count > 1)
+    if duplicates:
+        joined = ", ".join(repr(column) for column in duplicates)
+        raise ValueError(f"Duplicate CSV column name(s): {joined}")
+
+    return header
 
 
 def _read_header_from_bytes(data: bytes) -> list[str]:
@@ -18,17 +33,18 @@ def _read_header_from_bytes(data: bytes) -> list[str]:
         except StopIteration as exc:
             raise ValueError("Battery log is empty") from exc
 
-    if not header or all(not column for column in header):
-        raise ValueError("Battery log has no CSV header")
-    if any(not column for column in header):
-        raise ValueError("CSV header contains an empty column name")
+    return _validate_header(header)
 
-    duplicates = sorted(column for column, count in Counter(header).items() if count > 1)
-    if duplicates:
-        joined = ", ".join(repr(column) for column in duplicates)
-        raise ValueError(f"Duplicate CSV column name(s): {joined}")
 
-    return header
+def _read_header_from_path(path: str | Path) -> list[str]:
+    with Path(path).open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.reader(handle)
+        try:
+            header = next(reader)
+        except StopIteration as exc:
+            raise ValueError("Battery log is empty") from exc
+
+    return _validate_header(header)
 
 
 def load_battery_csv_bytes(data: bytes) -> pd.DataFrame:
@@ -38,3 +54,20 @@ def load_battery_csv_bytes(data: bytes) -> pd.DataFrame:
 
 def load_battery_csv(path: str | Path) -> pd.DataFrame:
     return load_battery_csv_bytes(Path(path).read_bytes())
+
+
+def iter_battery_csv(
+    path: str | Path,
+    *,
+    chunk_rows: int,
+) -> Iterator[pd.DataFrame]:
+    if isinstance(chunk_rows, bool) or not isinstance(chunk_rows, int) or chunk_rows <= 0:
+        raise ValueError("chunk_rows must be a positive integer")
+
+    source = Path(path)
+    _read_header_from_path(source)
+    yield from pd.read_csv(
+        source,
+        encoding="utf-8-sig",
+        chunksize=chunk_rows,
+    )

@@ -4,6 +4,14 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### Large-log analysis
+
+- Changed the standard CSV file-analysis path from whole-file materialization to 50,000-row chunked processing.
+- Preserved global extrema, timestamp-order validation, event-gap semantics, and active violation events across chunk boundaries without changing result schema v2.
+- Added boundary-sensitive regression tests and differential property tests comparing chunked analysis against the whole-frame reference implementation.
+- Added an end-to-end CSV profiling benchmark that reports runtime and Python-heap peak usage, and included profiling scripts in source distributions.
+- Kept HTML evidence-report analysis on the immutable in-memory snapshot path for now so bounded-memory work does not weaken exact-byte provenance.
+
 ## 0.7.0 - 2026-09-20
 
 ### Release preparation

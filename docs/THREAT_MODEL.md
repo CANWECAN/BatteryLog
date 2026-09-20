@@ -44,6 +44,8 @@ Validation limits are engineering inputs. BatteryLog does not infer universal sa
 
 ## Memory tradeoff
 
-Current CSV analysis is full-memory. Evidence-report mode additionally retains the immutable source byte snapshot while parsing and analysis run.
+Standard CSV file analysis is chunked and carries validation state across chunk boundaries, so analysis memory does not grow with the total input row count. The returned violation-event list is still materialized and can grow with the number of distinct events.
 
-Bounded-memory evidence for multi-million-row inputs requires a future streaming/content-addressed design and is tracked separately from the current snapshot model.
+Evidence-report mode deliberately remains on the immutable in-memory source snapshot path. This preserves the exact-byte provenance invariant above, but means report generation still scales memory with source-file size.
+
+Bounded-memory evidence for multi-million-row inputs requires a future streaming/content-addressed snapshot design that preserves the same provenance guarantee and is tracked separately from the current report snapshot model.

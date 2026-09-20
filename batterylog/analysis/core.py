@@ -11,7 +11,7 @@ from batterylog.config import (
     ValidationLimits,
     override_validation_limits,
 )
-from batterylog.loaders import load_battery_csv, load_battery_csv_bytes
+from batterylog.loaders import load_battery_csv_bytes
 from batterylog.models import (
     RESULT_SCHEMA_VERSION,
     AnalysisOptions,
@@ -94,6 +94,8 @@ def _first_true_position(mask: np.ndarray) -> tuple[int, int] | None:
 def _raise_invalid_numeric_value(
     frame: pd.DataFrame,
     numeric: pd.DataFrame,
+    *,
+    row_offset: int = 0,
 ) -> None:
     missing_position = _first_true_position(numeric.isna().to_numpy())
     if missing_position is not None:
@@ -103,7 +105,7 @@ def _raise_invalid_numeric_value(
         row_index = frame.index[row_pos]
         raise ValueError(
             "Required numeric value is missing or non-numeric at "
-            f"data row {row_pos + 1} (index {row_index!r}), "
+            f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
             f"column {column!r}: {raw_value!r}"
         )
 
@@ -116,7 +118,7 @@ def _raise_invalid_numeric_value(
         row_index = frame.index[row_pos]
         raise ValueError(
             "Required numeric value is non-finite at "
-            f"data row {row_pos + 1} (index {row_index!r}), "
+            f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
             f"column {column!r}: {value!r}"
         )
 
@@ -356,8 +358,10 @@ def analyze_battery_log(
     event_detection: EventDetectionConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
-    return _analyze_battery_frame(
-        load_battery_csv(path),
+    from .streaming import analyze_battery_log_streaming
+
+    return analyze_battery_log_streaming(
+        path,
         imbalance_limit_v,
         temp_warning_c,
         limits=limits,
