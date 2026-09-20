@@ -384,9 +384,13 @@ Event grouping uses row contiguity by default and can optionally split sparse fa
 
 Signal mapping deliberately does not infer units or perform unit conversion. Future loaders that expose measurement-unit metadata should validate units explicitly before the canonical data reaches the rule engine.
 
-HTML evidence generation hashes the source/config before analysis and re-hashes them afterwards. A metadata-only size/mtime check is not used as the final provenance guard.
+HTML evidence generation snapshots the source CSV and optional YAML config into immutable byte buffers. SHA-256 evidence is computed from those exact bytes, and parsing/analysis consumes the same buffers. This makes the report's provenance content-addressed: the bytes named by the report hash are the bytes that produced the result.
 
-The current CSV loader still materializes the complete file in memory. The event-construction hot path is optimized, but multi-million-row bounded-memory processing requires the separate streaming work planned for large-log support.
+BatteryLog still re-hashes the on-disk files before writing the report to detect ordinary later drift, but that final check is a secondary guard rather than the basis of the provenance guarantee. A file that is changed and restored between checks cannot cause different bytes to be analyzed under the original hash.
+
+The security and trust boundaries of this evidence model are documented in [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md). SHA-256 provenance binds results to analyzed bytes; it does not authenticate the origin of the data or digitally sign the generated report.
+
+The current CSV loader still materializes the complete file in memory. Evidence-report mode additionally retains the immutable source snapshot while analysis runs, so bounded-memory multi-million-row processing requires the separate streaming work planned for large-log support.
 
 Planned follow-on work includes report plots, MF4/MDF support, CAN/DBC decoding, richer rule metadata, automated release artifacts, and larger-log processing.
 

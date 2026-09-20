@@ -4,6 +4,13 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### Provenance hardening
+
+- Bound HTML report provenance to immutable source/config byte snapshots instead of independently re-reading paths for hashing and parsing.
+- SHA-256 evidence is now derived from the exact bytes consumed by CSV/YAML parsers.
+- Added restore-race regression tests covering source and configuration TOCTOU scenarios.
+- Retained the final on-disk re-hash as a secondary drift guard; provenance correctness no longer depends on that check.
+
 ### Licensing and attribution
 
 - Licensed BatteryLog under the Apache License 2.0.

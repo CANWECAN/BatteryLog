@@ -178,17 +178,19 @@ def _optional_number(name: str, value: Any) -> float | None:
     return number
 
 
-def _load_config_root(path: str | Path) -> dict[str, Any]:
-    config_path = Path(path)
+def _load_config_root_bytes(
+    data: bytes,
+    *,
+    source_name: str,
+) -> dict[str, Any]:
     try:
+        text = data.decode("utf-8")
         raw = yaml.load(
-            config_path.read_text(encoding="utf-8"),
+            text,
             Loader=_UniqueKeySafeLoader,
         )
-    except OSError:
-        raise
     except yaml.YAMLError as exc:
-        raise ValueError(f"Invalid YAML in {config_path}: {exc}") from exc
+        raise ValueError(f"Invalid YAML in {source_name}: {exc}") from exc
 
     if raw is None:
         raw = {}
@@ -312,12 +314,24 @@ def _parse_signals(root: dict[str, Any]) -> SignalMapping | None:
     )
 
 
-def load_validation_config(path: str | Path) -> ValidationConfig:
-    root = _load_config_root(path)
+def load_validation_config_bytes(
+    data: bytes,
+    *,
+    source_name: str = "<memory>",
+) -> ValidationConfig:
+    root = _load_config_root_bytes(data, source_name=source_name)
     return ValidationConfig(
         limits=_parse_limits(root),
         event_detection=_parse_event_detection(root),
         signals=_parse_signals(root),
+    )
+
+
+def load_validation_config(path: str | Path) -> ValidationConfig:
+    config_path = Path(path)
+    return load_validation_config_bytes(
+        config_path.read_bytes(),
+        source_name=str(config_path),
     )
 
 

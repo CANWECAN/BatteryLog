@@ -14,6 +14,12 @@ class FileEvidence:
 
 
 @dataclass(frozen=True)
+class FileSnapshot:
+    data: bytes
+    evidence: FileEvidence
+
+
+@dataclass(frozen=True)
 class ReportMetadata:
     batterylog_version: str
     generated_at_utc: str
@@ -29,21 +35,28 @@ def sha256_file(path: str | Path) -> str:
     return digest.hexdigest()
 
 
-def capture_file_evidence(path: str | Path) -> FileEvidence:
+def capture_file_snapshot(path: str | Path) -> FileSnapshot:
     file_path = Path(path)
     before = file_path.stat()
-    digest = sha256_file(file_path)
+    data = file_path.read_bytes()
     after = file_path.stat()
 
     if before.st_size != after.st_size or before.st_mtime_ns != after.st_mtime_ns:
-        raise ValueError(f"Evidence file changed while hashing: {file_path.name}")
+        raise ValueError(f"Evidence file changed while snapshotting: {file_path.name}")
+    if len(data) != after.st_size:
+        raise ValueError(f"Evidence file size changed while snapshotting: {file_path.name}")
 
-    return FileEvidence(
+    evidence = FileEvidence(
         name=file_path.name,
-        sha256=digest,
-        size_bytes=after.st_size,
+        sha256=hashlib.sha256(data).hexdigest(),
+        size_bytes=len(data),
         mtime_ns=after.st_mtime_ns,
     )
+    return FileSnapshot(data=data, evidence=evidence)
+
+
+def capture_file_evidence(path: str | Path) -> FileEvidence:
+    return capture_file_snapshot(path).evidence
 
 
 def verify_file_unchanged(path: str | Path, evidence: FileEvidence) -> None:

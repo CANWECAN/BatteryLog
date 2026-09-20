@@ -11,7 +11,7 @@ from batterylog.config import (
     ValidationLimits,
     override_validation_limits,
 )
-from batterylog.loaders import load_battery_csv
+from batterylog.loaders import load_battery_csv, load_battery_csv_bytes
 from batterylog.models import (
     RESULT_SCHEMA_VERSION,
     AnalysisOptions,
@@ -202,8 +202,8 @@ def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
     return codes
 
 
-def analyze_battery_log(
-    path: str | Path,
+def _analyze_battery_frame(
+    df: pd.DataFrame,
     imbalance_limit_v: float | None = None,
     temp_warning_c: float | None = None,
     *,
@@ -224,7 +224,6 @@ def analyze_battery_log(
     if signal_mapping is not None and not isinstance(signal_mapping, SignalMapping):
         raise TypeError("signal_mapping must be a SignalMapping instance or null")
 
-    df = load_battery_csv(path)
     if df.empty:
         raise ValueError("Battery log contains no data rows")
 
@@ -346,3 +345,41 @@ def analyze_battery_log(
         "min_temperature_c": float(row_min_temp.min()),
         "violations": violations,
     }
+
+
+def analyze_battery_log(
+    path: str | Path,
+    imbalance_limit_v: float | None = None,
+    temp_warning_c: float | None = None,
+    *,
+    limits: ValidationLimits | None = None,
+    event_detection: EventDetectionConfig | None = None,
+    signal_mapping: SignalMapping | None = None,
+) -> AnalysisResult:
+    return _analyze_battery_frame(
+        load_battery_csv(path),
+        imbalance_limit_v,
+        temp_warning_c,
+        limits=limits,
+        event_detection=event_detection,
+        signal_mapping=signal_mapping,
+    )
+
+
+def analyze_battery_bytes(
+    data: bytes,
+    imbalance_limit_v: float | None = None,
+    temp_warning_c: float | None = None,
+    *,
+    limits: ValidationLimits | None = None,
+    event_detection: EventDetectionConfig | None = None,
+    signal_mapping: SignalMapping | None = None,
+) -> AnalysisResult:
+    return _analyze_battery_frame(
+        load_battery_csv_bytes(data),
+        imbalance_limit_v,
+        temp_warning_c,
+        limits=limits,
+        event_detection=event_detection,
+        signal_mapping=signal_mapping,
+    )

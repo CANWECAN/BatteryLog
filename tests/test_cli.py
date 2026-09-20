@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import sys
@@ -5,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import batterylog.__main__ as cli_module
 from batterylog.__main__ import (
     EXIT_RUNTIME_ERROR,
     EXIT_USAGE_ERROR,
@@ -597,3 +599,113 @@ def test_cli_json_out_refuses_hardlink_alias_of_input(tmp_path, capsys) -> None:
     assert exit_code == EXIT_RUNTIME_ERROR
     assert "must not overwrite the input log" in capsys.readouterr().err
     assert source.read_text(encoding="utf-8") == SAMPLE.read_text(encoding="utf-8")
+
+
+def test_report_provenance_analyzes_exact_source_snapshot_during_restore_race(
+    monkeypatch,
+    tmp_path,
+    capsys,
+) -> None:
+    source = tmp_path / "input.csv"
+    original = b"timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,3.80,3.79\n"
+    poisoned = b"timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,4.50,3.79\n"
+    source.write_bytes(original)
+    report = tmp_path / "report.html"
+
+    real_capture = cli_module.capture_file_snapshot
+    real_verify = cli_module.verify_file_unchanged
+    real_analyze = cli_module.analyze_battery_bytes
+
+    def capture_then_poison(path):
+        snapshot = real_capture(path)
+        if Path(path).resolve() == source.resolve():
+            source.write_bytes(poisoned)
+        return snapshot
+
+    def analyze_while_disk_is_poisoned(data, *args, **kwargs):
+        assert source.read_bytes() == poisoned
+        assert data == original
+        return real_analyze(data, *args, **kwargs)
+
+    def restore_then_verify(path, evidence):
+        if Path(path).resolve() == source.resolve():
+            source.write_bytes(original)
+        return real_verify(path, evidence)
+
+    monkeypatch.setattr(cli_module, "capture_file_snapshot", capture_then_poison)
+    monkeypatch.setattr(cli_module, "analyze_battery_bytes", analyze_while_disk_is_poisoned)
+    monkeypatch.setattr(cli_module, "verify_file_unchanged", restore_then_verify)
+
+    exit_code = run(
+        [
+            str(source),
+            "--cell-max-v",
+            "4.2",
+            "--report",
+            str(report),
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["validation_status"] == "PASS"
+    assert payload["max_cell_voltage_v"] == 3.8
+    assert hashlib.sha256(original).hexdigest() in report.read_text(encoding="utf-8")
+
+
+def test_report_provenance_parses_exact_config_snapshot_during_restore_race(
+    monkeypatch,
+    tmp_path,
+    capsys,
+) -> None:
+    source = tmp_path / "input.csv"
+    source.write_bytes(b"timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,3.80,3.79\n")
+    config = tmp_path / "validation.yaml"
+    original_config = b"limits:\n  cell_voltage:\n    max_v: 4.2\n"
+    poisoned_config = b"limits:\n  cell_voltage:\n    max_v: 3.7\n"
+    config.write_bytes(original_config)
+    report = tmp_path / "report.html"
+
+    real_capture = cli_module.capture_file_snapshot
+    real_verify = cli_module.verify_file_unchanged
+    real_load_config = cli_module.load_validation_config_bytes
+
+    def capture_then_poison(path):
+        snapshot = real_capture(path)
+        if Path(path).resolve() == config.resolve():
+            config.write_bytes(poisoned_config)
+        return snapshot
+
+    def parse_while_disk_is_poisoned(data, *args, **kwargs):
+        assert config.read_bytes() == poisoned_config
+        assert data == original_config
+        return real_load_config(data, *args, **kwargs)
+
+    def restore_then_verify(path, evidence):
+        if Path(path).resolve() == config.resolve():
+            config.write_bytes(original_config)
+        return real_verify(path, evidence)
+
+    monkeypatch.setattr(cli_module, "capture_file_snapshot", capture_then_poison)
+    monkeypatch.setattr(
+        cli_module,
+        "load_validation_config_bytes",
+        parse_while_disk_is_poisoned,
+    )
+    monkeypatch.setattr(cli_module, "verify_file_unchanged", restore_then_verify)
+
+    exit_code = run(
+        [
+            str(source),
+            "--config",
+            str(config),
+            "--report",
+            str(report),
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["validation_status"] == "PASS"
+    assert payload["limits_applied"]["cell_max_v"] == 4.2
+    assert hashlib.sha256(original_config).hexdigest() in report.read_text(encoding="utf-8")

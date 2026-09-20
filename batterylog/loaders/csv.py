@@ -1,12 +1,17 @@
 import csv
+import io
 from collections import Counter
 from pathlib import Path
 
 import pandas as pd
 
 
-def _read_header(path: Path) -> list[str]:
-    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+def _read_header_from_bytes(data: bytes) -> list[str]:
+    with io.TextIOWrapper(
+        io.BytesIO(data),
+        encoding="utf-8-sig",
+        newline="",
+    ) as handle:
         reader = csv.reader(handle)
         try:
             header = next(reader)
@@ -26,7 +31,10 @@ def _read_header(path: Path) -> list[str]:
     return header
 
 
+def load_battery_csv_bytes(data: bytes) -> pd.DataFrame:
+    _read_header_from_bytes(data)
+    return pd.read_csv(io.BytesIO(data), encoding="utf-8-sig")
+
+
 def load_battery_csv(path: str | Path) -> pd.DataFrame:
-    csv_path = Path(path)
-    _read_header(csv_path)
-    return pd.read_csv(csv_path, encoding="utf-8-sig")
+    return load_battery_csv_bytes(Path(path).read_bytes())
