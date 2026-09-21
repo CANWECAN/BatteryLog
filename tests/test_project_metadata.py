@@ -22,7 +22,9 @@ def test_package_metadata_declares_apache_2() -> None:
     assert metadata["license-files"] == ["LICENSE", "NOTICE"]
     assert {"name": "Berk Ozfiliz"} in metadata["authors"]
     assert "setuptools>=77" in project["build-system"]["requires"]
-    assert project["project"]["optional-dependencies"]["mf4"] == ["asammdf>=8.8,<9"]
+    optional = project["project"]["optional-dependencies"]
+    assert optional["mf4"] == ["asammdf>=8.8,<9"]
+    assert "psutil>=5.9" in optional["dev"]
 
 
 def test_notice_records_project_attribution() -> None:

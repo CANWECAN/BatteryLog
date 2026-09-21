@@ -1,3 +1,6 @@
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -9,6 +12,8 @@ from asammdf import MDF, Signal
 
 from batterylog import SignalMapping, SignalPattern, ValidationLimits, analyze_battery_log
 from batterylog.__main__ import run
+
+ROOT = Path(__file__).parents[1]
 
 LIMITS = ValidationLimits(
     cell_min_v=2.8,
@@ -190,3 +195,67 @@ def test_real_mf4_cli_report_uses_file_backed_snapshot(tmp_path: Path, capsys) -
     assert mf4_path.name in html
     assert html.count('class="timeseries-chart"') == 3
     assert "Cell-voltage envelope" in html
+
+
+def test_mf4_benchmark_smoke_exercises_analysis_and_report_paths(tmp_path: Path) -> None:
+    json_path = tmp_path / "benchmark.json"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "benchmarks" / "benchmark_mf4_analysis.py"),
+            "--rows",
+            "40",
+            "80",
+            "--cells",
+            "4",
+            "--temperatures",
+            "2",
+            "--modes",
+            "analysis",
+            "report",
+            "--sample-interval-ms",
+            "5",
+            "--repeats",
+            "1",
+            "--json-out",
+            str(json_path),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "channels=4 cells + 2 temperatures" in completed.stdout
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    assert payload["repeats"] == 1
+    assert payload["environment"]["cells"] == 4
+    assert payload["environment"]["temperature_sensors"] == 2
+
+    cases = payload["cases"]
+    assert len(cases) == 4
+    assert {(case["rows"], case["mode"]) for case in cases} == {
+        (40, "analysis"),
+        (40, "report"),
+        (80, "analysis"),
+        (80, "report"),
+    }
+    for case in cases:
+        assert case["status"] == "PASS"
+        assert case["cells"] == 4
+        assert case["temperature_sensors"] == 2
+        assert case["elapsed_s"] > 0.0
+        assert case["rows_per_s"] > 0.0
+        assert case["mf4_bytes"] > 0
+        assert case["rss_baseline_bytes"] > 0
+        assert case["rss_peak_sampled_bytes"] >= case["rss_baseline_bytes"]
+        assert case["rss_delta_sampled_bytes"] >= 0
+        if case["rss_peak_native_bytes"] is not None:
+            assert case["rss_peak_native_bytes"] >= case["rss_peak_sampled_bytes"]
+            assert case["rss_delta_native_bytes"] >= case["rss_delta_sampled_bytes"]
+        else:
+            assert case["rss_delta_native_bytes"] is None
+        if case["mode"] == "report":
+            assert case["report_bytes"] > 0
+        else:
+            assert case["report_bytes"] is None

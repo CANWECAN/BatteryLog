@@ -27,6 +27,9 @@ All notable changes to BatteryLog are documented here.
 
 ### Large-log analysis
 
+- Added a repeatable end-to-end MDF/MF4 benchmark that generates realistic multi-channel MF4 inputs, isolates measured workloads in fresh child processes, and records wall-clock throughput plus sampled process RSS for both standard analysis and HTML evidence-report paths.
+- Documented a three-repeat Windows baseline showing source-size-proportional MDF/MF4 RSS growth despite the 64 MiB `asammdf` output-chunk target; results remain informational rather than CI performance gates.
+- Added `psutil` to the development extra for cross-platform process-RSS measurement without changing runtime dependencies.
 - Changed the standard CSV file-analysis path from whole-file materialization to 50,000-row chunked processing.
 - Preserved global extrema, timestamp-order validation, event-gap semantics, and active violation events across chunk boundaries without changing result schema v2.
 - Added boundary-sensitive regression tests and differential property tests comparing chunked analysis against the whole-frame reference implementation.
