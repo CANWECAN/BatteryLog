@@ -12,6 +12,8 @@ from asammdf import MDF, Signal
 
 from batterylog import SignalMapping, SignalPattern, ValidationLimits, analyze_battery_log
 from batterylog.__main__ import run
+from batterylog.analysis.streaming import analyze_measurement_loader
+from batterylog.loaders import MdfPathLoader
 
 ROOT = Path(__file__).parents[1]
 
@@ -61,6 +63,54 @@ def test_real_mf4_matches_equivalent_csv(tmp_path: Path) -> None:
     mf4_result = analyze_battery_log(mf4_path, limits=LIMITS)
 
     assert mf4_result == csv_result
+
+
+def test_real_mf4_single_group_multichunk_matches_csv(tmp_path: Path) -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": np.arange(12, dtype=float),
+            "cell_1_v": [3.80, 3.81, 4.30, 4.31, 3.82, 3.81, 3.80, 3.79, 3.78, 3.80, 3.81, 3.80],
+            "cell_2_v": [3.79, 3.80, 3.90, 3.89, 3.81, 3.80, 3.79, 3.78, 3.77, 3.79, 3.80, 3.79],
+            "temp_1_c": [25.0, 25.5, 56.0, 57.0, 30.0, 29.0, 28.0, 27.0, 26.0, 25.0, 24.0, 25.0],
+        }
+    )
+    csv_path = tmp_path / "multichunk.csv"
+    mf4_path = tmp_path / "multichunk.mf4"
+    frame.to_csv(csv_path, index=False)
+    _save_mdf(mf4_path, [_canonical_signals(frame)])
+
+    csv_result = analyze_battery_log(csv_path, limits=LIMITS)
+    mf4_result = analyze_measurement_loader(
+        MdfPathLoader(mf4_path, chunk_ram_bytes=64),
+        limits=LIMITS,
+    )
+
+    assert mf4_result == csv_result
+
+
+def test_real_mf4_single_group_invalidation_fails_closed(tmp_path: Path) -> None:
+    path = tmp_path / "invalid-sample.mf4"
+    timestamps = np.array([0.0, 1.0, 2.0])
+    invalid = np.array([False, True, False])
+    _save_mdf(
+        path,
+        [
+            [
+                Signal(
+                    np.array([3.8, 9.9, 3.8]),
+                    timestamps,
+                    name="cell_1_v",
+                    unit="V",
+                    invalidation_bits=invalid,
+                ),
+                Signal(np.array([3.79, 3.79, 3.79]), timestamps, name="cell_2_v", unit="V"),
+                Signal(np.array([25.0, 25.0, 25.0]), timestamps, name="temp_1_c", unit="degC"),
+            ]
+        ],
+    )
+
+    with pytest.raises(ValueError, match="Required numeric value is missing or non-numeric"):
+        analyze_battery_log(path, limits=LIMITS)
 
 
 def test_real_mf4_legacy_temp_c_matches_equivalent_csv(tmp_path: Path) -> None:

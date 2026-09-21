@@ -1,7 +1,9 @@
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 from typing import ClassVar
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -21,7 +23,7 @@ class FakeMDF:
     channels_db: ClassVar[dict[str, tuple[tuple[int, int], ...]]] = {
         "cell_1_v": ((0, 1),),
         "cell_2_v": ((0, 2),),
-        "temp_1_c": ((0, 3),),
+        "temp_1_c": ((1, 3),),
     }
     units: ClassVar[dict[str, str]] = {
         "cell_1_v": "V",
@@ -97,13 +99,132 @@ def test_mdf_loader_uses_fail_closed_alignment_and_physical_values(monkeypatch) 
     assert FakeMDF.iter_kwargs["chunk_ram_size"] == 123456
 
 
+def test_mdf_single_group_loader_uses_record_bounded_select(monkeypatch) -> None:
+    class FastMDF(FakeMDF):
+        channels_db: ClassVar[dict[str, tuple[tuple[int, int], ...]]] = {
+            "cell_1_v": ((0, 1),),
+            "cell_2_v": ((0, 2),),
+            "temp_1_c": ((0, 3),),
+        }
+        groups: ClassVar[list[SimpleNamespace]] = [
+            SimpleNamespace(channel_group=SimpleNamespace(cycles_nr=3))
+        ]
+        select_calls: ClassVar[list[dict[str, object]]] = []
+
+        def get_master(self, group_index: int, *, record_offset: int, record_count: int):
+            assert group_index == 0
+            stop = record_offset + record_count
+            return self.frame.index.to_numpy(dtype=float)[record_offset:stop]
+
+        def select(self, channels, **kwargs):
+            type(self).select_calls.append({"channels": channels, **kwargs})
+            start = int(kwargs["record_offset"])
+            stop = start + int(kwargs["record_count"])
+            timestamps = self.frame.index.to_numpy(dtype=float)[start:stop]
+            invalid = np.array([False, True, False])[start:stop]
+            signals = []
+            for name, _, _ in channels:
+                signals.append(
+                    SimpleNamespace(
+                        name=name,
+                        samples=self.frame[name].to_numpy()[start:stop],
+                        timestamps=timestamps,
+                        invalidation_bits=invalid if name == "cell_1_v" else None,
+                    )
+                )
+            return signals
+
+        def iter_to_dataframe(self, **kwargs):
+            raise AssertionError(f"single-group fast path must not filter/materialize: {kwargs}")
+
+    FastMDF.select_calls = []
+    _install_fake_mdf(monkeypatch, FastMDF)
+
+    chunks = list(
+        MdfPathLoader(Path("capture.mf4"), chunk_ram_bytes=64).iter_chunks(signal_mapping=None)
+    )
+
+    assert [len(chunk) for chunk in chunks] == [2, 1]
+    assert chunks[0]["timestamp_s"].tolist() == [0.0, 1.0]
+    assert chunks[1]["timestamp_s"].tolist() == [2.0]
+    assert np.isnan(chunks[0].loc[1, "cell_1_v"])
+    assert [call["record_offset"] for call in FastMDF.select_calls] == [0, 2]
+    assert [call["record_count"] for call in FastMDF.select_calls] == [2, 1]
+    for call in FastMDF.select_calls:
+        assert call["raw"] is False
+        assert call["copy_master"] is False
+        assert call["validate"] is False
+
+
+@pytest.mark.parametrize(
+    ("signal", "match"),
+    [
+        (None, "omitted required channel.*cell_1_v"),
+        (
+            SimpleNamespace(
+                name="cell_1_v",
+                samples=np.array([[3.8], [3.9]]),
+                timestamps=np.array([0.0, 1.0]),
+                invalidation_bits=None,
+            ),
+            "omitted required channel.*cell_1_v",
+        ),
+        (
+            SimpleNamespace(
+                name="cell_1_v",
+                samples=np.array([3.8, 3.9]),
+                timestamps=np.array([0.0, 2.0]),
+                invalidation_bits=None,
+            ),
+            "does not share the selected channel-group master time",
+        ),
+        (
+            SimpleNamespace(
+                name="cell_1_v",
+                samples=np.array([3.8, 3.9]),
+                timestamps=np.array([0.0, 1.0]),
+                invalidation_bits=np.array([False]),
+            ),
+            "invalidation metadata with an unexpected shape",
+        ),
+    ],
+)
+def test_mdf_single_group_loader_rejects_malformed_backend_output(signal, match) -> None:
+    class MalformedMDF:
+        groups: ClassVar[list[SimpleNamespace]] = [
+            SimpleNamespace(channel_group=SimpleNamespace(cycles_nr=2))
+        ]
+
+        def get_master(self, group_index: int, *, record_offset: int, record_count: int):
+            assert group_index == 0
+            assert record_offset == 0
+            assert record_count == 2
+            return np.array([0.0, 1.0])
+
+        def select(self, channels, **kwargs):
+            del channels, kwargs
+            return [] if signal is None else [signal]
+
+    with pytest.raises(ValueError, match=match):
+        list(
+            mf4_module._iter_single_group_chunks(
+                MalformedMDF(),
+                timestamp_source="timestamp_s",
+                source_names=["cell_1_v"],
+                channel_specs=[("cell_1_v", 0, 1)],
+                group_index=0,
+                chunk_ram_bytes=32,
+            )
+        )
+
+
 def test_mdf_loader_passes_vendor_mapping_to_existing_canonicalizer(monkeypatch) -> None:
     class VendorMDF(FakeMDF):
         channels_db: ClassVar[dict[str, tuple[tuple[int, int], ...]]] = {
             "vendor_time": ((1, 0),),
             "U_Cell_01": ((1, 1),),
             "U_Cell_02": ((1, 2),),
-            "T_Mod_01": ((1, 3),),
+            "T_Mod_01": ((2, 3),),
         }
         units: ClassVar[dict[str, str]] = {
             "vendor_time": "s",
