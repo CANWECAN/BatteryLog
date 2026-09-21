@@ -294,9 +294,10 @@ Run profiling benchmarks separately from CI:
 .\.venv\Scripts\python.exe benchmarks\benchmark_event_builders.py --rows 300000 --signals 20
 .\.venv\Scripts\python.exe benchmarks\benchmark_csv_analysis.py --rows 200000 --cells 100 --mode analysis
 .\.venv\Scripts\python.exe benchmarks\benchmark_csv_analysis.py --rows 200000 --cells 100 --mode report
+.\.venv\Scripts\python.exe benchmarks\benchmark_mf4_analysis.py
 ```
 
-The event-builder benchmark intentionally creates many short events. The CSV benchmark generates a temporary canonical log and can profile either the Python analysis path or the full CLI HTML evidence-report path, reporting end-to-end time plus `tracemalloc` Python-heap peak usage. These are profiling aids, not pass/fail CI timing gates.
+The event-builder benchmark intentionally creates many short events. The CSV benchmark generates a temporary canonical log and can profile either the Python analysis path or the full CLI HTML evidence-report path, reporting end-to-end time plus `tracemalloc` Python-heap peak usage. The MF4 benchmark requires `.[dev,mf4]`, generates deterministic uncompressed MDF4 inputs at two sizes by default, then runs each analysis/report case in fresh child processes while sampling process RSS with `psutil`. These are profiling aids, not pass/fail CI timing gates. The current MDF/MF4 methodology and baseline results are documented in [`docs/MF4_BENCHMARK.md`](docs/MF4_BENCHMARK.md).
 
 ## CLI usage
 
@@ -425,7 +426,7 @@ BatteryLog still re-hashes the on-disk source/config before writing the report t
 
 The security and trust boundaries of this evidence model are documented in [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md). SHA-256 provenance binds results to analyzed bytes; it does not authenticate the origin of the data or digitally sign the generated report.
 
-CSV standard analysis and HTML evidence-report analysis use 50,000-row source chunks. MDF/MF4 requests output DataFrame chunks targeting 64 MiB from `asammdf`; this is an output-chunk target, not yet a measured end-to-end RSS guarantee for the third-party MDF filtering path. Global extrema, timestamp ordering, and active violation-event state are carried across analyzer chunk boundaries. The machine-readable result still materializes its violation-event list, so workloads that intentionally produce extremely large numbers of distinct events can consume memory proportional to the result itself.
+CSV standard analysis and HTML evidence-report analysis use 50,000-row source chunks. MDF/MF4 requests output DataFrame chunks targeting 64 MiB from `asammdf`, but this is **not** an end-to-end process RSS bound. A repeatable 96-cell/12-temperature Windows benchmark measured median OS-native peak RSS rising from 580.0 MiB to 869.1 MiB for standard analysis and from 538.1 MiB to 704.4 MiB for report mode when the synthetic uncompressed MF4 doubled from 83.2 MiB / 100,000 rows to 166.3 MiB / 200,000 rows. These host-specific results are informational and documented in [`docs/MF4_BENCHMARK.md`](docs/MF4_BENCHMARK.md). Global extrema, timestamp ordering, and active violation-event state are carried across analyzer chunk boundaries. The machine-readable result still materializes its violation-event list, so workloads that intentionally produce extremely large numbers of distinct events can consume memory proportional to the result itself.
 
 Evidence-report mode requires temporary storage approximately proportional to the source measurement-file size while the report is being generated. The temporary snapshot is closed and removed automatically when analysis finishes. The optional YAML config is still retained in memory and therefore contributes memory proportional to config size.
 
