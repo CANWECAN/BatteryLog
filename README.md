@@ -258,7 +258,10 @@ The v3 schema rejects unknown top-level/nested fields and encodes status invaria
 - `NOT_EVALUATED`: no rules evaluated, no violation events, and no data-quality events
 - `PASS`: at least one rule evaluated, no violation events, and no data-quality events
 - `FAIL`: at least one violation event and/or data-quality event
-- `rows_analyzed == 0`: at least one row was excluded and measured extrema are `null`
+- `rows_analyzed == 0`: at least one row was excluded, engineering-rule violations are empty, and measured extrema are `null`
+- non-empty `data_quality.events`: at least one row was excluded
+
+Some arithmetic relationships require semantic validation beyond Draft 2020-12 JSON Schema. BatteryLog-generated results guarantee `rows_input == rows_analyzed + rows_excluded`, event bounds satisfy `1 <= start_row <= end_row <= rows_input`, and each event's `affected_values` equals its inclusive row span multiplied by its signal count. Consumers of results from independent or untrusted producers should check these relationships in addition to schema validation.
 
 Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 2; config schema 1 remains accepted as the strict-mode legacy format.
 

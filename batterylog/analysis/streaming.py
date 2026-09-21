@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import BinaryIO
 
+import numpy as np
 import pandas as pd
 
 from batterylog.config import (
@@ -255,7 +256,11 @@ def _analyze_battery_chunks(
                 raise ValueError("timestamp_s must be non-decreasing")
             previous_timestamp = float(valid_timestamps.iloc[-1])
 
-        rule_numeric = numeric.copy()
+        rule_numeric = pd.DataFrame(
+            numeric.to_numpy(dtype=float, na_value=np.nan),
+            index=numeric.index,
+            columns=numeric.columns,
+        )
         if chunk_rows_excluded:
             rule_numeric.loc[invalid_rows, [*cell_cols, *temp_cols]] = float("nan")
         timestamps = rule_numeric["timestamp_s"]

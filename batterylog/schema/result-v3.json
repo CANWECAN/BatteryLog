@@ -60,14 +60,17 @@
       "$ref": "#/$defs/dataQuality"
     },
     "rows_input": {
+      "description": "Total source data rows. Semantically equals rows_analyzed plus rows_excluded.",
       "type": "integer",
       "minimum": 1
     },
     "rows_analyzed": {
+      "description": "Source rows included in engineering-rule evaluation and extrema.",
       "type": "integer",
       "minimum": 0
     },
     "rows_excluded": {
+      "description": "Source rows excluded because at least one required value was invalid.",
       "type": "integer",
       "minimum": 0
     },
@@ -237,6 +240,9 @@
           "rows_excluded": {
             "minimum": 1
           },
+          "violations": {
+            "maxItems": 0
+          },
           "max_cell_voltage_v": {
             "type": "null"
           },
@@ -344,6 +350,32 @@
             "required": [
               "events"
             ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "data_quality": {
+            "properties": {
+              "events": {
+                "minItems": 1
+              }
+            },
+            "required": [
+              "events"
+            ]
+          }
+        },
+        "required": [
+          "data_quality"
+        ]
+      },
+      "then": {
+        "properties": {
+          "rows_excluded": {
+            "minimum": 1
           }
         }
       }
@@ -634,10 +666,12 @@
           "$ref": "#/$defs/dataQualityCode"
         },
         "start_row": {
+          "description": "1-based first source data row in the event; semantic validation also requires start_row <= end_row <= rows_input.",
           "type": "integer",
           "minimum": 1
         },
         "end_row": {
+          "description": "1-based last source data row in the event; semantic validation also requires start_row <= end_row <= rows_input.",
           "type": "integer",
           "minimum": 1
         },
@@ -651,6 +685,7 @@
           }
         },
         "affected_values": {
+          "description": "Number of invalid values represented by the event; semantically equals the inclusive row span multiplied by the signal count.",
           "type": "integer",
           "minimum": 1
         }

@@ -119,6 +119,42 @@ def test_real_mf4_single_group_invalidation_fails_closed(tmp_path: Path) -> None
         analyze_battery_log(path, limits=LIMITS)
 
 
+def test_real_mf4_boolean_measurement_is_non_numeric(tmp_path: Path) -> None:
+    path = tmp_path / "boolean-sample.mf4"
+    timestamps = np.array([0.0])
+    _save_mdf(
+        path,
+        [
+            [
+                Signal(np.array([True]), timestamps, name="cell_1_v", unit="V"),
+                Signal(np.array([3.79]), timestamps, name="cell_2_v", unit="V"),
+                Signal(np.array([25.0]), timestamps, name="temp_1_c", unit="degC"),
+            ]
+        ],
+    )
+
+    with pytest.raises(ValueError, match="Required numeric value is missing or non-numeric"):
+        analyze_battery_log(path, limits=LIMITS)
+
+    result = analyze_battery_log(
+        path,
+        limits=LIMITS,
+        data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
+    )
+    assert result["validation_status"] == "FAIL"
+    assert result["rows_analyzed"] == 0
+    assert result["rows_excluded"] == 1
+    assert result["data_quality"]["events"] == [
+        {
+            "code": "NON_NUMERIC_REQUIRED_VALUE",
+            "start_row": 1,
+            "end_row": 1,
+            "signals": ["cell_1_v"],
+            "affected_values": 1,
+        }
+    ]
+
+
 def test_real_mf4_invalidation_can_be_excluded_with_structured_evidence(tmp_path: Path) -> None:
     path = tmp_path / "invalid-sample-excluded.mf4"
     timestamps = np.array([0.0, 1.0, 2.0])

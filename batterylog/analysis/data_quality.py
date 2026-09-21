@@ -5,10 +5,27 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
+from pandas.api.types import is_bool_dtype, is_object_dtype
 
 from batterylog.models import DataQualityCode, DataQualityEvent
 
 _EventKey = tuple[DataQualityCode, tuple[str, ...]]
+
+
+def _required_boolean_mask(
+    frame: pd.DataFrame,
+    columns: list[str],
+) -> NDArray[np.bool_]:
+    mask = np.zeros((len(frame), len(columns)), dtype=bool)
+    for column_pos, column in enumerate(columns):
+        values = frame[column]
+        if is_bool_dtype(values.dtype):
+            mask[:, column_pos] = values.notna().to_numpy(dtype=bool)
+        elif is_object_dtype(values.dtype):
+            mask[:, column_pos] = values.map(
+                lambda value: isinstance(value, (bool, np.bool_))
+            ).to_numpy(dtype=bool)
+    return mask
 
 
 @dataclass
@@ -26,8 +43,9 @@ class DataQualityCollector:
         columns = list(numeric.columns)
         numeric_missing = numeric.isna().to_numpy(dtype=bool)
         raw_missing = frame.loc[:, columns].isna().to_numpy(dtype=bool)
+        boolean_values = _required_boolean_mask(frame, columns)
         missing = numeric_missing & raw_missing
-        non_numeric = numeric_missing & ~raw_missing
+        non_numeric = (numeric_missing & ~raw_missing) | boolean_values
 
         values = numeric.to_numpy(dtype=float)
         non_finite = ~np.isfinite(values) & ~numeric_missing

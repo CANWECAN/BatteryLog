@@ -27,7 +27,7 @@ from batterylog.models import (
 from batterylog.signals import canonicalize_battery_signals, find_canonical_signal_columns
 
 from .comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
-from .data_quality import DataQualityCollector
+from .data_quality import DataQualityCollector, _required_boolean_mask
 from .rules import build_high_events, build_imbalance_events, build_low_events
 
 
@@ -66,9 +66,11 @@ def _raise_invalid_numeric_value(
     *,
     row_offset: int = 0,
 ) -> None:
-    missing_position = _first_true_position(numeric.isna().to_numpy())
-    if missing_position is not None:
-        row_pos, column_pos = missing_position
+    columns = list(numeric.columns)
+    invalid_numeric = numeric.isna().to_numpy() | _required_boolean_mask(frame, columns)
+    invalid_position = _first_true_position(invalid_numeric)
+    if invalid_position is not None:
+        row_pos, column_pos = invalid_position
         column = numeric.columns[column_pos]
         raw_value = frame.iloc[row_pos][column]
         row_index = frame.index[row_pos]
@@ -245,7 +247,11 @@ def _analyze_battery_frame(
     if not valid_timestamps.is_monotonic_increasing:
         raise ValueError("timestamp_s must be non-decreasing")
 
-    rule_numeric = numeric.copy()
+    rule_numeric = pd.DataFrame(
+        numeric.to_numpy(dtype=float, na_value=np.nan),
+        index=numeric.index,
+        columns=numeric.columns,
+    )
     if rows_excluded:
         rule_numeric.loc[invalid_rows, [*cell_cols, *temp_cols]] = np.nan
     timestamps = rule_numeric["timestamp_s"]

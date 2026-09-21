@@ -593,6 +593,40 @@ def test_validation_config_rejects_invalid_component_types(
         ValidationConfig(**kwargs)  # type: ignore[arg-type]
 
 
+def test_validation_config_preserves_legacy_positional_signals_argument() -> None:
+    mapping = SignalMapping(
+        timestamp="Time_s",
+        cell_voltage=SignalPattern(r"Cell_(?P<index>\d+)"),
+        temperature=SignalPattern(r"Temp_(?P<index>\d+)"),
+    )
+
+    with_none = ValidationConfig(ValidationLimits(), EventDetectionConfig(), None)
+    with_mapping = ValidationConfig(
+        ValidationLimits(),
+        EventDetectionConfig(),
+        mapping,
+    )
+
+    assert with_none.signals is None
+    assert with_none.data_quality == DataQualityConfig(mode="strict")
+    assert with_mapping.signals is mapping
+
+
+def test_validation_config_accepts_data_quality_only_by_keyword() -> None:
+    quality = DataQualityConfig(mode="exclude_invalid_rows")
+
+    config = ValidationConfig(data_quality=quality)
+
+    assert config.data_quality is quality
+    with pytest.raises(TypeError):
+        ValidationConfig(
+            ValidationLimits(),
+            EventDetectionConfig(),
+            None,
+            quality,  # type: ignore[misc]
+        )
+
+
 def test_validation_config_bytes_match_path_loader(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
