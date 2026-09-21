@@ -4,6 +4,15 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### 0.9 development scope
+
+- Expand BatteryLog from cell-limit checking toward pack-level electrical and thermal validation.
+- Add first-class pack-current and pack-voltage signals while preserving CSV/MDF semantic parity.
+- Add deterministic charge/discharge overcurrent and temperature-spread validation.
+- Improve the engineering evidence emitted by the existing five validation rules without changing their 0.8 threshold semantics.
+- Treat SOC plausibility and rate-of-change analysis as candidates that must be justified against real validation data before entering the release scope.
+- Keep capacity/energy/DCIR, balancing analysis, raw CAN/DBC decoding, generic rule DSLs, dashboards, and unrelated framework expansion outside the initial 0.9 scope.
+
 ## 0.8.0 - 2026-09-21
 
 ### Structured data quality
