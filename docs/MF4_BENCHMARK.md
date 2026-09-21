@@ -54,6 +54,25 @@ Measured on 2026-09-21 with:
 
 The generated HTML reports were 173.4 KiB for the 100,000-row input and 174.9 KiB for the 200,000-row input.
 
+## Single-group extraction mitigation
+
+Inspection of `asammdf 8.8.27` showed that `MDF.iter_to_dataframe(channels=...)` first calls `MDF.filter(channels)`. That filtering step builds a second MDF containing all selected-channel samples before DataFrame chunking begins, so `chunk_ram_size` does not bound the selected-channel materialization.
+
+BatteryLog now avoids that full-file filter when every required cell-voltage and temperature channel belongs to one MDF channel group. The single-group path uses `MDF.select(..., record_offset=..., record_count=...)` with a record count derived from the same 64 MiB numeric-row target, preserves the group master timestamps, requests physical values, and converts channel invalidation bits to `NaN` so the existing required-data validation still fails closed. Multi-group inputs keep the existing no-interpolation `iter_to_dataframe` fallback.
+
+Re-running the same three-repeat matrix on the same host produced:
+
+| Rows | MF4 size | Mode | Median elapsed | Median throughput | Median native peak RSS | Peak-RSS reduction vs baseline |
+| ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| 100,000 | 83.2 MiB | analysis | 0.622 s | 160,869 rows/s | 475.2 MiB | 18.1% |
+| 100,000 | 83.2 MiB | report | 0.896 s | 111,592 rows/s | 393.3 MiB | 26.9% |
+| 200,000 | 166.3 MiB | analysis | 0.913 s | 219,063 rows/s | 678.5 MiB | 21.9% |
+| 200,000 | 166.3 MiB | report | 1.435 s | 139,330 rows/s | 547.7 MiB | 22.2% |
+
+The mitigation also increased median throughput by approximately 92.0%, 68.8%, 155.5%, and 98.4% respectively for those four cases because the selected channels are no longer copied into a complete intermediate MDF before chunk processing.
+
+The remaining memory behavior is still not source-size independent: doubling this synthetic input increased median native peak RSS by about 42.8% in analysis mode and 39.3% in report mode after the mitigation. The optimization therefore reduces a confirmed materialization cost; it does **not** establish a fixed end-to-end RSS bound.
+
 ## Interpretation
 
 Doubling the generated MF4 from 83.2 MiB / 100,000 rows to 166.3 MiB / 200,000 rows increased median OS-native peak RSS by:

@@ -6,6 +6,7 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import Any, BinaryIO
 
+import numpy as np
 import pandas as pd
 
 from batterylog.config import SignalMapping
@@ -110,6 +111,81 @@ def _resolve_mdf_selection(
     return timestamp_source, source_names, channel_specs
 
 
+def _single_group_index(channel_specs: list[tuple[str, int, int]]) -> int | None:
+    groups = {group for _, group, _ in channel_specs}
+    if len(groups) != 1:
+        return None
+    return next(iter(groups))
+
+
+def _iter_single_group_chunks(
+    mdf: Any,
+    *,
+    timestamp_source: str,
+    source_names: list[str],
+    channel_specs: list[tuple[str, int, int]],
+    group_index: int,
+    chunk_ram_bytes: int,
+) -> Iterator[pd.DataFrame]:
+    cycles = int(mdf.groups[group_index].channel_group.cycles_nr)
+    estimated_row_bytes = (len(channel_specs) + 1) * 8
+    records_per_chunk = max(chunk_ram_bytes // estimated_row_bytes, 1)
+
+    for record_offset in range(0, cycles, records_per_chunk):
+        record_count = min(records_per_chunk, cycles - record_offset)
+        master = np.asarray(
+            mdf.get_master(
+                group_index,
+                record_offset=record_offset,
+                record_count=record_count,
+            )
+        )
+        signals = mdf.select(
+            channel_specs,
+            record_offset=record_offset,
+            record_count=record_count,
+            raw=False,
+            copy_master=False,
+            ignore_value2text_conversions=False,
+            validate=False,
+        )
+
+        selected = {signal.name: signal for signal in signals}
+        missing = sorted(set(source_names) - set(selected))
+        if missing:
+            joined = ", ".join(repr(name) for name in missing)
+            raise ValueError(f"MDF extraction omitted required channel(s): {joined}")
+
+        data: dict[str, np.ndarray[Any, Any]] = {}
+        for name in source_names:
+            signal = selected[name]
+            samples = np.asarray(signal.samples)
+            signal_timestamps = np.asarray(signal.timestamps)
+
+            if samples.ndim != 1 or samples.dtype.kind not in "uif":
+                raise ValueError(f"MDF extraction omitted required channel(s): {name!r}")
+            if len(samples) != len(master) or not np.array_equal(signal_timestamps, master):
+                raise ValueError(
+                    f"MDF channel {name!r} does not share the selected channel-group master time"
+                )
+
+            invalidation_bits = signal.invalidation_bits
+            if invalidation_bits is not None:
+                invalid = np.asarray(invalidation_bits, dtype=bool)
+                if invalid.shape != samples.shape:
+                    raise ValueError(
+                        f"MDF channel {name!r} has invalidation metadata with an unexpected shape"
+                    )
+                samples = samples.astype(float, copy=True)
+                samples[invalid] = np.nan
+
+            data[name] = samples
+
+        chunk = pd.DataFrame(data, columns=source_names)
+        chunk.insert(0, timestamp_source, master.astype(float, copy=True))
+        yield chunk
+
+
 def _iter_mdf_chunks(
     source: str | Path | BinaryIO,
     *,
@@ -134,6 +210,18 @@ def _iter_mdf_chunks(
                 mdf,
                 signal_mapping,
             )
+
+            group_index = _single_group_index(channel_specs)
+            if group_index is not None:
+                yield from _iter_single_group_chunks(
+                    mdf,
+                    timestamp_source=timestamp_source,
+                    source_names=source_names,
+                    channel_specs=channel_specs,
+                    group_index=group_index,
+                    chunk_ram_bytes=chunk_ram_bytes,
+                )
+                return
 
             for frame in mdf.iter_to_dataframe(
                 channels=channel_specs,

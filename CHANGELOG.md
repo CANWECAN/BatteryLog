@@ -29,6 +29,9 @@ All notable changes to BatteryLog are documented here.
 
 - Added a repeatable end-to-end MDF/MF4 benchmark that generates realistic multi-channel MF4 inputs, isolates measured workloads in fresh child processes, and records wall-clock throughput plus sampled process RSS for both standard analysis and HTML evidence-report paths.
 - Documented a three-repeat Windows baseline showing source-size-proportional MDF/MF4 RSS growth despite the 64 MiB `asammdf` output-chunk target; results remain informational rather than CI performance gates.
+- Identified `asammdf.iter_to_dataframe(channels=...)` full selected-channel filtering as a major pre-chunk memory cost and added a record-bounded `MDF.select()` path when all required channels share one channel group.
+- Preserved the existing no-interpolation multi-group fallback and fail-closed invalidation semantics; real MDF4 tests cover CSV equivalence, vendor mapping, invalid samples, and misaligned rasters.
+- Re-running the same benchmark reduced median native peak RSS by 18-27% and substantially increased throughput while still documenting the remaining source-size-proportional memory growth.
 - Added `psutil` to the development extra for cross-platform process-RSS measurement without changing runtime dependencies.
 - Changed the standard CSV file-analysis path from whole-file materialization to 50,000-row chunked processing.
 - Preserved global extrema, timestamp-order validation, event-gap semantics, and active violation events across chunk boundaries without changing result schema v2.
