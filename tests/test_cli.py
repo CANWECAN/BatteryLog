@@ -31,7 +31,7 @@ def test_cli_fail_emits_json_and_returns_exit_1(capsys) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 1
-    assert payload["schema_version"] == 4
+    assert payload["schema_version"] == 5
     assert payload["validation_status"] == "FAIL"
     assert payload["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",
@@ -430,6 +430,8 @@ def test_cli_can_disable_each_yaml_rule(
         (["--imbalance-limit-v", "0.1"], "--no-imbalance-limit-v"),
         (["--temp-min-c", "-20"], "--no-temp-min-c"),
         (["--temp-max-c", "50"], "--no-temp-max-c"),
+        (["--pack-charge-max-a", "60"], "--no-pack-charge-max-a"),
+        (["--pack-discharge-max-a", "120"], "--no-pack-discharge-max-a"),
     ],
 )
 def test_cli_rejects_numeric_and_disable_override_for_same_rule(
@@ -486,6 +488,9 @@ def test_cli_unspecified_limit_options_preserve_yaml_values(
         "imbalance_max_v": 0.08,
         "temperature_min_c": 29.0,
         "temperature_max_c": 45.0,
+        "pack_charge_max_a": None,
+        "pack_discharge_max_a": None,
+        "pack_current_positive_direction": None,
     }
     assert len(payload["rules_evaluated"]) == 5
 
@@ -616,7 +621,7 @@ def test_cli_report_preserves_json_stdout_contract(tmp_path, capsys) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 4
+    assert payload["schema_version"] == 5
     assert payload["validation_status"] == "PASS"
     assert "plot" not in payload
     assert "report_series" not in payload
@@ -875,7 +880,7 @@ def test_cli_config_v2_excludes_invalid_rows_and_reports_structured_evidence(
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 1
-    assert payload["schema_version"] == 4
+    assert payload["schema_version"] == 5
     assert payload["validation_status"] == "FAIL"
     assert payload["rows_input"] == 2
     assert payload["rows_analyzed"] == 1
@@ -885,3 +890,98 @@ def test_cli_config_v2_excludes_invalid_rows_and_reports_structured_evidence(
     html = report.read_text(encoding="utf-8")
     assert "NON_NUMERIC_REQUIRED_VALUE" in html
     assert "Rows excluded</strong><br>1" in html
+
+
+@pytest.mark.parametrize(
+    ("disable_flag", "limit_field", "rule_code"),
+    [
+        ("--no-pack-charge-max-a", "pack_charge_max_a", "PACK_CHARGE_OVERCURRENT"),
+        (
+            "--no-pack-discharge-max-a",
+            "pack_discharge_max_a",
+            "PACK_DISCHARGE_OVERCURRENT",
+        ),
+    ],
+)
+def test_cli_can_disable_each_yaml_pack_current_rule(
+    tmp_path: Path,
+    capsys,
+    disable_flag: str,
+    limit_field: str,
+    rule_code: str,
+) -> None:
+    source = tmp_path / "pack_current.csv"
+    source.write_text(
+        "timestamp_s,pack_current_a,temp_c,cell_1_v\n0,-61,25,3.8\n1,121,25,3.8\n",
+        encoding="utf-8",
+    )
+    config = tmp_path / "validation.yaml"
+    config.write_text(
+        "schema_version: 4\n"
+        "limits:\n"
+        "  pack_current:\n"
+        "    charge_max_a: 60\n"
+        "    discharge_max_a: 120\n"
+        "    positive_direction: discharge\n",
+        encoding="utf-8",
+    )
+
+    exit_code = run([str(source), "--config", str(config), disable_flag])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["limits_applied"][limit_field] is None
+    assert payload["limits_applied"]["pack_current_positive_direction"] == "discharge"
+    assert rule_code not in payload["rules_evaluated"]
+    assert len(payload["rules_evaluated"]) == 1
+    assert len(payload["violations"]) == 1
+    assert payload["violations"][0]["code"] == payload["rules_evaluated"][0]
+
+
+def test_cli_pack_current_limits_require_and_apply_explicit_direction(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    source = tmp_path / "pack_current.csv"
+    source.write_text(
+        "timestamp_s,pack_current_a,temp_c,cell_1_v\n0,-61,25,3.8\n1,121,25,3.8\n",
+        encoding="utf-8",
+    )
+
+    exit_code = run(
+        [
+            str(source),
+            "--pack-charge-max-a",
+            "60",
+            "--pack-discharge-max-a",
+            "120",
+            "--pack-current-positive-direction",
+            "discharge",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["rules_evaluated"] == [
+        "PACK_CHARGE_OVERCURRENT",
+        "PACK_DISCHARGE_OVERCURRENT",
+    ]
+    assert [event["limit_value"] for event in payload["violations"]] == [-60.0, 120.0]
+
+
+def test_cli_pack_current_limit_without_direction_is_runtime_error(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    source = tmp_path / "pack_current.csv"
+    source.write_text(
+        "timestamp_s,pack_current_a,temp_c,cell_1_v\n0,10,25,3.8\n",
+        encoding="utf-8",
+    )
+
+    exit_code = run([str(source), "--pack-charge-max-a", "60"])
+
+    captured = capsys.readouterr()
+    assert exit_code == EXIT_RUNTIME_ERROR
+    assert "pack_current_positive_direction is required" in captured.err
+    assert captured.out == ""

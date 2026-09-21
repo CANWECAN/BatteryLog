@@ -30,7 +30,7 @@ def _result_and_series():
             temperature_min_c=-20.0,
             temperature_max_c=55.0,
         ),
-        max_points=12,
+        max_points=14,
     )
 
 
@@ -44,7 +44,7 @@ def _downsampled_result_and_series():
         source,
         source_name="downsampled.csv",
         limits=ValidationLimits(cell_max_v=4.2),
-        max_points=12,
+        max_points=14,
     )
 
 
@@ -100,7 +100,7 @@ def test_delta_rounding_residue_does_not_trip_extrema_guard() -> None:
         source,
         source_name="rounding.csv",
         limits=ValidationLimits(imbalance_max_v=0.05),
-        max_points=12,
+        max_points=14,
     )
 
     retained_max = max(point.cell_delta_v for point in series.points)
@@ -287,7 +287,7 @@ def test_single_timestamp_and_constant_values_render_without_non_finite_geometry
         source,
         source_name="single.csv",
         limits=ValidationLimits(cell_max_v=4.2),
-        max_points=12,
+        max_points=14,
     )
 
     html = render_report_plots(result, series)
@@ -320,3 +320,29 @@ def test_plot_note_discloses_downsampling_strategy() -> None:
     )
     assert "extrema-preserving-v1" in html
     assert "Validation events remain sourced from AnalysisResult" in html
+
+
+def test_pack_current_rules_render_signed_limits_and_event_markers() -> None:
+    source = BytesIO(
+        b"timestamp_s,pack_current_a,cell_1_v,temp_c\n0,-60,3.8,25\n1,0,3.8,25\n2,130,3.8,25\n"
+    )
+    result, series = analyze_battery_file_with_report_series(
+        source,
+        source_name="pack-current.csv",
+        limits=ValidationLimits(
+            pack_charge_max_a=50.0,
+            pack_discharge_max_a=100.0,
+            pack_current_positive_direction="discharge",
+        ),
+        max_points=14,
+    )
+
+    html = render_report_plots(result, series)
+
+    assert html.count('class="timeseries-chart"') == 4
+    assert "Pack current" in html
+    assert 'data-limit="Charge max" data-value="-50"' in html
+    assert 'data-limit="Discharge max" data-value="100"' in html
+    assert 'data-code="PACK_CHARGE_OVERCURRENT"' in html
+    assert 'data-code="PACK_DISCHARGE_OVERCURRENT"' in html
+    assert all(point.pack_current_a is not None for point in series.points)

@@ -50,7 +50,7 @@ def test_report_series_keeps_small_inputs_lossless() -> None:
 
 def test_report_series_is_immutable() -> None:
     point = _point(0)
-    collector = ReportSeriesCollector(max_points=12)
+    collector = ReportSeriesCollector(max_points=14)
     collector.consume(point)
     series = collector.finish()
 
@@ -65,7 +65,7 @@ def test_report_series_is_immutable() -> None:
     [
         (True, TypeError, "max_points must be an integer"),
         (12.5, TypeError, "max_points must be an integer"),
-        (11, ValueError, "max_points must be at least 12"),
+        (13, ValueError, "max_points must be at least 14"),
     ],
 )
 def test_report_series_rejects_invalid_point_budget(value, error, message) -> None:
@@ -74,14 +74,14 @@ def test_report_series_rejects_invalid_point_budget(value, error, message) -> No
 
 
 def test_report_series_rejects_non_contiguous_row_order() -> None:
-    collector = ReportSeriesCollector(max_points=12)
+    collector = ReportSeriesCollector(max_points=14)
 
     with pytest.raises(ValueError, match="expected 0, got 1"):
         collector.consume(_point(1))
 
 
 def test_report_series_finish_is_idempotent_and_terminal() -> None:
-    collector = ReportSeriesCollector(max_points=12)
+    collector = ReportSeriesCollector(max_points=14)
     collector.consume(_point(0))
 
     first = collector.finish()
@@ -93,7 +93,7 @@ def test_report_series_finish_is_idempotent_and_terminal() -> None:
 
 
 def test_report_series_chunk_rejects_mismatched_array_lengths() -> None:
-    collector = ReportSeriesCollector(max_points=12)
+    collector = ReportSeriesCollector(max_points=14)
     one = np.array([1.0])
     two = np.array([1.0, 2.0])
 
@@ -110,7 +110,7 @@ def test_report_series_chunk_rejects_mismatched_array_lengths() -> None:
 
 
 def test_report_series_chunk_order_empty_chunk_and_terminal_contract() -> None:
-    collector = ReportSeriesCollector(max_points=12)
+    collector = ReportSeriesCollector(max_points=14)
     empty = np.array([], dtype=float)
     one = np.array([1.0])
 
@@ -208,7 +208,7 @@ def test_extrema_reducer_respects_budget_and_preserves_required_points() -> None
 
 
 def test_extrema_reducer_uses_earliest_row_for_equal_extrema() -> None:
-    collector = ReportSeriesCollector(max_points=12)
+    collector = ReportSeriesCollector(max_points=14)
     for index in range(40):
         cell_max = 9.0 if index in {5, 6} else 4.0
         collector.consume(_point(index, cell_max_v=cell_max))
@@ -233,7 +233,7 @@ FINITE_VALUE = st.floats(
         min_size=1,
         max_size=250,
     ),
-    max_points=st.sampled_from([12, 24, 36, 48]),
+    max_points=st.sampled_from([14, 28, 42, 56]),
 )
 def test_chunk_optimized_reducer_matches_pointwise_reference(
     rows: list[tuple[float, float, float, float, float]],
@@ -280,7 +280,7 @@ def test_chunk_optimized_reducer_matches_pointwise_reference(
         min_size=1,
         max_size=250,
     ),
-    max_points=st.sampled_from([12, 24, 36, 48]),
+    max_points=st.sampled_from([14, 28, 42, 56]),
 )
 def test_extrema_reducer_property_preserves_global_metric_extrema(
     rows: list[tuple[float, float, float, float, float]],
@@ -389,7 +389,7 @@ def test_file_backed_report_series_wrapper_uses_loader_factory() -> None:
         source,
         source_name="capture.csv",
         limits=ValidationLimits(cell_max_v=4.2, temperature_max_c=55.0),
-        max_points=12,
+        max_points=14,
     )
 
     assert result["validation_status"] == "FAIL"

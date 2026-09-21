@@ -18,6 +18,7 @@ from batterylog.models import (
     AnalysisResult,
     AppliedLimits,
     ComparisonPolicyInfo,
+    CurrentDirection,
     DataQualityEvent,
     DataQualityInfo,
     RuleCode,
@@ -147,6 +148,9 @@ def _limits_snapshot(limits: ValidationLimits) -> AppliedLimits:
         "imbalance_max_v": limits.imbalance_max_v,
         "temperature_min_c": limits.temperature_min_c,
         "temperature_max_c": limits.temperature_max_c,
+        "pack_charge_max_a": limits.pack_charge_max_a,
+        "pack_discharge_max_a": limits.pack_discharge_max_a,
+        "pack_current_positive_direction": limits.pack_current_positive_direction,
     }
 
 
@@ -188,6 +192,33 @@ def _signal_mapping_snapshot(
     }
 
 
+def _pack_current_rule_parameters(
+    limits: ValidationLimits,
+    direction: CurrentDirection,
+) -> tuple[float, bool] | None:
+    magnitude = limits.pack_charge_max_a if direction == "charge" else limits.pack_discharge_max_a
+    if magnitude is None:
+        return None
+    assert limits.pack_current_positive_direction is not None
+    prefer_lower = limits.pack_current_positive_direction != direction
+    signed_limit = -magnitude if prefer_lower else magnitude
+    return signed_limit, prefer_lower
+
+
+def _rule_prefers_lower(code: RuleCode, limits: ValidationLimits) -> bool:
+    if code in {"CELL_UNDERVOLTAGE", "TEMPERATURE_LOW"}:
+        return True
+    if code == "PACK_CHARGE_OVERCURRENT":
+        parameters = _pack_current_rule_parameters(limits, "charge")
+        assert parameters is not None
+        return parameters[1]
+    if code == "PACK_DISCHARGE_OVERCURRENT":
+        parameters = _pack_current_rule_parameters(limits, "discharge")
+        assert parameters is not None
+        return parameters[1]
+    return False
+
+
 def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
     codes: list[RuleCode] = []
     if limits.imbalance_max_v is not None:
@@ -200,6 +231,10 @@ def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
         codes.append("TEMPERATURE_HIGH")
     if limits.temperature_min_c is not None:
         codes.append("TEMPERATURE_LOW")
+    if limits.pack_charge_max_a is not None:
+        codes.append("PACK_CHARGE_OVERCURRENT")
+    if limits.pack_discharge_max_a is not None:
+        codes.append("PACK_DISCHARGE_OVERCURRENT")
     return codes
 
 
@@ -240,6 +275,11 @@ def _analyze_battery_frame(
     if not temp_cols:
         raise ValueError("No temperature columns found")
     pack_current_col, pack_voltage_col = find_canonical_pack_signal_columns(df.columns)
+    if (
+        resolved_limits.pack_charge_max_a is not None
+        or resolved_limits.pack_discharge_max_a is not None
+    ) and pack_current_col is None:
+        raise ValueError("Pack-current validation requires column 'pack_current_a'")
     pack_cols = [column for column in (pack_current_col, pack_voltage_col) if column is not None]
 
     numeric_cols = ["timestamp_s", *pack_cols, *cell_cols, *temp_cols]
@@ -344,6 +384,31 @@ def _analyze_battery_frame(
                 max_gap_s=resolved_event_detection.max_gap_s,
             )
         )
+
+    if pack_current_col is not None:
+        pack_current = rule_numeric[pack_current_col]
+        for direction, code in (
+            ("charge", "PACK_CHARGE_OVERCURRENT"),
+            ("discharge", "PACK_DISCHARGE_OVERCURRENT"),
+        ):
+            parameters = _pack_current_rule_parameters(resolved_limits, direction)
+            if parameters is None:
+                continue
+            signed_limit, prefer_lower = parameters
+            builder = build_low_events if prefer_lower else build_high_events
+            extreme_name = "row_min" if prefer_lower else "row_max"
+            violations.extend(
+                builder(
+                    numeric=rule_numeric,
+                    timestamps=timestamps,
+                    signal_cols=[pack_current_col],
+                    **{extreme_name: pack_current},
+                    limit=signed_limit,
+                    code=code,
+                    unit="A",
+                    max_gap_s=resolved_event_detection.max_gap_s,
+                )
+            )
 
     violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
 

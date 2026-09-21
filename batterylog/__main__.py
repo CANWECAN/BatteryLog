@@ -109,6 +109,36 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Disable maximum temperature validation",
     )
+
+    charge_current_group = parser.add_mutually_exclusive_group()
+    charge_current_group.add_argument(
+        "--pack-charge-max-a",
+        type=float,
+        help="Override maximum allowed pack charge-current magnitude",
+    )
+    charge_current_group.add_argument(
+        "--no-pack-charge-max-a",
+        action="store_true",
+        help="Disable pack charge-overcurrent validation",
+    )
+
+    discharge_current_group = parser.add_mutually_exclusive_group()
+    discharge_current_group.add_argument(
+        "--pack-discharge-max-a",
+        type=float,
+        help="Override maximum allowed pack discharge-current magnitude",
+    )
+    discharge_current_group.add_argument(
+        "--no-pack-discharge-max-a",
+        action="store_true",
+        help="Disable pack discharge-overcurrent validation",
+    )
+    parser.add_argument(
+        "--pack-current-positive-direction",
+        choices=("charge", "discharge"),
+        help="Declare which current direction is represented by positive values",
+    )
+
     event_gap_group = parser.add_mutually_exclusive_group()
     event_gap_group.add_argument(
         "--max-event-gap-s",
@@ -167,6 +197,19 @@ def _resolve_cli_config(
             base.limits.temperature_max_c,
             args.temp_max_c,
             args.no_temp_max_c,
+        ),
+        pack_charge_max_a=_resolve_cli_limit(
+            base.limits.pack_charge_max_a,
+            args.pack_charge_max_a,
+            args.no_pack_charge_max_a,
+        ),
+        pack_discharge_max_a=_resolve_cli_limit(
+            base.limits.pack_discharge_max_a,
+            args.pack_discharge_max_a,
+            args.no_pack_discharge_max_a,
+        ),
+        pack_current_positive_direction=(
+            args.pack_current_positive_direction or base.limits.pack_current_positive_direction
         ),
     )
     event_detection = (

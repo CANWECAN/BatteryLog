@@ -1,4 +1,4 @@
-schema_version: 3
+schema_version: 4
 
 # Illustrative engineering limits only.
 limits:
@@ -9,6 +9,10 @@ limits:
   temperature:
     min_c: -20
     max_c: 45
+  pack_current:
+    charge_max_a: 100
+    discharge_max_a: 200
+    positive_direction: discharge
 
 event_detection:
   max_gap_s: 2.0

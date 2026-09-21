@@ -33,6 +33,8 @@ def _limits_rows(result: AnalysisResult) -> str:
         ("Maximum cell delta", limits["imbalance_max_v"], "V"),
         ("Minimum temperature", limits["temperature_min_c"], "degC"),
         ("Maximum temperature", limits["temperature_max_c"], "degC"),
+        ("Maximum pack charge current", limits["pack_charge_max_a"], "A"),
+        ("Maximum pack discharge current", limits["pack_discharge_max_a"], "A"),
     ]
     rows: list[str] = []
     for label, value, unit in items:
@@ -40,6 +42,13 @@ def _limits_rows(result: AnalysisResult) -> str:
         if value is not None:
             rendered = f"{rendered} {unit}"
         rows.append(_metric_row(label, rendered))
+    direction = limits["pack_current_positive_direction"]
+    rows.append(
+        _metric_row(
+            "Positive pack-current direction",
+            direction or "Not configured",
+        )
+    )
     return "".join(rows)
 
 

@@ -316,3 +316,27 @@ def test_generic_loader_contract_is_csv_independent() -> None:
 
     assert actual == expected
     assert loader.seen_mapping is mapping
+
+
+def test_pack_overcurrent_streaming_matches_whole_frame_across_chunk_boundary() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0, 2.0, 3.0],
+            "pack_current_a": [-60.0, -55.0, 0.0, 130.0],
+            "temp_c": [25.0, 25.0, 25.0, 25.0],
+            "cell_1_v": [3.8, 3.8, 3.8, 3.8],
+        }
+    )
+    limits = ValidationLimits(
+        pack_charge_max_a=50.0,
+        pack_discharge_max_a=100.0,
+        pack_current_positive_direction="discharge",
+    )
+
+    expected = _analyze_battery_frame(frame, limits=limits)
+    actual = _analyze_battery_chunks(
+        [frame.iloc[:1].copy(), frame.iloc[1:3].copy(), frame.iloc[3:].copy()],
+        limits=limits,
+    )
+
+    assert actual == expected

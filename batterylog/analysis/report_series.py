@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 DEFAULT_REPORT_SERIES_MAX_POINTS = 2400
-_MAX_BUCKET_CANDIDATES = 12
+_MAX_BUCKET_CANDIDATES = 14
 _MIN_REPORT_SERIES_MAX_POINTS = _MAX_BUCKET_CANDIDATES
 _MIN_BASE_BLOCK_ROWS = 16
 _METRICS = (
@@ -15,6 +15,7 @@ _METRICS = (
     "cell_delta_v",
     "temperature_min_c",
     "temperature_max_c",
+    "pack_current_a",
 )
 
 
@@ -27,6 +28,7 @@ class ReportSeriesPoint:
     cell_delta_v: float
     temperature_min_c: float
     temperature_max_c: float
+    pack_current_a: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,8 +59,17 @@ def _select_bucket_candidates(
         points[-1].row_index: points[-1],
     }
     for metric in _METRICS:
-        minimum = min(points, key=lambda point: (getattr(point, metric), point.row_index))
-        maximum = max(points, key=lambda point: (getattr(point, metric), -point.row_index))
+        metric_points = tuple(point for point in points if getattr(point, metric) is not None)
+        if not metric_points:
+            continue
+        minimum = min(
+            metric_points,
+            key=lambda point: (getattr(point, metric), point.row_index),
+        )
+        maximum = max(
+            metric_points,
+            key=lambda point: (getattr(point, metric), -point.row_index),
+        )
         selected[minimum.row_index] = minimum
         selected[maximum.row_index] = maximum
 
@@ -80,6 +91,7 @@ def _point_from_arrays(
     cell_delta: NDArray[np.float64],
     temperature_min: NDArray[np.float64],
     temperature_max: NDArray[np.float64],
+    pack_current: NDArray[np.float64] | None,
 ) -> ReportSeriesPoint:
     return ReportSeriesPoint(
         row_index=row_offset + local_index,
@@ -89,6 +101,7 @@ def _point_from_arrays(
         cell_delta_v=float(cell_delta[local_index]),
         temperature_min_c=float(temperature_min[local_index]),
         temperature_max_c=float(temperature_max[local_index]),
+        pack_current_a=(float(pack_current[local_index]) if pack_current is not None else None),
     )
 
 
@@ -101,13 +114,17 @@ def _summarize_array_block(
     cell_delta: NDArray[np.float64],
     temperature_min: NDArray[np.float64],
     temperature_max: NDArray[np.float64],
+    pack_current: NDArray[np.float64] | None,
 ) -> _SeriesBucket:
     length = len(timestamps)
     if length == 0:  # pragma: no cover - internal invariant guard
         raise ValueError("Report-series array block cannot be empty")
 
     selected_indexes = {0, length - 1}
-    for values in (cell_min, cell_max, cell_delta, temperature_min, temperature_max):
+    arrays = [cell_min, cell_max, cell_delta, temperature_min, temperature_max]
+    if pack_current is not None:
+        arrays.append(pack_current)
+    for values in arrays:
         selected_indexes.add(int(np.argmin(values)))
         selected_indexes.add(int(np.argmax(values)))
 
@@ -121,6 +138,7 @@ def _summarize_array_block(
             cell_delta=cell_delta,
             temperature_min=temperature_min,
             temperature_max=temperature_max,
+            pack_current=pack_current,
         )
         for local_index in sorted(selected_indexes)
     )
@@ -186,13 +204,16 @@ class ReportSeriesCollector:
         cell_delta: NDArray[np.float64],
         temperature_min: NDArray[np.float64],
         temperature_max: NDArray[np.float64],
+        pack_current: NDArray[np.float64] | None = None,
     ) -> None:
         if self._finished is not None:
             raise RuntimeError("Cannot consume report-series data after finish()")
 
         arrays = (timestamps, cell_min, cell_max, cell_delta, temperature_min, temperature_max)
         length = len(timestamps)
-        if any(len(values) != length for values in arrays[1:]):
+        if any(len(values) != length for values in arrays[1:]) or (
+            pack_current is not None and len(pack_current) != length
+        ):
             raise ValueError("Report-series chunk arrays must have equal lengths")
         if row_offset != self._source_rows:
             raise ValueError(
@@ -216,6 +237,7 @@ class ReportSeriesCollector:
                         cell_delta=cell_delta,
                         temperature_min=temperature_min,
                         temperature_max=temperature_max,
+                        pack_current=pack_current,
                     )
                 )
             position = keep
@@ -234,6 +256,7 @@ class ReportSeriesCollector:
                 cell_delta=cell_delta[position:],
                 temperature_min=temperature_min[position:],
                 temperature_max=temperature_max[position:],
+                pack_current=(pack_current[position:] if pack_current is not None else None),
             )
             self._source_rows += length - position
 
@@ -257,6 +280,7 @@ class ReportSeriesCollector:
         cell_delta: NDArray[np.float64],
         temperature_min: NDArray[np.float64],
         temperature_max: NDArray[np.float64],
+        pack_current: NDArray[np.float64] | None,
     ) -> None:
         position = 0
         length = len(timestamps)
@@ -275,6 +299,7 @@ class ReportSeriesCollector:
                         cell_delta=cell_delta,
                         temperature_min=temperature_min,
                         temperature_max=temperature_max,
+                        pack_current=pack_current,
                     )
                 )
             position = take
@@ -295,6 +320,7 @@ class ReportSeriesCollector:
                     cell_delta=cell_delta[position:end],
                     temperature_min=temperature_min[position:end],
                     temperature_max=temperature_max[position:end],
+                    pack_current=(pack_current[position:end] if pack_current is not None else None),
                 )
             )
             position = end
@@ -310,6 +336,7 @@ class ReportSeriesCollector:
                     cell_delta=cell_delta,
                     temperature_min=temperature_min,
                     temperature_max=temperature_max,
+                    pack_current=pack_current,
                 )
             )
 

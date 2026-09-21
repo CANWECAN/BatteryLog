@@ -72,13 +72,13 @@ Draft 2020-12 validation does not establish every cross-field arithmetic relatio
 
 ### Result schema version 4
 
-Result schema version 4 is the current BatteryLog machine-readable result contract for the 0.9 development line. Its Draft 2020-12 JSON Schema is:
+Result schema version 4 introduced optional pack-level electrical measurement evidence for the 0.9 development line. Its frozen Draft 2020-12 JSON Schema is:
 
 ```text
 batterylog/schema/result-v4.json
 ```
 
-Version 4 adds optional pack-level electrical measurement evidence:
+Version 4 adds:
 
 - `signal_mapping.pack_current_source`
 - `signal_mapping.pack_voltage_source`
@@ -87,7 +87,25 @@ Version 4 adds optional pack-level electrical measurement evidence:
 
 Canonical provenance uses the exact names `pack_current_a` and `pack_voltage_v`; absent signals use `null`. Explicit provenance records the configured vendor source name. A selected signal has numeric extrema whenever at least one row was analyzed, while absent signals and all-excluded inputs use `null`.
 
-The v2 and v3 artifacts remain frozen and packaged for existing consumers.
+### Result schema version 5
+
+Result schema version 5 is the current BatteryLog machine-readable result contract for the 0.9 development line. Its Draft 2020-12 JSON Schema is:
+
+```text
+batterylog/schema/result-v5.json
+```
+
+Version 5 adds explicit pack-current validation evidence:
+
+- rule codes `PACK_CHARGE_OVERCURRENT` and `PACK_DISCHARGE_OVERCURRENT`
+- applied limits `pack_charge_max_a` and `pack_discharge_max_a`
+- applied polarity `pack_current_positive_direction`
+- ampere violation evidence with the measured current sign preserved
+- signed `limit_value` evidence derived from the configured non-negative magnitude and explicit positive-current direction
+
+When either pack-current limit is active, `pack_current_positive_direction` is `charge` or `discharge`; it cannot be `null`. Runtime analysis also requires a selected `pack_current_a` signal when either overcurrent rule is active.
+
+The v2, v3, and v4 artifacts remain frozen and packaged for existing consumers.
 
 ## Versioning policy from v2 onward
 

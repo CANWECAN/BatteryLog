@@ -20,7 +20,8 @@ _TICK_COUNT = 5
 _VOLTAGE_CODES = frozenset({"CELL_UNDERVOLTAGE", "CELL_OVERVOLTAGE"})
 _DELTA_CODES = frozenset({"CELL_IMBALANCE_HIGH"})
 _TEMPERATURE_CODES = frozenset({"TEMPERATURE_LOW", "TEMPERATURE_HIGH"})
-_ALL_PLOT_CODES = _VOLTAGE_CODES | _DELTA_CODES | _TEMPERATURE_CODES
+_CURRENT_CODES = frozenset({"PACK_CHARGE_OVERCURRENT", "PACK_DISCHARGE_OVERCURRENT"})
+_ALL_PLOT_CODES = _VOLTAGE_CODES | _DELTA_CODES | _TEMPERATURE_CODES | _CURRENT_CODES
 
 GeometryBuilder = Callable[[tuple[ReportSeriesPoint, ...], float, float, float, float], str]
 
@@ -359,6 +360,28 @@ def _temperature_geometry(
     )
 
 
+def _current_geometry(
+    points: tuple[ReportSeriesPoint, ...],
+    x_start: float,
+    x_end: float,
+    y_min: float,
+    y_max: float,
+) -> str:
+    def current(point: ReportSeriesPoint) -> float:
+        assert point.pack_current_a is not None
+        return point.pack_current_a
+
+    return _polyline(
+        points,
+        current,
+        x_start=x_start,
+        x_end=x_end,
+        y_min=y_min,
+        y_max=y_max,
+        css_class="series-primary",
+    )
+
+
 def _render_chart(
     *,
     title: str,
@@ -427,7 +450,9 @@ def _validate_report_series(result: AnalysisResult, series: ReportSeries) -> Non
             point.temperature_min_c,
             point.temperature_max_c,
         )
-        if not all(isfinite(value) for value in values):
+        if not all(isfinite(value) for value in values) or (
+            point.pack_current_a is not None and not isfinite(point.pack_current_a)
+        ):
             raise ValueError("Report-series plot values must be finite")
         if previous_timestamp is not None and point.timestamp_s < previous_timestamp:
             raise ValueError("Report-series timestamps must be non-decreasing")
@@ -470,13 +495,25 @@ def _validate_report_series(result: AnalysisResult, series: ReportSeries) -> Non
     # AnalysisResult.max_delta_v is rounded to 12 decimal places upstream. The
     # 1e-12 absolute guard tolerance below intentionally exceeds the maximum
     # ±0.5e-12 rounding error while still catching materially mismatched series.
-    extrema = (
+    current_present = result["signal_mapping"]["pack_current_source"] is not None
+    retained_currents = tuple(
+        point.pack_current_a for point in series.points if point.pack_current_a is not None
+    )
+    if current_present != (len(retained_currents) == len(series.points)):
+        raise ValueError("Report-series pack-current presence does not match AnalysisResult")
+
+    extrema: tuple[tuple[str, float], ...] = (
         ("max_cell_voltage_v", max(point.cell_max_v for point in series.points)),
         ("min_cell_voltage_v", min(point.cell_min_v for point in series.points)),
         ("max_delta_v", max(point.cell_delta_v for point in series.points)),
         ("max_temperature_c", max(point.temperature_max_c for point in series.points)),
         ("min_temperature_c", min(point.temperature_min_c for point in series.points)),
     )
+    if retained_currents:
+        extrema += (
+            ("max_pack_current_a", max(retained_currents)),
+            ("min_pack_current_a", min(retained_currents)),
+        )
     for result_key, retained_value in extrema:
         if not isclose(
             retained_value,
@@ -502,6 +539,27 @@ def render_report_plots(result: AnalysisResult, series: ReportSeries) -> str:
     temperature_limits = (
         ("Temp min", limits["temperature_min_c"]),
         ("Temp max", limits["temperature_max_c"]),
+    )
+    positive_direction = limits["pack_current_positive_direction"]
+    charge_limit = limits["pack_charge_max_a"]
+    discharge_limit = limits["pack_discharge_max_a"]
+    current_limits = (
+        (
+            "Charge max",
+            (
+                charge_limit
+                if positive_direction == "charge" or charge_limit is None
+                else -charge_limit
+            ),
+        ),
+        (
+            "Discharge max",
+            (
+                discharge_limit
+                if positive_direction == "discharge" or discharge_limit is None
+                else -discharge_limit
+            ),
+        ),
     )
 
     voltage = _render_chart(
@@ -551,6 +609,21 @@ def render_report_plots(result: AnalysisResult, series: ReportSeries) -> str:
         ),
     )
 
+    current = ""
+    if points[0].pack_current_a is not None:
+        current = _render_chart(
+            title="Pack current",
+            points=points,
+            result=result,
+            codes=_CURRENT_CODES,
+            y_values=(point.pack_current_a for point in points if point.pack_current_a is not None),
+            limits=current_limits,
+            y_unit="A",
+            y_padding_floor=1.0,
+            geometry_builder=_current_geometry,
+            legend='<span class="legend-primary">pack current</span>',
+        )
+
     if series.is_downsampled:
         sampling = (
             f"Rendered {len(points)} retained points from {series.source_rows} source rows using "
@@ -564,5 +637,6 @@ def render_report_plots(result: AnalysisResult, series: ReportSeries) -> str:
 
     return (
         '<section class="timeseries"><h2>Time-series plots</h2>'
-        f'<p class="small plot-note">{sampling}</p>{voltage}{delta}{temperature}</section>'
+        f'<p class="small plot-note">{sampling}</p>'
+        f"{voltage}{delta}{temperature}{current}</section>"
     )
