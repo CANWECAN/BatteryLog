@@ -4,6 +4,8 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+## 0.8.0 - 2026-09-21
+
 ### Structured data quality
 
 - Added YAML configuration schema version 2 with explicit `data_quality.mode`; configuration schema 1 remains accepted and preserves strict fail-fast behavior.
@@ -14,6 +16,9 @@ All notable changes to BatteryLog are documented here.
 - Promoted the machine-readable result contract to schema version 3 while retaining the frozen result-v2 schema artifact for 0.7 consumers.
 - Added HTML report data-quality evidence, row-accounting summaries, and null-safe all-excluded rendering.
 - Added streaming/whole-frame parity, chunk-boundary, false-PASS, all-invalid, schema, CLI, and report regression tests.
+- Hardened required-value classification so boolean samples are rejected as non-numeric consistently across strict, CSV streaming, whole-frame, and MDF/MF4 paths.
+- Preserved the historical third positional `ValidationConfig` argument as `signals`; the new `data_quality` option is keyword-only.
+- Tightened result schema v3 invariants so data-quality evidence requires excluded rows and all-excluded results cannot carry engineering-rule violations; documented remaining cross-field arithmetic invariants as semantic validation requirements.
 
 ### Loader architecture
 
