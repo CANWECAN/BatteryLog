@@ -257,6 +257,59 @@ def test_schema_v3_rejects_non_null_extrema_when_all_rows_excluded(
         validator.validate(payload)
 
 
+def test_schema_v3_rejects_data_quality_events_without_excluded_rows(
+    validator: Draft202012Validator,
+) -> None:
+    result = analyze_battery_bytes(
+        b"timestamp_s,cell_1_v,temp_c\n0,3.8,25\n1,bad,25\n",
+        data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
+    )
+    payload = copy.deepcopy(result)
+    payload["rows_analyzed"] = 2
+    payload["rows_excluded"] = 0
+
+    with pytest.raises(ValidationError):
+        validator.validate(payload)
+
+
+def test_schema_v3_rejects_rule_violations_when_no_rows_were_analyzed(
+    validator: Draft202012Validator,
+) -> None:
+    all_excluded = analyze_battery_bytes(
+        b"timestamp_s,cell_1_v,temp_c\n0,bad,25\n",
+        limits=ValidationLimits(cell_max_v=4.2),
+        data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
+    )
+    failed_rule = analyze_battery_bytes(
+        b"timestamp_s,cell_1_v,temp_c\n0,4.3,25\n",
+        limits=ValidationLimits(cell_max_v=4.2),
+    )
+    payload = copy.deepcopy(all_excluded)
+    payload["violations"] = copy.deepcopy(failed_rule["violations"])
+
+    with pytest.raises(ValidationError):
+        validator.validate(payload)
+
+
+def test_generated_results_satisfy_semantic_row_accounting() -> None:
+    results = _results_for_all_statuses()
+    results.append(
+        analyze_battery_bytes(
+            b"timestamp_s,cell_1_v,temp_c\n0,3.8,25\n1,bad,25\n",
+            data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
+        )
+    )
+
+    for result in results:
+        assert result["rows_input"] == result["rows_analyzed"] + result["rows_excluded"]
+        if result["rows_analyzed"] == 0:
+            assert result["violations"] == []
+        for event in result["data_quality"]["events"]:
+            assert 1 <= event["start_row"] <= event["end_row"] <= result["rows_input"]
+            row_span = event["end_row"] - event["start_row"] + 1
+            assert event["affected_values"] == row_span * len(event["signals"])
+
+
 def test_schema_v3_rejects_excluded_rows_in_strict_mode(
     validator: Draft202012Validator,
 ) -> None:

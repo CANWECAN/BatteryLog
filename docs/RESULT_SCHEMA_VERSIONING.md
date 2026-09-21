@@ -66,7 +66,9 @@ Version 3 adds structured required-data quality evidence and explicit row accoun
 - `rows_analyzed` may be zero when every input row is excluded
 - measured extrema may be `null` only when no rows were analyzed
 
-The validation-status invariant also changes: `FAIL` may now be justified by one or more engineering-rule violations, one or more structured data-quality events, or both. `PASS` and `NOT_EVALUATED` cannot contain data-quality events.
+The validation-status invariant also changes: `FAIL` may now be justified by one or more engineering-rule violations, one or more structured data-quality events, or both. `PASS` and `NOT_EVALUATED` cannot contain data-quality events. Non-empty data-quality evidence requires at least one excluded row, and zero analyzed rows cannot contain engineering-rule violations.
+
+Draft 2020-12 validation does not establish every cross-field arithmetic relationship in the contract. BatteryLog's producer additionally guarantees `rows_input == rows_analyzed + rows_excluded`; each data-quality event satisfies `1 <= start_row <= end_row <= rows_input`; and `affected_values` equals the inclusive row span multiplied by the number of signals. Consumers that accept results from untrusted or independent producers should apply these semantic checks in addition to validating against the JSON Schema.
 
 ## Versioning policy from v2 onward
 
