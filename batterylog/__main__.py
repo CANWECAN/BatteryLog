@@ -177,6 +177,7 @@ def _resolve_cli_config(
     return ValidationConfig(
         limits=limits,
         event_detection=event_detection,
+        data_quality=base.data_quality,
         signals=base.signals,
     )
 
@@ -246,6 +247,7 @@ def run(argv: Sequence[str] | None = None) -> int:
                     source_name=input_path.name,
                     limits=validation_config.limits,
                     event_detection=validation_config.event_detection,
+                    data_quality=validation_config.data_quality,
                     signal_mapping=validation_config.signals,
                 )
 
@@ -269,6 +271,7 @@ def run(argv: Sequence[str] | None = None) -> int:
                 input_path,
                 limits=validation_config.limits,
                 event_detection=validation_config.event_detection,
+                data_quality=validation_config.data_quality,
                 signal_mapping=validation_config.signals,
             )
 

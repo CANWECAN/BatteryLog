@@ -16,6 +16,7 @@ def test_vendor_mapping_example_runs_end_to_end() -> None:
         VENDOR_SAMPLE,
         limits=config.limits,
         event_detection=config.event_detection,
+        data_quality=config.data_quality,
         signal_mapping=config.signals,
     )
 

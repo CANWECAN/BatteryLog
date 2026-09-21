@@ -24,6 +24,7 @@ result, series = analyze_battery_file_with_report_series(
     source_name=source.evidence.name,
     limits=settings.limits,
     event_detection=settings.event_detection,
+    data_quality=settings.data_quality,
     signal_mapping=settings.signals,
 )
 metadata = build_report_metadata(

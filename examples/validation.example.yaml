@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 
 # Illustrative engineering limits only.
 # Replace these values with limits appropriate to the tested cell, pack,
@@ -18,3 +18,8 @@ limits:
 # separate violation events.
 event_detection:
   max_gap_s: 2.0
+
+# Required-data policy. `strict` preserves fail-fast behavior.
+# Use `exclude_invalid_rows` only when structured exclusion evidence is desired.
+data_quality:
+  mode: strict

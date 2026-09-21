@@ -5,13 +5,24 @@ from typing import BinaryIO
 
 import pandas as pd
 
-from batterylog.config import EventDetectionConfig, SignalMapping, ValidationLimits
+from batterylog.config import (
+    DataQualityConfig,
+    EventDetectionConfig,
+    SignalMapping,
+    ValidationLimits,
+)
 from batterylog.loaders import (
     MeasurementLoader,
     measurement_loader_for_file,
     measurement_loader_for_path,
 )
-from batterylog.models import RESULT_SCHEMA_VERSION, AnalysisResult, RuleCode, ViolationEvent
+from batterylog.models import (
+    RESULT_SCHEMA_VERSION,
+    AnalysisResult,
+    DataQualityEvent,
+    RuleCode,
+    ViolationEvent,
+)
 from batterylog.signals import canonicalize_battery_signals
 
 from .comparison import below_limit, exceeds_limit, exceeds_limit_scalar
@@ -19,14 +30,17 @@ from .core import (
     _active_rule_codes,
     _analysis_options_snapshot,
     _comparison_policy_snapshot,
+    _data_quality_snapshot,
     _find_signal_columns,
     _limits_snapshot,
     _raise_invalid_numeric_value,
+    _resolve_data_quality,
     _resolve_event_detection,
     _resolve_limits,
     _signal_mapping_snapshot,
     _warn_legacy_threshold_arguments,
 )
+from .data_quality import DataQualityCollector
 from .report_series import (
     DEFAULT_REPORT_SERIES_MAX_POINTS,
     ReportSeries,
@@ -149,6 +163,7 @@ def _analyze_battery_chunks(
     *,
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
+    data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
     report_series_collector: ReportSeriesCollector | None = None,
 ) -> AnalysisResult:
@@ -162,6 +177,7 @@ def _analyze_battery_chunks(
         temp_warning_c,
     )
     resolved_event_detection = _resolve_event_detection(event_detection)
+    resolved_data_quality = _resolve_data_quality(data_quality)
     if signal_mapping is not None and not isinstance(signal_mapping, SignalMapping):
         raise TypeError("signal_mapping must be a SignalMapping instance or null")
 
@@ -171,7 +187,12 @@ def _analyze_battery_chunks(
         for code in rules_evaluated
     }
 
+    rows_input = 0
     rows_analyzed = 0
+    rows_excluded = 0
+    data_quality_collector = (
+        DataQualityCollector() if resolved_data_quality.mode == "exclude_invalid_rows" else None
+    )
     expected_cell_cols: list[str] | None = None
     expected_temp_cols: list[str] | None = None
     previous_timestamp: float | None = None
@@ -204,60 +225,93 @@ def _analyze_battery_chunks(
 
         numeric_cols = ["timestamp_s", *cell_cols, *temp_cols]
         numeric = frame[numeric_cols].apply(pd.to_numeric, errors="coerce")
-        _raise_invalid_numeric_value(
-            frame,
-            numeric,
-            row_offset=rows_analyzed,
-        )
+        if data_quality_collector is None:
+            _raise_invalid_numeric_value(
+                frame,
+                numeric,
+                row_offset=rows_input,
+            )
+            invalid_rows = pd.Series(False, index=numeric.index, dtype=bool)
+        else:
+            invalid_values = data_quality_collector.consume_chunk(
+                frame,
+                numeric,
+                row_offset=rows_input,
+            )
+            invalid_rows = pd.Series(invalid_values, index=numeric.index, dtype=bool)
 
-        timestamps = numeric["timestamp_s"]
-        if not timestamps.is_monotonic_increasing:
-            raise ValueError("timestamp_s must be non-decreasing")
-        first_timestamp = float(timestamps.iloc[0])
-        if previous_timestamp is not None and first_timestamp < previous_timestamp:
-            raise ValueError("timestamp_s must be non-decreasing")
-        previous_timestamp = float(timestamps.iloc[-1])
+        rows_input += len(frame)
+        chunk_rows_excluded = int(invalid_rows.sum())
+        rows_excluded += chunk_rows_excluded
+        valid_rows = ~invalid_rows
+        valid_numeric = numeric.loc[valid_rows]
+        valid_timestamps = valid_numeric["timestamp_s"]
 
-        cell_max = numeric[cell_cols].max(axis=1)
-        cell_min = numeric[cell_cols].min(axis=1)
+        if not valid_timestamps.is_monotonic_increasing:
+            raise ValueError("timestamp_s must be non-decreasing")
+        if len(valid_timestamps):
+            first_timestamp = float(valid_timestamps.iloc[0])
+            if previous_timestamp is not None and first_timestamp < previous_timestamp:
+                raise ValueError("timestamp_s must be non-decreasing")
+            previous_timestamp = float(valid_timestamps.iloc[-1])
+
+        rule_numeric = numeric.copy()
+        if chunk_rows_excluded:
+            rule_numeric.loc[invalid_rows, [*cell_cols, *temp_cols]] = float("nan")
+        timestamps = rule_numeric["timestamp_s"]
+        cell_max = rule_numeric[cell_cols].max(axis=1)
+        cell_min = rule_numeric[cell_cols].min(axis=1)
         delta_v = cell_max - cell_min
-        row_max_temp = numeric[temp_cols].max(axis=1)
-        row_min_temp = numeric[temp_cols].min(axis=1)
+        row_max_temp = rule_numeric[temp_cols].max(axis=1)
+        row_min_temp = rule_numeric[temp_cols].min(axis=1)
 
-        if report_series_collector is not None:
+        valid_cell_max = cell_max.loc[valid_rows]
+        valid_cell_min = cell_min.loc[valid_rows]
+        valid_delta_v = delta_v.loc[valid_rows]
+        valid_row_max_temp = row_max_temp.loc[valid_rows]
+        valid_row_min_temp = row_min_temp.loc[valid_rows]
+
+        if report_series_collector is not None and len(valid_numeric):
             report_series_collector.consume_chunk(
                 row_offset=rows_analyzed,
-                timestamps=timestamps.to_numpy(dtype=float, copy=False),
-                cell_min=cell_min.to_numpy(dtype=float, copy=False),
-                cell_max=cell_max.to_numpy(dtype=float, copy=False),
-                cell_delta=delta_v.to_numpy(dtype=float, copy=False),
-                temperature_min=row_min_temp.to_numpy(dtype=float, copy=False),
-                temperature_max=row_max_temp.to_numpy(dtype=float, copy=False),
+                timestamps=valid_timestamps.to_numpy(dtype=float, copy=False),
+                cell_min=valid_cell_min.to_numpy(dtype=float, copy=False),
+                cell_max=valid_cell_max.to_numpy(dtype=float, copy=False),
+                cell_delta=valid_delta_v.to_numpy(dtype=float, copy=False),
+                temperature_min=valid_row_min_temp.to_numpy(dtype=float, copy=False),
+                temperature_max=valid_row_max_temp.to_numpy(dtype=float, copy=False),
             )
 
-        chunk_max_cell = float(cell_max.max())
-        chunk_min_cell = float(cell_min.min())
-        chunk_max_delta = float(delta_v.max())
-        chunk_max_temp = float(row_max_temp.max())
-        chunk_min_temp = float(row_min_temp.min())
+        if len(valid_numeric):
+            chunk_max_cell = float(valid_cell_max.max())
+            chunk_min_cell = float(valid_cell_min.min())
+            chunk_max_delta = float(valid_delta_v.max())
+            chunk_max_temp = float(valid_row_max_temp.max())
+            chunk_min_temp = float(valid_row_min_temp.min())
 
-        max_cell_voltage_v = (
-            chunk_max_cell
-            if max_cell_voltage_v is None
-            else max(max_cell_voltage_v, chunk_max_cell)
-        )
-        min_cell_voltage_v = (
-            chunk_min_cell
-            if min_cell_voltage_v is None
-            else min(min_cell_voltage_v, chunk_min_cell)
-        )
-        max_delta_v = chunk_max_delta if max_delta_v is None else max(max_delta_v, chunk_max_delta)
-        max_temperature_c = (
-            chunk_max_temp if max_temperature_c is None else max(max_temperature_c, chunk_max_temp)
-        )
-        min_temperature_c = (
-            chunk_min_temp if min_temperature_c is None else min(min_temperature_c, chunk_min_temp)
-        )
+            max_cell_voltage_v = (
+                chunk_max_cell
+                if max_cell_voltage_v is None
+                else max(max_cell_voltage_v, chunk_max_cell)
+            )
+            min_cell_voltage_v = (
+                chunk_min_cell
+                if min_cell_voltage_v is None
+                else min(min_cell_voltage_v, chunk_min_cell)
+            )
+            max_delta_v = (
+                chunk_max_delta if max_delta_v is None else max(max_delta_v, chunk_max_delta)
+            )
+            max_temperature_c = (
+                chunk_max_temp
+                if max_temperature_c is None
+                else max(max_temperature_c, chunk_max_temp)
+            )
+            min_temperature_c = (
+                chunk_min_temp
+                if min_temperature_c is None
+                else min(min_temperature_c, chunk_min_temp)
+            )
 
         max_gap_s = resolved_event_detection.max_gap_s
 
@@ -267,7 +321,7 @@ def _analyze_battery_chunks(
                 states["CELL_IMBALANCE_HIGH"],
                 mask=exceeds_limit(delta_v, limit),
                 events=build_imbalance_events(
-                    numeric,
+                    rule_numeric,
                     timestamps,
                     cell_cols,
                     delta_v,
@@ -284,7 +338,7 @@ def _analyze_battery_chunks(
                 states["CELL_OVERVOLTAGE"],
                 mask=exceeds_limit(cell_max, limit),
                 events=build_high_events(
-                    numeric=numeric,
+                    numeric=rule_numeric,
                     timestamps=timestamps,
                     signal_cols=cell_cols,
                     row_max=cell_max,
@@ -303,7 +357,7 @@ def _analyze_battery_chunks(
                 states["CELL_UNDERVOLTAGE"],
                 mask=below_limit(cell_min, limit),
                 events=build_low_events(
-                    numeric=numeric,
+                    numeric=rule_numeric,
                     timestamps=timestamps,
                     signal_cols=cell_cols,
                     row_min=cell_min,
@@ -322,7 +376,7 @@ def _analyze_battery_chunks(
                 states["TEMPERATURE_HIGH"],
                 mask=exceeds_limit(row_max_temp, limit),
                 events=build_high_events(
-                    numeric=numeric,
+                    numeric=rule_numeric,
                     timestamps=timestamps,
                     signal_cols=temp_cols,
                     row_max=row_max_temp,
@@ -341,7 +395,7 @@ def _analyze_battery_chunks(
                 states["TEMPERATURE_LOW"],
                 mask=below_limit(row_min_temp, limit),
                 events=build_low_events(
-                    numeric=numeric,
+                    numeric=rule_numeric,
                     timestamps=timestamps,
                     signal_cols=temp_cols,
                     row_min=row_min_temp,
@@ -354,23 +408,27 @@ def _analyze_battery_chunks(
                 max_gap_s=max_gap_s,
             )
 
-        rows_analyzed += len(frame)
+        rows_analyzed += len(valid_numeric)
 
-    if rows_analyzed == 0:
+    if rows_input == 0:
         raise ValueError("Battery log contains no data rows")
 
     assert expected_cell_cols is not None
     assert expected_temp_cols is not None
-    assert max_cell_voltage_v is not None
-    assert min_cell_voltage_v is not None
-    assert max_delta_v is not None
-    assert max_temperature_c is not None
-    assert min_temperature_c is not None
+    if rows_analyzed:
+        assert max_cell_voltage_v is not None
+        assert min_cell_voltage_v is not None
+        assert max_delta_v is not None
+        assert max_temperature_c is not None
+        assert min_temperature_c is not None
 
+    data_quality_events: list[DataQualityEvent] = (
+        data_quality_collector.finish() if data_quality_collector is not None else []
+    )
     violations = [event for code in rules_evaluated for event in states[code].finish()]
     violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
 
-    if violations:
+    if violations or data_quality_events:
         validation_status = "FAIL"
     elif rules_evaluated:
         validation_status = "PASS"
@@ -385,12 +443,15 @@ def _analyze_battery_chunks(
         "analysis_options": _analysis_options_snapshot(resolved_event_detection),
         "comparison_policy": _comparison_policy_snapshot(),
         "signal_mapping": _signal_mapping_snapshot(signal_mapping),
+        "data_quality": _data_quality_snapshot(resolved_data_quality, data_quality_events),
+        "rows_input": rows_input,
         "rows_analyzed": rows_analyzed,
+        "rows_excluded": rows_excluded,
         "cells_detected": len(expected_cell_cols),
         "temperature_sensors_detected": len(expected_temp_cols),
         "max_cell_voltage_v": max_cell_voltage_v,
         "min_cell_voltage_v": min_cell_voltage_v,
-        "max_delta_v": round(max_delta_v, 12),
+        "max_delta_v": round(max_delta_v, 12) if max_delta_v is not None else None,
         "max_temperature_c": max_temperature_c,
         "min_temperature_c": min_temperature_c,
         "violations": violations,
@@ -404,6 +465,7 @@ def analyze_measurement_loader(
     *,
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
+    data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
     return _analyze_battery_chunks(
@@ -412,6 +474,7 @@ def analyze_measurement_loader(
         temp_warning_c,
         limits=limits,
         event_detection=event_detection,
+        data_quality=data_quality,
         signal_mapping=signal_mapping,
     )
 
@@ -423,6 +486,7 @@ def analyze_measurement_loader_with_report_series(
     *,
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
+    data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
     max_points: int = DEFAULT_REPORT_SERIES_MAX_POINTS,
 ) -> tuple[AnalysisResult, ReportSeries]:
@@ -433,6 +497,7 @@ def analyze_measurement_loader_with_report_series(
         temp_warning_c,
         limits=limits,
         event_detection=event_detection,
+        data_quality=data_quality,
         signal_mapping=signal_mapping,
         report_series_collector=collector,
     )
@@ -446,6 +511,7 @@ def analyze_battery_log_streaming(
     *,
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
+    data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
     return analyze_measurement_loader(
@@ -454,6 +520,7 @@ def analyze_battery_log_streaming(
         temp_warning_c,
         limits=limits,
         event_detection=event_detection,
+        data_quality=data_quality,
         signal_mapping=signal_mapping,
     )
 
@@ -466,6 +533,7 @@ def analyze_battery_file_streaming(
     source_name: str | Path | None = None,
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
+    data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
     return analyze_measurement_loader(
@@ -474,6 +542,7 @@ def analyze_battery_file_streaming(
         temp_warning_c,
         limits=limits,
         event_detection=event_detection,
+        data_quality=data_quality,
         signal_mapping=signal_mapping,
     )
 
@@ -486,6 +555,7 @@ def analyze_battery_file_with_report_series(
     source_name: str | Path | None = None,
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
+    data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
     max_points: int = DEFAULT_REPORT_SERIES_MAX_POINTS,
 ) -> tuple[AnalysisResult, ReportSeries]:
@@ -495,6 +565,7 @@ def analyze_battery_file_with_report_series(
         temp_warning_c,
         limits=limits,
         event_detection=event_detection,
+        data_quality=data_quality,
         signal_mapping=signal_mapping,
         max_points=max_points,
     )

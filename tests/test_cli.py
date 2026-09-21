@@ -31,7 +31,7 @@ def test_cli_fail_emits_json_and_returns_exit_1(capsys) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 1
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert payload["validation_status"] == "FAIL"
     assert payload["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",
@@ -614,7 +614,7 @@ def test_cli_report_preserves_json_stdout_contract(tmp_path, capsys) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert payload["validation_status"] == "PASS"
     assert "plot" not in payload
     assert "report_series" not in payload
@@ -808,3 +808,48 @@ def test_cli_report_does_not_materialize_source_bytes(
     assert exit_code == 0
     assert payload["validation_status"] == "PASS"
     assert report.exists()
+
+
+def test_cli_config_v2_excludes_invalid_rows_and_reports_structured_evidence(
+    tmp_path,
+    capsys,
+) -> None:
+    source = tmp_path / "quality.csv"
+    source.write_text(
+        "timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,3.80,3.79\n1,25,bad,3.79\n",
+        encoding="utf-8",
+    )
+    config = tmp_path / "quality.yaml"
+    config.write_text(
+        "schema_version: 2\n"
+        "limits:\n"
+        "  cell_voltage:\n"
+        "    max_v: 4.2\n"
+        "data_quality:\n"
+        "  mode: exclude_invalid_rows\n",
+        encoding="utf-8",
+    )
+    report = tmp_path / "quality.html"
+
+    exit_code = run(
+        [
+            str(source),
+            "--config",
+            str(config),
+            "--report",
+            str(report),
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["schema_version"] == 3
+    assert payload["validation_status"] == "FAIL"
+    assert payload["rows_input"] == 2
+    assert payload["rows_analyzed"] == 1
+    assert payload["rows_excluded"] == 1
+    assert payload["violations"] == []
+    assert payload["data_quality"]["events"][0]["code"] == "NON_NUMERIC_REQUIRED_VALUE"
+    html = report.read_text(encoding="utf-8")
+    assert "NON_NUMERIC_REQUIRED_VALUE" in html
+    assert "Rows excluded</strong><br>1" in html

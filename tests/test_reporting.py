@@ -7,12 +7,15 @@ import pytest
 
 import batterylog.reporting.evidence as evidence_module
 from batterylog import (
+    DataQualityConfig,
     EventDetectionConfig,
     SignalMapping,
     SignalPattern,
     ValidationLimits,
     analyze_battery_log,
 )
+from batterylog.analysis.core import analyze_battery_bytes
+from batterylog.analysis.report_series import ReportSeriesCollector
 from batterylog.analysis.streaming import analyze_battery_file_with_report_series
 from batterylog.reporting import (
     FileEvidence,
@@ -480,3 +483,41 @@ def test_capture_rejects_snapshot_length_that_disagrees_with_file_size(
 
     with pytest.raises(ValueError, match="size changed while snapshotting"):
         capture_file_snapshot(path)
+
+
+def test_html_report_renders_structured_data_quality_evidence() -> None:
+    result = analyze_battery_bytes(
+        (b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,3.8,3.79,25\n1,bad,3.79,25\n"),
+        limits=ValidationLimits(),
+        data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
+    )
+
+    html = render_html_report(result)
+
+    assert "<strong>FAIL</strong>" in html
+    assert "Required-data quality defects were recorded." in html
+    assert "Input rows</strong><br>2" in html
+    assert "Rows analyzed</strong><br>1" in html
+    assert "Rows excluded</strong><br>1" in html
+    assert "NON_NUMERIC_REQUIRED_VALUE" in html
+    assert "<th>Start row</th>" in html
+    assert "<td>2</td>" in html
+    assert "cell_1_v" in html
+
+
+def test_all_invalid_data_quality_report_uses_null_safe_extrema_and_empty_plots() -> None:
+    result = analyze_battery_bytes(
+        (b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,bad,3.79,25\n1,inf,3.79,25\n"),
+        limits=ValidationLimits(cell_max_v=4.2),
+        data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
+    )
+    empty_series = ReportSeriesCollector(max_points=12).finish()
+
+    html = render_html_report(result, series=empty_series)
+
+    assert result["rows_analyzed"] == 0
+    assert html.count("N/A") == 5
+    assert "No plot data available." in html
+    assert "Rows excluded</strong><br>2" in html
+    assert "NON_NUMERIC_REQUIRED_VALUE" in html
+    assert "NON_FINITE_REQUIRED_VALUE" in html

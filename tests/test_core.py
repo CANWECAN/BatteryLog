@@ -22,7 +22,7 @@ def test_sample_log_returns_structured_violation_events() -> None:
         ),
     )
 
-    assert result["schema_version"] == 2
+    assert result["schema_version"] == 3
     assert result["validation_status"] == "FAIL"
     assert result["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",

@@ -161,7 +161,7 @@ A rule can be disabled by setting its YAML value to `null`.
 Example:
 
 ```yaml
-schema_version: 1
+schema_version: 2
 
 limits:
   cell_voltage:
@@ -175,6 +175,9 @@ limits:
 
 event_detection:
   max_gap_s: 2.0
+
+data_quality:
+  mode: strict
 ```
 
 The values in `examples/validation.example.yaml` are illustrative only. They are not universal safety limits or chemistry defaults. Validation limits must come from the tested cell/pack specification, operating state, BMS strategy, and test plan.
@@ -196,6 +199,19 @@ Unknown config keys are rejected instead of silently ignored, so spelling mistak
 The `event_detection.max_gap_s` value controls event segmentation only. It is not a battery safety limit. When configured, adjacent failing rows are kept in the same event only when their timestamp gap is less than or equal to the configured value. A larger gap starts a new event.
 
 If `max_gap_s` is omitted or `null`, BatteryLog preserves the original row-contiguity behavior.
+
+### Required-data quality
+
+Configuration schema 2 adds an explicit `data_quality.mode`:
+
+- `strict` is the default and preserves the historical fail-fast behavior: the first missing, non-numeric, or non-finite required numeric value raises an input error.
+- `exclude_invalid_rows` is opt-in. Rows containing an invalid required timestamp, cell-voltage, or temperature value are excluded from engineering-rule evaluation and measured extrema, and the defect is recorded as structured evidence.
+
+Exclusion can never turn defective input into a passing result. Any structured data-quality event forces `validation_status` to `FAIL`, even when no engineering rule is active or no engineering-rule violation is recorded. Excluded rows also break violation-event continuity, so BatteryLog never bridges a rule event across unknown data.
+
+Result row accounting distinguishes `rows_input`, `rows_analyzed`, and `rows_excluded`. Structured data-quality events use 1-based source data-row numbers and one of `MISSING_REQUIRED_VALUE`, `NON_NUMERIC_REQUIRED_VALUE`, or `NON_FINITE_REQUIRED_VALUE`. Adjacent rows with the same defect code and signal set are grouped into one deterministic event run.
+
+Configuration schema 1 remains accepted for backward compatibility and is equivalent to `data_quality.mode: strict`. The `data_quality` block itself is available only with `schema_version: 2`.
 
 ## Numerical comparison semantics
 
@@ -219,27 +235,32 @@ BatteryLog separates "no violations" from "no validation was performed":
 
 | Status | Meaning |
 | --- | --- |
-| `NOT_EVALUATED` | no engineering rule had an active numeric limit; metrics were computed only |
-| `PASS` | at least one engineering rule was evaluated and no violations were found |
-| `FAIL` | at least one evaluated rule produced a violation |
+| `NOT_EVALUATED` | no engineering rule had an active numeric limit and no structured data-quality defect was recorded |
+| `PASS` | at least one engineering rule was evaluated, no rule violations were found, and no structured data-quality defect was recorded |
+| `FAIL` | at least one engineering-rule violation and/or structured required-data quality defect was recorded |
 
 The result also contains `rules_evaluated`, so downstream reports can show exactly which checks participated in the status decision.
 
 ## Result schema
 
-Machine-readable analysis results include their own `schema_version`. The current **result schema is 2**.
+Machine-readable analysis results include their own `schema_version`. The current **result schema is 3**.
 
-The formal Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v2.json`](batterylog/schema/result-v2.json) and is included in the Python distribution package. CI validates generated `NOT_EVALUATED`, `PASS`, and `FAIL` results against this artifact.
+The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v3.json`](batterylog/schema/result-v3.json) and is included in the Python distribution package. The frozen v2 artifact remains packaged at [`batterylog/schema/result-v2.json`](batterylog/schema/result-v2.json) for consumers of the 0.7 contract.
 
-Result schema version 2 is BatteryLog's **first formally frozen result contract**. Historical `schema_version: 1` results from the 0.4.x–0.6.x development line evolved additively before a strict schema artifact existed, so BatteryLog does not claim one strict v1 schema for all of those payloads.
+Result schema version 2 was BatteryLog's **first formally frozen result contract**. Result schema version 3 extends that contract with structured data-quality evidence and explicit row accounting:
 
-The result schema rejects unknown top-level/nested fields and encodes status invariants such as:
+- `data_quality.mode` and grouped `data_quality.events`
+- `rows_input`, `rows_analyzed`, and `rows_excluded`
+- nullable measured extrema when every input row is excluded
 
-- `NOT_EVALUATED`: no rules evaluated and no violation events
-- `PASS`: at least one rule evaluated and no violation events
-- `FAIL`: at least one rule evaluated and at least one violation event
+The v3 schema rejects unknown top-level/nested fields and encodes status invariants such as:
 
-Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The YAML config format currently remains `schema_version: 1`; that value does **not** mean result schema version 1.
+- `NOT_EVALUATED`: no rules evaluated, no violation events, and no data-quality events
+- `PASS`: at least one rule evaluated, no violation events, and no data-quality events
+- `FAIL`: at least one violation event and/or data-quality event
+- `rows_analyzed == 0`: at least one row was excluded and measured extrema are `null`
+
+Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 2; config schema 1 remains accepted as the strict-mode legacy format.
 
 From result schema v2 onward, adding, removing, renaming, changing the required status/type/meaning of result fields, or otherwise changing the machine-readable wire contract requires a new result-schema version. The full policy and historical rationale are documented in [`docs/RESULT_SCHEMA_VERSIONING.md`](docs/RESULT_SCHEMA_VERSIONING.md).
 

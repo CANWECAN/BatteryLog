@@ -4,7 +4,7 @@ BatteryLog prepares plot data separately from the machine-readable `AnalysisResu
 
 ## Series contract
 
-Each retained point contains the original global data-row index and timestamp plus five row-level metrics already computed by the streaming analyzer:
+Each retained point contains the global analyzed-row index and timestamp plus five row-level metrics already computed by the streaming analyzer. In `exclude_invalid_rows` mode, excluded source rows are omitted from the report series; their original 1-based source-row positions remain available in `AnalysisResult["data_quality"]["events"]`.
 
 - minimum cell voltage
 - maximum cell voltage
@@ -12,7 +12,7 @@ Each retained point contains the original global data-row index and timestamp pl
 - minimum temperature
 - maximum temperature
 
-`AnalysisResult` schema v2 is unchanged. Plot limits and violation markers must continue to come from `AnalysisResult`, while the report series supplies only time-series geometry.
+The report-series contract remains separate from the current `AnalysisResult` schema v3. Plot limits and violation markers must continue to come from `AnalysisResult`, while the report series supplies only time-series geometry. Structured data-quality evidence also comes exclusively from `AnalysisResult`; it is never inferred from decimated plot points.
 
 ## Deterministic downsampling
 
@@ -20,7 +20,7 @@ The default report budget is 2,400 retained points. Inputs at or below the confi
 
 When the source exceeds the budget, BatteryLog switches to `extrema-preserving-v1` reduction:
 
-1. Source rows remain ordered by their original global row index. Reduction never uses loader chunk boundaries as bucket boundaries.
+1. Analyzed rows remain ordered by their global analyzed-row index. Reduction never uses loader chunk boundaries as bucket boundaries.
 2. Rows are summarized into fixed, globally aligned base blocks. A block retains its first and last row plus the row containing the minimum and maximum of each of the five plotted metrics.
 3. Duplicate candidate rows are collapsed by original row index and retained in source order.
 4. When too many summarized buckets accumulate, adjacent buckets are merged. A merged bucket applies the same first/last plus per-metric min/max rule to the candidates from its children.
@@ -45,7 +45,7 @@ No external JavaScript, image files, fonts, or plotting package is required. SVG
 
 The renderer does not infer engineering evidence from those points. Configured horizontal limit lines come from `AnalysisResult["limits_applied"]`. Shaded violation intervals, worst-case timestamps, worst-case measured values, and rule codes come from `AnalysisResult["violations"]`. Worst-case markers are rendered after the time-series geometry so they remain visually on top of downsampled lines/envelopes.
 
-The renderer performs fail-closed consistency checks before emitting SVG: `source_rows` must match `AnalysisResult["rows_analyzed"]`, retained rows/timestamps must be ordered and finite, the declared point budget must be respected, first/last source rows must remain present, cell/temperature envelopes must not invert, each retained cell delta must agree with its voltage envelope, and the retained global extrema must match the extrema recorded in `AnalysisResult`. Structured violation evidence is also checked for finite numeric fields, ordered start/peak/end times, membership in the report-series time domain, and a known plot mapping for the rule code. These checks catch common mismatched or malformed series/result inputs, but they are not a cryptographic identity binding between two independently supplied objects. The CLI avoids that ambiguity by obtaining the result and report series from the same analyzer invocation over the same source snapshot. The JSON/result schema remains unchanged.
+The renderer performs fail-closed consistency checks before emitting SVG: `source_rows` must match `AnalysisResult["rows_analyzed"]`, retained rows/timestamps must be ordered and finite, the declared point budget must be respected, first/last source rows must remain present, cell/temperature envelopes must not invert, each retained cell delta must agree with its voltage envelope, and the retained global extrema must match the extrema recorded in `AnalysisResult`. Structured violation evidence is also checked for finite numeric fields, ordered start/peak/end times, membership in the report-series time domain, and a known plot mapping for the rule code. These checks catch common mismatched or malformed series/result inputs, but they are not a cryptographic identity binding between two independently supplied objects. The CLI avoids that ambiguity by obtaining the result and report series from the same analyzer invocation over the same source snapshot. The report-series contract does not add plot geometry to the JSON result schema.
 
 Instantaneous violation events are rendered as vertical markers rather than artificially widened duration rectangles. A one-row measurement renders explicit sample markers so its retained values remain visible even though an SVG polyline with one point has no visible segment.
 

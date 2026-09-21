@@ -9,13 +9,15 @@ They do not need to use the same version number.
 
 ## Configuration schema
 
-The YAML configuration schema remains at version 1:
+The current YAML configuration schema is version 2:
 
 ```yaml
-schema_version: 1
+schema_version: 2
 ```
 
-This version identifies the structure accepted by the validation-config parser.
+Configuration schema 2 adds the optional `data_quality` block and its explicit `strict` / `exclude_invalid_rows` mode. Configuration schema 1 remains accepted for backward compatibility and is interpreted with strict fail-fast data-quality behavior. A `data_quality` block is rejected when `schema_version: 1` is selected.
+
+This version identifies the structure accepted by the validation-config parser and is independent from the result-schema version.
 
 ## Result schema history
 
@@ -45,13 +47,32 @@ Its Draft 2020-12 JSON Schema is:
 batterylog/schema/result-v2.json
 ```
 
-The schema is strict and rejects unknown fields.
+The schema is strict and rejects unknown fields. The frozen v2 artifact remains packaged for consumers of the 0.7 contract.
+
+### Result schema version 3
+
+Result schema version 3 is the current BatteryLog machine-readable result contract for the 0.8 development line. Its Draft 2020-12 JSON Schema is:
+
+```text
+batterylog/schema/result-v3.json
+```
+
+Version 3 adds structured required-data quality evidence and explicit row accounting:
+
+- `data_quality.mode`
+- grouped `data_quality.events`
+- `rows_input`
+- `rows_excluded`
+- `rows_analyzed` may be zero when every input row is excluded
+- measured extrema may be `null` only when no rows were analyzed
+
+The validation-status invariant also changes: `FAIL` may now be justified by one or more engineering-rule violations, one or more structured data-quality events, or both. `PASS` and `NOT_EVALUATED` cannot contain data-quality events.
 
 ## Versioning policy from v2 onward
 
 Package versions and result-schema versions are independent.
 
-A package release may keep result schema version 2 when implementation changes do not alter the machine-readable contract.
+A package release may keep its current result-schema version when implementation changes do not alter the machine-readable contract.
 
 A new result schema version is required when a release changes the wire contract, including:
 

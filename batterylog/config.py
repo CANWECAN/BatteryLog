@@ -6,6 +6,8 @@ from typing import Any
 
 import yaml
 
+from batterylog.models import DataQualityMode
+
 
 class _UniqueKeySafeLoader(yaml.SafeLoader):
     pass
@@ -82,6 +84,15 @@ class ValidationLimits:
 
 
 @dataclass(frozen=True)
+class DataQualityConfig:
+    mode: DataQualityMode = "strict"
+
+    def __post_init__(self) -> None:
+        if self.mode not in {"strict", "exclude_invalid_rows"}:
+            raise ValueError("data quality mode must be 'strict' or 'exclude_invalid_rows'")
+
+
+@dataclass(frozen=True)
 class EventDetectionConfig:
     max_gap_s: float | None = None
 
@@ -131,6 +142,7 @@ class SignalMapping:
 class ValidationConfig:
     limits: ValidationLimits = field(default_factory=ValidationLimits)
     event_detection: EventDetectionConfig = field(default_factory=EventDetectionConfig)
+    data_quality: DataQualityConfig = field(default_factory=DataQualityConfig)
     signals: SignalMapping | None = None
 
     def __post_init__(self) -> None:
@@ -138,6 +150,8 @@ class ValidationConfig:
             raise TypeError("limits must be a ValidationLimits instance")
         if not isinstance(self.event_detection, EventDetectionConfig):
             raise TypeError("event_detection must be an EventDetectionConfig instance")
+        if not isinstance(self.data_quality, DataQualityConfig):
+            raise TypeError("data_quality must be a DataQualityConfig instance")
         if self.signals is not None and not isinstance(self.signals, SignalMapping):
             raise TypeError("signals must be a SignalMapping instance or null")
 
@@ -182,7 +196,7 @@ def _load_config_root_bytes(
     data: bytes,
     *,
     source_name: str,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], int]:
     try:
         text = data.decode("utf-8")
         raw = yaml.load(
@@ -195,19 +209,18 @@ def _load_config_root_bytes(
     if raw is None:
         raw = {}
     root = _require_mapping("config", raw)
-    _reject_unknown_keys(
-        "top-level",
-        root,
-        {"schema_version", "limits", "event_detection", "signals"},
-    )
-
     schema_version = root.get("schema_version", 1)
     if isinstance(schema_version, bool) or not isinstance(schema_version, int):
         raise TypeError("schema_version must be an integer")
-    if schema_version != 1:
+    if schema_version not in {1, 2}:
         raise ValueError(f"Unsupported schema_version: {schema_version!r}")
 
-    return root
+    allowed = {"schema_version", "limits", "event_detection", "signals"}
+    if schema_version >= 2:
+        allowed.add("data_quality")
+    _reject_unknown_keys("top-level", root, allowed)
+
+    return root, schema_version
 
 
 def _parse_limits(root: dict[str, Any]) -> ValidationLimits:
@@ -257,6 +270,18 @@ def _parse_limits(root: dict[str, Any]) -> ValidationLimits:
             temp_raw.get("max_c", defaults.temperature_max_c),
         ),
     )
+
+
+def _parse_data_quality(root: dict[str, Any], *, schema_version: int) -> DataQualityConfig:
+    if schema_version == 1:
+        return DataQualityConfig()
+
+    raw = _require_mapping("data_quality", root.get("data_quality", {}))
+    _reject_unknown_keys("data_quality", raw, {"mode"})
+    mode = raw.get("mode", "strict")
+    if not isinstance(mode, str):
+        raise TypeError("data_quality.mode must be a string")
+    return DataQualityConfig(mode=mode)  # type: ignore[arg-type]
 
 
 def _parse_event_detection(root: dict[str, Any]) -> EventDetectionConfig:
@@ -319,10 +344,11 @@ def load_validation_config_bytes(
     *,
     source_name: str = "<memory>",
 ) -> ValidationConfig:
-    root = _load_config_root_bytes(data, source_name=source_name)
+    root, schema_version = _load_config_root_bytes(data, source_name=source_name)
     return ValidationConfig(
         limits=_parse_limits(root),
         event_detection=_parse_event_detection(root),
+        data_quality=_parse_data_quality(root, schema_version=schema_version),
         signals=_parse_signals(root),
     )
 
