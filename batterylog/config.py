@@ -142,8 +142,8 @@ class SignalMapping:
 class ValidationConfig:
     limits: ValidationLimits = field(default_factory=ValidationLimits)
     event_detection: EventDetectionConfig = field(default_factory=EventDetectionConfig)
-    data_quality: DataQualityConfig = field(default_factory=DataQualityConfig)
     signals: SignalMapping | None = None
+    data_quality: DataQualityConfig = field(default_factory=DataQualityConfig, kw_only=True)
 
     def __post_init__(self) -> None:
         if not isinstance(self.limits, ValidationLimits):
