@@ -15,6 +15,12 @@ def _fmt_number(value: float | None) -> str:
     return f"{value:.12g}"
 
 
+def _fmt_measurement(value: float | None, unit: str) -> str:
+    if value is None:
+        return "N/A"
+    return f"{value:.12g} {unit}"
+
+
 def _metric_row(label: str, value: str) -> str:
     return f'<tr><th scope="row">{escape(label)}</th><td>{escape(value)}</td></tr>'
 
@@ -119,6 +125,22 @@ def _signal_mapping_rows(result: AnalysisResult) -> str:
     return "".join(_metric_row(label, value) for label, value in items)
 
 
+def _data_quality_rows(result: AnalysisResult) -> str:
+    rows: list[str] = []
+    for event in result["data_quality"]["events"]:
+        signals = ", ".join(event["signals"])
+        rows.append(
+            "<tr>"
+            f"<td><code>{escape(event['code'])}</code></td>"
+            f"<td>{event['start_row']}</td>"
+            f"<td>{event['end_row']}</td>"
+            f"<td>{event['affected_values']}</td>"
+            f"<td>{escape(signals)}</td>"
+            "</tr>"
+        )
+    return "".join(rows)
+
+
 def _violation_rows(result: AnalysisResult) -> str:
     rows: list[str] = []
     for event in result["violations"]:
@@ -142,7 +164,13 @@ def _status_message(result: AnalysisResult) -> str:
     if status == "NOT_EVALUATED":
         return "No engineering rules were evaluated. This report contains metrics only."
     if status == "PASS":
-        return "All evaluated engineering rules passed."
+        return "All evaluated engineering rules passed. No data-quality defects were recorded."
+    has_rule_failures = bool(result["violations"])
+    has_data_quality = bool(result["data_quality"]["events"])
+    if has_rule_failures and has_data_quality:
+        return "Engineering-rule violations and required-data quality defects were recorded."
+    if has_data_quality:
+        return "Required-data quality defects were recorded."
     return "One or more evaluated engineering rules failed."
 
 
@@ -151,23 +179,23 @@ def _measured_metric_rows(result: AnalysisResult) -> str:
         [
             _metric_row(
                 "Maximum cell voltage",
-                f"{result['max_cell_voltage_v']:.12g} V",
+                _fmt_measurement(result["max_cell_voltage_v"], "V"),
             ),
             _metric_row(
                 "Minimum cell voltage",
-                f"{result['min_cell_voltage_v']:.12g} V",
+                _fmt_measurement(result["min_cell_voltage_v"], "V"),
             ),
             _metric_row(
                 "Maximum cell delta",
-                f"{result['max_delta_v']:.12g} V",
+                _fmt_measurement(result["max_delta_v"], "V"),
             ),
             _metric_row(
                 "Maximum temperature",
-                f"{result['max_temperature_c']:.12g} degC",
+                _fmt_measurement(result["max_temperature_c"], "degC"),
             ),
             _metric_row(
                 "Minimum temperature",
-                f"{result['min_temperature_c']:.12g} degC",
+                _fmt_measurement(result["min_temperature_c"], "degC"),
             ),
         ]
     )
@@ -181,6 +209,14 @@ def render_html_report(
 ) -> str:
     status = result["validation_status"]
     rules = ", ".join(result["rules_evaluated"]) or "None"
+    data_quality_rows = _data_quality_rows(result)
+    data_quality_section = (
+        f"<table><thead><tr><th>Code</th><th>Start row</th><th>End row</th>"
+        f"<th>Affected values</th><th>Signals</th></tr></thead>"
+        f"<tbody>{data_quality_rows}</tbody></table>"
+        if data_quality_rows
+        else "<p>No required-data quality defects were recorded.</p>"
+    )
     violations = _violation_rows(result)
     violation_section = (
         f"<table><thead><tr><th>Code</th><th>Start (s)</th><th>End (s)</th>"
@@ -250,9 +286,12 @@ code {{ font-family: ui-monospace, Consolas, monospace; }}
 <section>
 <h2>Dataset summary</h2>
 <div class="grid">
+<div class="card"><strong>Input rows</strong><br>{result["rows_input"]}</div>
 <div class="card"><strong>Rows analyzed</strong><br>{result["rows_analyzed"]}</div>
+<div class="card"><strong>Rows excluded</strong><br>{result["rows_excluded"]}</div>
 <div class="card"><strong>Cells detected</strong><br>{result["cells_detected"]}</div>
 <div class="card"><strong>Temperature sensors</strong><br>{result["temperature_sensors_detected"]}</div>
+<div class="card"><strong>Data-quality events</strong><br>{len(result["data_quality"]["events"])}</div>
 <div class="card"><strong>Violation events</strong><br>{len(result["violations"])}</div>
 </div>
 </section>
@@ -265,6 +304,11 @@ code {{ font-family: ui-monospace, Consolas, monospace; }}
 <h2>Validation configuration</h2>
 <p>Rules evaluated: <code>{escape(rules)}</code></p>
 <table><tbody>{_limits_rows(result)}{_analysis_options_rows(result)}{_comparison_policy_rows(result)}{_signal_mapping_rows(result)}</tbody></table>
+</section>
+<section>
+<h2>Data quality</h2>
+<p>Mode: <code>{escape(result["data_quality"]["mode"])}</code></p>
+{data_quality_section}
 </section>
 <section>
 <h2>Violation events</h2>

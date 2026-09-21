@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from batterylog.config import (
+    DataQualityConfig,
     EventDetectionConfig,
     SignalMapping,
     SignalPattern,
@@ -80,7 +81,7 @@ limits:
 @pytest.mark.parametrize(
     ("content", "exception_type", "message"),
     [
-        ("schema_version: 2\n", ValueError, "Unsupported schema_version"),
+        ("schema_version: 3\n", ValueError, "Unsupported schema_version"),
         ("limits: []\n", TypeError, "limits must be a mapping"),
         (
             "limits:\n  cell_voltage:\n    typo_v: 4.2\n",
@@ -173,6 +174,79 @@ limits:
 
     with pytest.raises(ValueError, match="Invalid YAML"):
         load_validation_limits(path)
+
+
+def test_config_schema_v1_defaults_to_strict_data_quality(tmp_path: Path) -> None:
+    config = load_validation_config(_write(tmp_path, "schema_version: 1\n"))
+
+    assert config.data_quality == DataQualityConfig(mode="strict")
+
+
+def test_config_schema_v1_rejects_data_quality_block(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="Unknown top-level key.*data_quality"):
+        load_validation_config(
+            _write(
+                tmp_path,
+                "schema_version: 1\ndata_quality:\n  mode: exclude_invalid_rows\n",
+            )
+        )
+
+
+def test_config_schema_v2_parses_data_quality_mode(tmp_path: Path) -> None:
+    config = load_validation_config(
+        _write(
+            tmp_path,
+            "schema_version: 2\ndata_quality:\n  mode: exclude_invalid_rows\n",
+        )
+    )
+
+    assert config.data_quality == DataQualityConfig(mode="exclude_invalid_rows")
+
+
+def test_config_schema_v2_defaults_data_quality_to_strict(tmp_path: Path) -> None:
+    config = load_validation_config(_write(tmp_path, "schema_version: 2\n"))
+
+    assert config.data_quality == DataQualityConfig(mode="strict")
+
+
+@pytest.mark.parametrize(
+    ("content", "exception_type", "message"),
+    [
+        (
+            "schema_version: 2\ndata_quality: []\n",
+            TypeError,
+            "data_quality must be a mapping",
+        ),
+        (
+            "schema_version: 2\ndata_quality:\n  unknown: true\n",
+            ValueError,
+            "Unknown data_quality key",
+        ),
+        (
+            "schema_version: 2\ndata_quality:\n  mode: 1\n",
+            TypeError,
+            "data_quality.mode must be a string",
+        ),
+        (
+            "schema_version: 2\ndata_quality:\n  mode: interpolate\n",
+            ValueError,
+            "data quality mode must be 'strict' or 'exclude_invalid_rows'",
+        ),
+    ],
+)
+def test_invalid_data_quality_config_is_rejected(
+    tmp_path: Path,
+    content: str,
+    exception_type: type[Exception],
+    message: str,
+) -> None:
+    with pytest.raises(exception_type, match=message):
+        load_validation_config(_write(tmp_path, content))
+
+
+def test_data_quality_config_rejects_invalid_mode_directly() -> None:
+    with pytest.raises(ValueError, match="data quality mode"):
+        DataQualityConfig(mode="interpolate")  # type: ignore[arg-type]
 
 
 def test_load_validation_config_includes_event_detection(tmp_path: Path) -> None:

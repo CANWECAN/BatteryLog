@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 from batterylog.config import (
+    DataQualityConfig,
     EventDetectionConfig,
     SignalMapping,
     ValidationLimits,
@@ -17,6 +18,8 @@ from batterylog.models import (
     AnalysisResult,
     AppliedLimits,
     ComparisonPolicyInfo,
+    DataQualityEvent,
+    DataQualityInfo,
     RuleCode,
     SignalMappingInfo,
     ViolationEvent,
@@ -24,6 +27,7 @@ from batterylog.models import (
 from batterylog.signals import canonicalize_battery_signals, find_canonical_signal_columns
 
 from .comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
+from .data_quality import DataQualityCollector
 from .rules import build_high_events, build_imbalance_events, build_low_events
 
 
@@ -115,6 +119,19 @@ def _resolve_event_detection(
     return event_detection if event_detection is not None else EventDetectionConfig()
 
 
+def _resolve_data_quality(data_quality: DataQualityConfig | None) -> DataQualityConfig:
+    if data_quality is not None and not isinstance(data_quality, DataQualityConfig):
+        raise TypeError("data_quality must be a DataQualityConfig instance or null")
+    return data_quality if data_quality is not None else DataQualityConfig()
+
+
+def _data_quality_snapshot(
+    config: DataQualityConfig,
+    events: list[DataQualityEvent],
+) -> DataQualityInfo:
+    return {"mode": config.mode, "events": events}
+
+
 def _limits_snapshot(limits: ValidationLimits) -> AppliedLimits:
     return {
         "cell_min_v": limits.cell_min_v,
@@ -176,6 +193,7 @@ def _analyze_battery_frame(
     *,
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
+    data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
     _warn_legacy_threshold_arguments(
@@ -188,6 +206,7 @@ def _analyze_battery_frame(
         temp_warning_c,
     )
     resolved_event_detection = _resolve_event_detection(event_detection)
+    resolved_data_quality = _resolve_data_quality(data_quality)
     if signal_mapping is not None and not isinstance(signal_mapping, SignalMapping):
         raise TypeError("signal_mapping must be a SignalMapping instance or null")
 
@@ -206,17 +225,35 @@ def _analyze_battery_frame(
 
     numeric_cols = ["timestamp_s", *cell_cols, *temp_cols]
     numeric = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
-    _raise_invalid_numeric_value(df, numeric)
+    rows_input = len(df)
+    data_quality_events: list[DataQualityEvent] = []
 
-    timestamps = numeric["timestamp_s"]
-    if not timestamps.is_monotonic_increasing:
+    if resolved_data_quality.mode == "strict":
+        _raise_invalid_numeric_value(df, numeric)
+        invalid_rows = pd.Series(False, index=numeric.index, dtype=bool)
+    else:
+        collector = DataQualityCollector()
+        invalid_values = collector.consume_chunk(df, numeric, row_offset=0)
+        invalid_rows = pd.Series(invalid_values, index=numeric.index, dtype=bool)
+        data_quality_events = collector.finish()
+
+    valid_rows = ~invalid_rows
+    rows_excluded = int(invalid_rows.sum())
+    rows_analyzed = int(valid_rows.sum())
+    valid_numeric = numeric.loc[valid_rows]
+    valid_timestamps = valid_numeric["timestamp_s"]
+    if not valid_timestamps.is_monotonic_increasing:
         raise ValueError("timestamp_s must be non-decreasing")
 
-    cell_max = numeric[cell_cols].max(axis=1)
-    cell_min = numeric[cell_cols].min(axis=1)
+    rule_numeric = numeric.copy()
+    if rows_excluded:
+        rule_numeric.loc[invalid_rows, [*cell_cols, *temp_cols]] = np.nan
+    timestamps = rule_numeric["timestamp_s"]
+    cell_max = rule_numeric[cell_cols].max(axis=1)
+    cell_min = rule_numeric[cell_cols].min(axis=1)
     delta_v = cell_max - cell_min
-    row_max_temp = numeric[temp_cols].max(axis=1)
-    row_min_temp = numeric[temp_cols].min(axis=1)
+    row_max_temp = rule_numeric[temp_cols].max(axis=1)
+    row_min_temp = rule_numeric[temp_cols].min(axis=1)
 
     rules_evaluated = _active_rule_codes(resolved_limits)
     violations: list[ViolationEvent] = []
@@ -224,7 +261,7 @@ def _analyze_battery_frame(
     if resolved_limits.imbalance_max_v is not None:
         violations.extend(
             build_imbalance_events(
-                numeric,
+                rule_numeric,
                 timestamps,
                 cell_cols,
                 delta_v,
@@ -235,7 +272,7 @@ def _analyze_battery_frame(
     if resolved_limits.cell_max_v is not None:
         violations.extend(
             build_high_events(
-                numeric=numeric,
+                numeric=rule_numeric,
                 timestamps=timestamps,
                 signal_cols=cell_cols,
                 row_max=cell_max,
@@ -248,7 +285,7 @@ def _analyze_battery_frame(
     if resolved_limits.cell_min_v is not None:
         violations.extend(
             build_low_events(
-                numeric=numeric,
+                numeric=rule_numeric,
                 timestamps=timestamps,
                 signal_cols=cell_cols,
                 row_min=cell_min,
@@ -261,7 +298,7 @@ def _analyze_battery_frame(
     if resolved_limits.temperature_max_c is not None:
         violations.extend(
             build_high_events(
-                numeric=numeric,
+                numeric=rule_numeric,
                 timestamps=timestamps,
                 signal_cols=temp_cols,
                 row_max=row_max_temp,
@@ -274,7 +311,7 @@ def _analyze_battery_frame(
     if resolved_limits.temperature_min_c is not None:
         violations.extend(
             build_low_events(
-                numeric=numeric,
+                numeric=rule_numeric,
                 timestamps=timestamps,
                 signal_cols=temp_cols,
                 row_min=row_min_temp,
@@ -287,7 +324,7 @@ def _analyze_battery_frame(
 
     violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
 
-    if violations:
+    if violations or data_quality_events:
         validation_status = "FAIL"
     elif rules_evaluated:
         validation_status = "PASS"
@@ -302,14 +339,17 @@ def _analyze_battery_frame(
         "analysis_options": _analysis_options_snapshot(resolved_event_detection),
         "comparison_policy": _comparison_policy_snapshot(),
         "signal_mapping": _signal_mapping_snapshot(signal_mapping),
-        "rows_analyzed": len(df),
+        "data_quality": _data_quality_snapshot(resolved_data_quality, data_quality_events),
+        "rows_input": rows_input,
+        "rows_analyzed": rows_analyzed,
+        "rows_excluded": rows_excluded,
         "cells_detected": len(cell_cols),
         "temperature_sensors_detected": len(temp_cols),
-        "max_cell_voltage_v": float(cell_max.max()),
-        "min_cell_voltage_v": float(cell_min.min()),
-        "max_delta_v": round(float(delta_v.max()), 12),
-        "max_temperature_c": float(row_max_temp.max()),
-        "min_temperature_c": float(row_min_temp.min()),
+        "max_cell_voltage_v": float(cell_max.loc[valid_rows].max()) if rows_analyzed else None,
+        "min_cell_voltage_v": float(cell_min.loc[valid_rows].min()) if rows_analyzed else None,
+        "max_delta_v": round(float(delta_v.loc[valid_rows].max()), 12) if rows_analyzed else None,
+        "max_temperature_c": (float(row_max_temp.loc[valid_rows].max()) if rows_analyzed else None),
+        "min_temperature_c": (float(row_min_temp.loc[valid_rows].min()) if rows_analyzed else None),
         "violations": violations,
     }
 
@@ -321,6 +361,7 @@ def analyze_battery_log(
     *,
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
+    data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
     from .streaming import analyze_battery_log_streaming
@@ -331,6 +372,7 @@ def analyze_battery_log(
         temp_warning_c,
         limits=limits,
         event_detection=event_detection,
+        data_quality=data_quality,
         signal_mapping=signal_mapping,
     )
 
@@ -342,6 +384,7 @@ def analyze_battery_bytes(
     *,
     limits: ValidationLimits | None = None,
     event_detection: EventDetectionConfig | None = None,
+    data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
     return _analyze_battery_frame(
@@ -350,5 +393,6 @@ def analyze_battery_bytes(
         temp_warning_c,
         limits=limits,
         event_detection=event_detection,
+        data_quality=data_quality,
         signal_mapping=signal_mapping,
     )

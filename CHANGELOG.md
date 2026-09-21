@@ -4,6 +4,17 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### Structured data quality
+
+- Added YAML configuration schema version 2 with explicit `data_quality.mode`; configuration schema 1 remains accepted and preserves strict fail-fast behavior.
+- Added opt-in `exclude_invalid_rows` handling for missing, non-numeric, and non-finite required numeric samples without interpolation or silent repair.
+- Added grouped structured data-quality events with 1-based source data-row ranges, affected signal names, and affected-value counts.
+- Excluded rows now break engineering-rule event continuity and can never produce a false PASS; any structured data-quality event forces `validation_status` to `FAIL`.
+- Added explicit `rows_input`, `rows_analyzed`, and `rows_excluded` accounting and support for all-excluded inputs with null measured extrema.
+- Promoted the machine-readable result contract to schema version 3 while retaining the frozen result-v2 schema artifact for 0.7 consumers.
+- Added HTML report data-quality evidence, row-accounting summaries, and null-safe all-excluded rendering.
+- Added streaming/whole-frame parity, chunk-boundary, false-PASS, all-invalid, schema, CLI, and report regression tests.
+
 ### Loader architecture
 
 - Introduced a format-neutral measurement-loader contract so source adapters can feed the same chunked validation engine without adding format branches to the rule engine.
@@ -15,13 +26,13 @@ All notable changes to BatteryLog are documented here.
 
 ### Report plots
 
-- Added a separate immutable report-series contract without changing result schema v2 or validation semantics.
+- Added a separate immutable report-series contract without embedding plot geometry in the machine-readable result contract.
 - Added deterministic `extrema-preserving-v1` downsampling with a configurable retained-point budget.
 - Preserved first/last samples and per-bucket extrema for cell minimum/maximum voltage, cell delta, and temperature minimum/maximum.
 - Added chunk-boundary invariance and property-based tests proving retained-point bounds and global-extrema preservation.
 - Added three self-contained inline SVG plots to HTML evidence reports: cell-voltage envelope, cell-voltage delta, and temperature envelope.
 - Rendered configured limit lines from the effective result limits and violation intervals/worst-case markers from structured `AnalysisResult` events rather than re-evaluating rules from plot data.
-- Kept JSON/result schema v2 unchanged and kept plot collection off the standard non-report analysis path.
+- Kept plot collection off the standard non-report analysis path and kept plot geometry out of the JSON result contract.
 - Added CSV and real MDF4 CLI report tests covering plot generation, provenance, deterministic rendering, and event-marker sourcing.
 - Hardened plot evidence after adversarial review: malformed per-point envelopes/deltas, non-finite or out-of-domain events, reversed event timing, and unmapped rule codes now fail closed; instantaneous events use exact vertical markers and single-row plots show explicit samples.
 
@@ -34,12 +45,12 @@ All notable changes to BatteryLog are documented here.
 - Re-running the same benchmark reduced median native peak RSS by 18-27% and substantially increased throughput while still documenting the remaining source-size-proportional memory growth.
 - Added `psutil` to the development extra for cross-platform process-RSS measurement without changing runtime dependencies.
 - Changed the standard CSV file-analysis path from whole-file materialization to 50,000-row chunked processing.
-- Preserved global extrema, timestamp-order validation, event-gap semantics, and active violation events across chunk boundaries without changing result schema v2.
+- Preserved global extrema, timestamp-order validation, event-gap semantics, and active violation events across chunk boundaries during the streaming refactor.
 - Added boundary-sensitive regression tests and differential property tests comparing chunked analysis against the whole-frame reference implementation.
 - Extended the end-to-end CSV benchmark to profile both standard analysis and full CLI HTML evidence-report mode, and included profiling scripts in source distributions.
 - Moved HTML evidence source capture to a private temporary-file snapshot: SHA-256 is computed while copying, and analysis consumes the same snapshot in bounded chunks.
 - Changed the final source/config drift guard to streamed content hashing, avoiding whole-file byte materialization and accepting metadata-only changes when content is identical.
-- Preserved the exact-byte provenance invariant without changing result schema v2; optional YAML configuration remains an immutable in-memory byte snapshot.
+- Preserved the exact-byte provenance invariant; optional YAML configuration remains an immutable in-memory byte snapshot.
 
 ## 0.7.0 - 2026-09-20
 

@@ -8,10 +8,16 @@ RuleCode = Literal[
     "TEMPERATURE_LOW",
 ]
 
-ResultSchemaVersion = Literal[2]
-RESULT_SCHEMA_VERSION: ResultSchemaVersion = 2
+ResultSchemaVersion = Literal[3]
+RESULT_SCHEMA_VERSION: ResultSchemaVersion = 3
 
 ValidationStatus = Literal["NOT_EVALUATED", "PASS", "FAIL"]
+DataQualityMode = Literal["strict", "exclude_invalid_rows"]
+DataQualityCode = Literal[
+    "MISSING_REQUIRED_VALUE",
+    "NON_NUMERIC_REQUIRED_VALUE",
+    "NON_FINITE_REQUIRED_VALUE",
+]
 SignalMappingMode = Literal["canonical", "explicit"]
 ComparisonMode = Literal["strict_with_binary64_guard"]
 
@@ -41,6 +47,19 @@ class SignalMappingInfo(TypedDict):
     temperature_pattern: str | None
 
 
+class DataQualityEvent(TypedDict):
+    code: DataQualityCode
+    start_row: int
+    end_row: int
+    signals: list[str]
+    affected_values: int
+
+
+class DataQualityInfo(TypedDict):
+    mode: DataQualityMode
+    events: list[DataQualityEvent]
+
+
 class ViolationEvent(TypedDict):
     code: RuleCode
     start_time_s: float
@@ -60,12 +79,15 @@ class AnalysisResult(TypedDict):
     analysis_options: AnalysisOptions
     comparison_policy: ComparisonPolicyInfo
     signal_mapping: SignalMappingInfo
+    data_quality: DataQualityInfo
+    rows_input: int
     rows_analyzed: int
+    rows_excluded: int
     cells_detected: int
     temperature_sensors_detected: int
-    max_cell_voltage_v: float
-    min_cell_voltage_v: float
-    max_delta_v: float
-    max_temperature_c: float
-    min_temperature_c: float
+    max_cell_voltage_v: float | None
+    min_cell_voltage_v: float | None
+    max_delta_v: float | None
+    max_temperature_c: float | None
+    min_temperature_c: float | None
     violations: list[ViolationEvent]

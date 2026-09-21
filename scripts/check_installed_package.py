@@ -17,8 +17,12 @@ assert version("batterylog") == expected_version
 empty_series = ReportSeriesCollector(max_points=12).finish()
 assert empty_series.source_rows == 0
 assert empty_series.points == ()
-schema = json.loads(files("batterylog").joinpath("schema/result-v2.json").read_text())
+schema = json.loads(files("batterylog").joinpath("schema/result-v3.json").read_text())
+legacy_v2 = json.loads(files("batterylog").joinpath("schema/result-v2.json").read_text())
 jsonschema.Draft202012Validator.check_schema(schema)
+jsonschema.Draft202012Validator.check_schema(legacy_v2)
+assert schema["properties"]["schema_version"]["const"] == 3
+assert legacy_v2["properties"]["schema_version"]["const"] == 2
 with TemporaryDirectory() as directory:
     report = Path(directory) / "report.html"
     completed = subprocess.run(
