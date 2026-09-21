@@ -81,7 +81,7 @@ limits:
 @pytest.mark.parametrize(
     ("content", "exception_type", "message"),
     [
-        ("schema_version: 4\n", ValueError, "Unsupported schema_version"),
+        ("schema_version: 5\n", ValueError, "Unsupported schema_version"),
         ("limits: []\n", TypeError, "limits must be a mapping"),
         (
             "limits:\n  cell_voltage:\n    typo_v: 4.2\n",
@@ -704,3 +704,58 @@ def test_validation_config_bytes_match_path_loader(tmp_path: Path) -> None:
     )
 
     assert from_bytes == from_path
+
+
+def test_config_schema_v4_parses_pack_current_rule_contract(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "schema_version: 4\n"
+        "limits:\n"
+        "  pack_current:\n"
+        "    charge_max_a: 60\n"
+        "    discharge_max_a: 120\n"
+        "    positive_direction: discharge\n",
+    )
+
+    config = load_validation_config(path)
+
+    assert config.limits.pack_charge_max_a == pytest.approx(60.0)
+    assert config.limits.pack_discharge_max_a == pytest.approx(120.0)
+    assert config.limits.pack_current_positive_direction == "discharge"
+
+
+def test_config_schema_v3_rejects_pack_current_limits(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "schema_version: 3\n"
+        "limits:\n"
+        "  pack_current:\n"
+        "    charge_max_a: 60\n"
+        "    positive_direction: discharge\n",
+    )
+
+    with pytest.raises(ValueError, match="Unknown limits key"):
+        load_validation_config(path)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"pack_charge_max_a": -1.0}, "non-negative"),
+        ({"pack_discharge_max_a": -1.0}, "non-negative"),
+        (
+            {"pack_charge_max_a": 60.0},
+            "pack_current_positive_direction is required",
+        ),
+        (
+            {"pack_current_positive_direction": "forward"},
+            "must be 'charge', 'discharge', or null",
+        ),
+    ],
+)
+def test_pack_current_limit_contract_rejects_ambiguous_values(
+    kwargs: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        ValidationLimits(**kwargs)  # type: ignore[arg-type]

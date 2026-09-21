@@ -66,7 +66,7 @@ Without an explicit signal-mapping block, every input must contain:
 
 Examples are `cell_1_v`, `cell_96_v`, `temp_1_c`, and `temp_24_c`. The legacy single-temperature name `temp_c` is supported only when indexed temperature signals are not present.
 
-The optional scalar electrical channels are `pack_current_a` and `pack_voltage_v`. They may appear independently. When present, they participate in required-numeric data-quality handling and their minimum/maximum values are emitted in result schema v4; they do not activate an engineering rule by themselves. BatteryLog preserves the signed current values without inferring charge/discharge polarity; that convention and its limits are deferred to the overcurrent feature.
+The optional scalar electrical channels are `pack_current_a` and `pack_voltage_v`. They may appear independently. When present, they participate in required-numeric data-quality handling and their minimum/maximum values are emitted in the current result schema. Pack voltage remains measurement evidence only. Pack current activates charge/discharge overcurrent rules only when explicit limits and a positive-current direction are configured.
 
 Aggregate names such as `cell_min_v`, `cell_max_v`, or `temp_max_c` are intentionally not treated as raw sensor channels.
 
@@ -85,7 +85,7 @@ timestamp_s,pack_current_a,pack_voltage_v,temp_1_c,temp_2_c,cell_1_v,cell_2_v
 Vendor exports do not need to be renamed before analysis. A YAML config can explicitly map source channel names into BatteryLog's canonical model:
 
 ```yaml
-schema_version: 3
+schema_version: 4
 signals:
   timestamp: Time_s
   pack_current: PackCurrent
@@ -157,17 +157,19 @@ BatteryLog currently emits these rule codes:
 | `CELL_IMBALANCE_HIGH` | per-row max cell voltage minus min cell voltage is above the configured limit |
 | `CELL_OVERVOLTAGE` | at least one cell is above the configured maximum voltage |
 | `CELL_UNDERVOLTAGE` | at least one cell is below the configured minimum voltage |
+| `PACK_CHARGE_OVERCURRENT` | signed pack current exceeds the configured charge-current magnitude in the declared charge direction |
+| `PACK_DISCHARGE_OVERCURRENT` | signed pack current exceeds the configured discharge-current magnitude in the declared discharge direction |
 | `TEMPERATURE_HIGH` | at least one temperature signal is above the configured maximum |
 | `TEMPERATURE_LOW` | at least one temperature signal is below the configured minimum |
 
-A rule can be disabled by setting its YAML value to `null`. Pack current and pack voltage are measurement/evidence fields in this release slice; overcurrent rules are intentionally deferred to the next feature PR.
+A rule can be disabled by setting its YAML value to `null`. Pack voltage remains a measurement/evidence field and does not activate a rule.
 
 ## YAML configuration
 
 Example:
 
 ```yaml
-schema_version: 3
+schema_version: 4
 
 limits:
   cell_voltage:
@@ -179,12 +181,19 @@ limits:
     min_c: -20
     max_c: 55
 
+  pack_current:
+    charge_max_a: 80
+    discharge_max_a: 160
+    positive_direction: discharge
+
 event_detection:
   max_gap_s: 2.0
 
 data_quality:
   mode: strict
 ```
+
+`charge_max_a` and `discharge_max_a` are non-negative magnitudes. When either is numeric, `positive_direction` is required and must be `charge` or `discharge`; BatteryLog never guesses a vendor's sign convention. Violation events preserve the source current sign in both `measured_value` and the corresponding signed `limit_value`. Configuring an overcurrent rule without a selected `pack_current_a` signal fails closed.
 
 The values in `examples/validation.example.yaml` are illustrative only. They are not universal safety limits or chemistry defaults. Validation limits must come from the tested cell/pack specification, operating state, BMS strategy, and test plan.
 
@@ -217,7 +226,7 @@ Exclusion can never turn defective input into a passing result. Any structured d
 
 Result row accounting distinguishes `rows_input`, `rows_analyzed`, and `rows_excluded`. Structured data-quality events use 1-based source data-row numbers and one of `MISSING_REQUIRED_VALUE`, `NON_NUMERIC_REQUIRED_VALUE`, or `NON_FINITE_REQUIRED_VALUE`. Adjacent rows with the same defect code and signal set are grouped into one deterministic event run.
 
-Configuration schemas 1 and 2 remain accepted for backward compatibility. Schema 1 is equivalent to `data_quality.mode: strict`; schema 2 adds the `data_quality` block; schema 3 adds optional explicit `signals.pack_current` and `signals.pack_voltage` sources without changing schema-2 behavior.
+Configuration schemas 1–3 remain accepted with their historical behavior. Schema 1 is equivalent to `data_quality.mode: strict`; schema 2 adds the `data_quality` block; schema 3 adds optional explicit `signals.pack_current` and `signals.pack_voltage` sources. Schema 4 adds explicit pack-current magnitude limits and the required `positive_direction` convention.
 
 ## Numerical comparison semantics
 
@@ -231,7 +240,7 @@ BatteryLog applies a very small binary64 representation guard when deciding whet
 
 This guard is **not** an engineering tolerance, sensor accuracy allowance, hysteresis, or calibration margin. Those belong in the test specification and must be reflected in the configured engineering limits themselves.
 
-The same comparison policy is used for cell overvoltage, cell undervoltage, cell imbalance, high/low temperature, and maximum event-gap boundaries. The effective policy is included in the machine-readable result as `comparison_policy` and rendered in HTML reports.
+The same comparison policy is used for cell overvoltage, cell undervoltage, cell imbalance, charge/discharge overcurrent, high/low temperature, and maximum event-gap boundaries. The effective policy is included in the machine-readable result as `comparison_policy` and rendered in HTML reports.
 
 Cell-delta values may still be rounded for serialized/display output to suppress unreadable subtraction artifacts; that presentation normalization does not participate in the validation decision.
 
@@ -249,9 +258,9 @@ The result also contains `rules_evaluated`, so downstream reports can show exact
 
 ## Result schema
 
-Machine-readable analysis results include their own `schema_version`. The current **result schema is 4**.
+Machine-readable analysis results include their own `schema_version`. The current **result schema is 5**.
 
-The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v4.json`](batterylog/schema/result-v4.json) and is included in the Python distribution package. The frozen v3 and v2 artifacts remain packaged at [`batterylog/schema/result-v3.json`](batterylog/schema/result-v3.json) and [`batterylog/schema/result-v2.json`](batterylog/schema/result-v2.json) for 0.8 and 0.7 consumers.
+The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v5.json`](batterylog/schema/result-v5.json) and is included in the Python distribution package. The frozen v4, v3, and v2 artifacts remain packaged for earlier consumers.
 
 Result schema version 2 was BatteryLog's **first formally frozen result contract**. Result schema version 3 extends that contract with structured data-quality evidence and explicit row accounting:
 
@@ -267,7 +276,13 @@ Result schema version 4 adds pack-signal provenance and nullable electrical extr
 
 A pack extrema pair is numeric only when that signal was selected and at least one row was analyzed; otherwise it is `null`.
 
-The v4 schema rejects unknown top-level/nested fields and encodes status invariants such as:
+Result schema version 5 adds `PACK_CHARGE_OVERCURRENT` and `PACK_DISCHARGE_OVERCURRENT`, ampere violation evidence, and these applied-limit fields:
+
+- `pack_charge_max_a`
+- `pack_discharge_max_a`
+- `pack_current_positive_direction`
+
+The current schema rejects unknown top-level/nested fields and encodes status invariants such as:
 
 - `NOT_EVALUATED`: no rules evaluated, no violation events, and no data-quality events
 - `PASS`: at least one rule evaluated, no violation events, and no data-quality events
@@ -277,7 +292,7 @@ The v4 schema rejects unknown top-level/nested fields and encodes status invaria
 
 Some arithmetic relationships require semantic validation beyond Draft 2020-12 JSON Schema. BatteryLog-generated results guarantee `rows_input == rows_analyzed + rows_excluded`, event bounds satisfy `1 <= start_row <= end_row <= rows_input`, and each event's `affected_values` equals its inclusive row span multiplied by its signal count. Consumers of results from independent or untrusted producers should check these relationships in addition to schema validation.
 
-Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 3; config schemas 1 and 2 remain accepted with their historical behavior.
+Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 4; config schemas 1–3 remain accepted with their historical behavior.
 
 From result schema v2 onward, adding, removing, renaming, changing the required status/type/meaning of result fields, or otherwise changing the machine-readable wire contract requires a new result-schema version. The full policy and historical rationale are documented in [`docs/RESULT_SCHEMA_VERSIONING.md`](docs/RESULT_SCHEMA_VERSIONING.md).
 
@@ -369,9 +384,9 @@ Disable rules that are active in YAML:
 .\.venv\Scripts\batterylog.exe examples\sample_battery_log.csv --config examples\validation.example.yaml --no-cell-max-v --no-temp-max-c
 ```
 
-Available disable options are `--no-cell-min-v`, `--no-cell-max-v`, `--no-imbalance-limit-v`, `--no-temp-min-c`, and `--no-temp-max-c`.
+Available disable options are `--no-cell-min-v`, `--no-cell-max-v`, `--no-imbalance-limit-v`, `--no-temp-min-c`, `--no-temp-max-c`, `--no-pack-charge-max-a`, and `--no-pack-discharge-max-a`.
 
-The existing `--temp-warning-c` option remains available as an alias for `--temp-max-c`; `--no-temp-warning-c` is likewise an alias for `--no-temp-max-c`. A numeric override and its matching disable option are mutually exclusive and produce a CLI usage error when supplied together.
+The existing `--temp-warning-c` option remains available as an alias for `--temp-max-c`; `--no-temp-warning-c` is likewise an alias for `--no-temp-max-c`. Pack-current limits use `--pack-charge-max-a` and `--pack-discharge-max-a`; `--pack-current-positive-direction charge|discharge` supplies or overrides the explicit sign convention. A numeric override and its matching disable option are mutually exclusive and produce a CLI usage error when supplied together.
 
 Use `--no-max-event-gap-s` to disable a YAML event-gap limit and return to row-contiguity grouping. Omitting both event-gap options preserves YAML; `--max-event-gap-s N` overrides it. The numeric and disable options are mutually exclusive. Explicit disable is recorded as `analysis_options.max_event_gap_s: null`.
 

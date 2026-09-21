@@ -1,0 +1,1020 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/CANWECAN/BatteryLog/v0.9.0/batterylog/schema/result-v5.json",
+  "title": "BatteryLog Analysis Result v5",
+  "description": "BatteryLog result schema version 5 with explicit pack-current polarity and charge/discharge overcurrent evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "validation_status",
+    "rules_evaluated",
+    "limits_applied",
+    "analysis_options",
+    "comparison_policy",
+    "signal_mapping",
+    "data_quality",
+    "rows_input",
+    "rows_analyzed",
+    "rows_excluded",
+    "cells_detected",
+    "temperature_sensors_detected",
+    "max_cell_voltage_v",
+    "min_cell_voltage_v",
+    "max_delta_v",
+    "max_temperature_c",
+    "min_temperature_c",
+    "max_pack_current_a",
+    "min_pack_current_a",
+    "max_pack_voltage_v",
+    "min_pack_voltage_v",
+    "violations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 5
+    },
+    "validation_status": {
+      "enum": [
+        "NOT_EVALUATED",
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "rules_evaluated": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/ruleCode"
+      }
+    },
+    "limits_applied": {
+      "$ref": "#/$defs/limitsApplied"
+    },
+    "analysis_options": {
+      "$ref": "#/$defs/analysisOptions"
+    },
+    "comparison_policy": {
+      "$ref": "#/$defs/comparisonPolicy"
+    },
+    "signal_mapping": {
+      "$ref": "#/$defs/signalMapping"
+    },
+    "data_quality": {
+      "$ref": "#/$defs/dataQuality"
+    },
+    "rows_input": {
+      "description": "Total source data rows. Semantically equals rows_analyzed plus rows_excluded.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "rows_analyzed": {
+      "description": "Source rows included in engineering-rule evaluation and extrema.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "rows_excluded": {
+      "description": "Source rows excluded because at least one required value was invalid.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "cells_detected": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "temperature_sensors_detected": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "max_cell_voltage_v": {
+      "$ref": "#/$defs/nullableNumber"
+    },
+    "min_cell_voltage_v": {
+      "$ref": "#/$defs/nullableNumber"
+    },
+    "max_delta_v": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_temperature_c": {
+      "$ref": "#/$defs/nullableNumber"
+    },
+    "min_temperature_c": {
+      "$ref": "#/$defs/nullableNumber"
+    },
+    "max_pack_current_a": {
+      "$ref": "#/$defs/nullableNumber"
+    },
+    "min_pack_current_a": {
+      "$ref": "#/$defs/nullableNumber"
+    },
+    "max_pack_voltage_v": {
+      "$ref": "#/$defs/nullableNumber"
+    },
+    "min_pack_voltage_v": {
+      "$ref": "#/$defs/nullableNumber"
+    },
+    "violations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/violationEvent"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "validation_status": {
+            "const": "NOT_EVALUATED"
+          }
+        },
+        "required": [
+          "validation_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "rules_evaluated": {
+            "maxItems": 0
+          },
+          "violations": {
+            "maxItems": 0
+          },
+          "rows_excluded": {
+            "const": 0
+          },
+          "data_quality": {
+            "properties": {
+              "events": {
+                "maxItems": 0
+              }
+            },
+            "required": [
+              "events"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "validation_status": {
+            "const": "PASS"
+          }
+        },
+        "required": [
+          "validation_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "rules_evaluated": {
+            "minItems": 1
+          },
+          "violations": {
+            "maxItems": 0
+          },
+          "rows_excluded": {
+            "const": 0
+          },
+          "data_quality": {
+            "properties": {
+              "events": {
+                "maxItems": 0
+              }
+            },
+            "required": [
+              "events"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "validation_status": {
+            "const": "FAIL"
+          }
+        },
+        "required": [
+          "validation_status"
+        ]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "properties": {
+              "violations": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "properties": {
+              "data_quality": {
+                "properties": {
+                  "events": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "events"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "rows_analyzed": {
+            "const": 0
+          }
+        },
+        "required": [
+          "rows_analyzed"
+        ]
+      },
+      "then": {
+        "properties": {
+          "validation_status": {
+            "const": "FAIL"
+          },
+          "rows_excluded": {
+            "minimum": 1
+          },
+          "violations": {
+            "maxItems": 0
+          },
+          "max_cell_voltage_v": {
+            "type": "null"
+          },
+          "min_cell_voltage_v": {
+            "type": "null"
+          },
+          "max_delta_v": {
+            "type": "null"
+          },
+          "max_temperature_c": {
+            "type": "null"
+          },
+          "min_temperature_c": {
+            "type": "null"
+          },
+          "max_pack_current_a": {
+            "type": "null"
+          },
+          "min_pack_current_a": {
+            "type": "null"
+          },
+          "max_pack_voltage_v": {
+            "type": "null"
+          },
+          "min_pack_voltage_v": {
+            "type": "null"
+          },
+          "data_quality": {
+            "properties": {
+              "events": {
+                "minItems": 1
+              }
+            },
+            "required": [
+              "events"
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "max_cell_voltage_v": {
+            "type": "number"
+          },
+          "min_cell_voltage_v": {
+            "type": "number"
+          },
+          "max_delta_v": {
+            "type": "number",
+            "minimum": 0
+          },
+          "max_temperature_c": {
+            "type": "number"
+          },
+          "min_temperature_c": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "data_quality": {
+            "properties": {
+              "mode": {
+                "const": "strict"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        },
+        "required": [
+          "data_quality"
+        ]
+      },
+      "then": {
+        "properties": {
+          "rows_excluded": {
+            "const": 0
+          },
+          "data_quality": {
+            "properties": {
+              "events": {
+                "maxItems": 0
+              }
+            },
+            "required": [
+              "events"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "rows_excluded": {
+            "minimum": 1
+          }
+        },
+        "required": [
+          "rows_excluded"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data_quality": {
+            "properties": {
+              "events": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": [
+              "events"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "data_quality": {
+            "properties": {
+              "events": {
+                "minItems": 1
+              }
+            },
+            "required": [
+              "events"
+            ]
+          }
+        },
+        "required": [
+          "data_quality"
+        ]
+      },
+      "then": {
+        "properties": {
+          "rows_excluded": {
+            "minimum": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "signal_mapping": {
+            "properties": {
+              "pack_current_source": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "pack_current_source"
+            ]
+          }
+        },
+        "required": [
+          "signal_mapping"
+        ]
+      },
+      "then": {
+        "properties": {
+          "max_pack_current_a": {
+            "type": "null"
+          },
+          "min_pack_current_a": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "signal_mapping": {
+            "properties": {
+              "pack_voltage_source": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "pack_voltage_source"
+            ]
+          }
+        },
+        "required": [
+          "signal_mapping"
+        ]
+      },
+      "then": {
+        "properties": {
+          "max_pack_voltage_v": {
+            "type": "null"
+          },
+          "min_pack_voltage_v": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "allOf": [
+          {
+            "properties": {
+              "rows_analyzed": {
+                "minimum": 1
+              }
+            },
+            "required": [
+              "rows_analyzed"
+            ]
+          },
+          {
+            "properties": {
+              "signal_mapping": {
+                "properties": {
+                  "pack_current_source": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pack_current_source"
+                ]
+              }
+            },
+            "required": [
+              "signal_mapping"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "max_pack_current_a": {
+            "type": "number"
+          },
+          "min_pack_current_a": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "allOf": [
+          {
+            "properties": {
+              "rows_analyzed": {
+                "minimum": 1
+              }
+            },
+            "required": [
+              "rows_analyzed"
+            ]
+          },
+          {
+            "properties": {
+              "signal_mapping": {
+                "properties": {
+                  "pack_voltage_source": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pack_voltage_source"
+                ]
+              }
+            },
+            "required": [
+              "signal_mapping"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "max_pack_voltage_v": {
+            "type": "number"
+          },
+          "min_pack_voltage_v": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nullableNumber": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "ruleCode": {
+      "enum": [
+        "CELL_IMBALANCE_HIGH",
+        "CELL_OVERVOLTAGE",
+        "CELL_UNDERVOLTAGE",
+        "PACK_CHARGE_OVERCURRENT",
+        "PACK_DISCHARGE_OVERCURRENT",
+        "TEMPERATURE_HIGH",
+        "TEMPERATURE_LOW"
+      ]
+    },
+    "limitsApplied": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell_min_v",
+        "cell_max_v",
+        "imbalance_max_v",
+        "temperature_min_c",
+        "temperature_max_c",
+        "pack_charge_max_a",
+        "pack_discharge_max_a",
+        "pack_current_positive_direction"
+      ],
+      "properties": {
+        "cell_min_v": {
+          "$ref": "#/$defs/nullableNumber"
+        },
+        "cell_max_v": {
+          "$ref": "#/$defs/nullableNumber"
+        },
+        "imbalance_max_v": {
+          "$ref": "#/$defs/nullableNumber"
+        },
+        "temperature_min_c": {
+          "$ref": "#/$defs/nullableNumber"
+        },
+        "temperature_max_c": {
+          "$ref": "#/$defs/nullableNumber"
+        },
+        "pack_charge_max_a": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pack_discharge_max_a": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pack_current_positive_direction": {
+          "enum": [
+            "charge",
+            "discharge",
+            null
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "pack_charge_max_a": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "pack_charge_max_a"
+                ]
+              },
+              {
+                "properties": {
+                  "pack_discharge_max_a": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "pack_discharge_max_a"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "pack_current_positive_direction": {
+                "enum": [
+                  "charge",
+                  "discharge"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "analysisOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_event_gap_s"
+      ],
+      "properties": {
+        "max_event_gap_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "comparisonPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "relative_tolerance",
+        "absolute_tolerance"
+      ],
+      "properties": {
+        "mode": {
+          "const": "strict_with_binary64_guard"
+        },
+        "relative_tolerance": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "absolute_tolerance": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "signalMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "timestamp_source",
+        "cell_voltage_pattern",
+        "temperature_pattern",
+        "pack_current_source",
+        "pack_voltage_source"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "canonical",
+            "explicit"
+          ]
+        },
+        "timestamp_source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cell_voltage_pattern": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "temperature_pattern": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pack_current_source": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "pack_voltage_source": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "canonical"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "timestamp_source": {
+                "const": "timestamp_s"
+              },
+              "cell_voltage_pattern": {
+                "type": "null"
+              },
+              "temperature_pattern": {
+                "type": "null"
+              },
+              "pack_current_source": {
+                "enum": [
+                  "pack_current_a",
+                  null
+                ]
+              },
+              "pack_voltage_source": {
+                "enum": [
+                  "pack_voltage_v",
+                  null
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "explicit"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "cell_voltage_pattern": {
+                "type": "string",
+                "minLength": 1
+              },
+              "temperature_pattern": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "violationEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "start_time_s",
+        "end_time_s",
+        "peak_time_s",
+        "measured_value",
+        "limit_value",
+        "unit",
+        "signals"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ruleCode"
+        },
+        "start_time_s": {
+          "type": "number"
+        },
+        "end_time_s": {
+          "type": "number"
+        },
+        "peak_time_s": {
+          "type": "number"
+        },
+        "measured_value": {
+          "type": "number"
+        },
+        "limit_value": {
+          "type": "number"
+        },
+        "unit": {
+          "enum": [
+            "V",
+            "A",
+            "degC"
+          ]
+        },
+        "signals": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "enum": [
+                  "CELL_IMBALANCE_HIGH",
+                  "CELL_OVERVOLTAGE",
+                  "CELL_UNDERVOLTAGE"
+                ]
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "unit": {
+                "const": "V"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "enum": [
+                  "PACK_CHARGE_OVERCURRENT",
+                  "PACK_DISCHARGE_OVERCURRENT"
+                ]
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "unit": {
+                "const": "A"
+              },
+              "signals": {
+                "prefixItems": [
+                  {
+                    "const": "pack_current_a"
+                  }
+                ],
+                "maxItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "enum": [
+                  "TEMPERATURE_HIGH",
+                  "TEMPERATURE_LOW"
+                ]
+              }
+            },
+            "required": [
+              "code"
+            ]
+          },
+          "then": {
+            "properties": {
+              "unit": {
+                "const": "degC"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "dataQualityCode": {
+      "enum": [
+        "MISSING_REQUIRED_VALUE",
+        "NON_NUMERIC_REQUIRED_VALUE",
+        "NON_FINITE_REQUIRED_VALUE"
+      ]
+    },
+    "dataQualityEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "start_row",
+        "end_row",
+        "signals",
+        "affected_values"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/dataQualityCode"
+        },
+        "start_row": {
+          "description": "1-based first source data row in the event; semantic validation also requires start_row <= end_row <= rows_input.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_row": {
+          "description": "1-based last source data row in the event; semantic validation also requires start_row <= end_row <= rows_input.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "signals": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "affected_values": {
+          "description": "Number of invalid values represented by the event; semantically equals the inclusive row span multiplied by the signal count.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "dataQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "events"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "strict",
+            "exclude_invalid_rows"
+          ]
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dataQualityEvent"
+          }
+        }
+      }
+    }
+  }
+}

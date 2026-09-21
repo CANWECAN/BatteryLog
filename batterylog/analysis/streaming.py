@@ -37,10 +37,12 @@ from .core import (
     _data_quality_snapshot,
     _find_signal_columns,
     _limits_snapshot,
+    _pack_current_rule_parameters,
     _raise_invalid_numeric_value,
     _resolve_data_quality,
     _resolve_event_detection,
     _resolve_limits,
+    _rule_prefers_lower,
     _signal_mapping_snapshot,
     _warn_legacy_threshold_arguments,
 )
@@ -187,7 +189,7 @@ def _analyze_battery_chunks(
 
     rules_evaluated = _active_rule_codes(resolved_limits)
     states: dict[RuleCode, _StreamingRuleState] = {
-        code: _StreamingRuleState(prefer_lower=code in {"CELL_UNDERVOLTAGE", "TEMPERATURE_LOW"})
+        code: _StreamingRuleState(prefer_lower=_rule_prefers_lower(code, resolved_limits))
         for code in rules_evaluated
     }
 
@@ -226,6 +228,11 @@ def _analyze_battery_chunks(
         if not temp_cols:
             raise ValueError("No temperature columns found")
         pack_current_col, pack_voltage_col = find_canonical_pack_signal_columns(frame.columns)
+        if (
+            resolved_limits.pack_charge_max_a is not None
+            or resolved_limits.pack_discharge_max_a is not None
+        ) and pack_current_col is None:
+            raise ValueError("Pack-current validation requires column 'pack_current_a'")
         pack_cols = [
             column for column in (pack_current_col, pack_voltage_col) if column is not None
         ]
@@ -305,6 +312,11 @@ def _analyze_battery_chunks(
                 cell_delta=valid_delta_v.to_numpy(dtype=float, copy=False),
                 temperature_min=valid_row_min_temp.to_numpy(dtype=float, copy=False),
                 temperature_max=valid_row_max_temp.to_numpy(dtype=float, copy=False),
+                pack_current=(
+                    valid_numeric[pack_current_col].to_numpy(dtype=float, copy=False)
+                    if pack_current_col is not None
+                    else None
+                ),
             )
 
         if len(valid_numeric):
@@ -462,6 +474,48 @@ def _analyze_battery_chunks(
                 timestamps=timestamps,
                 max_gap_s=max_gap_s,
             )
+
+        if pack_current_col is not None:
+            pack_current = rule_numeric[pack_current_col]
+            for direction, code in (
+                ("charge", "PACK_CHARGE_OVERCURRENT"),
+                ("discharge", "PACK_DISCHARGE_OVERCURRENT"),
+            ):
+                parameters = _pack_current_rule_parameters(resolved_limits, direction)
+                if parameters is None:
+                    continue
+                signed_limit, prefer_lower = parameters
+                if prefer_lower:
+                    mask = below_limit(pack_current, signed_limit)
+                    events = build_low_events(
+                        numeric=rule_numeric,
+                        timestamps=timestamps,
+                        signal_cols=[pack_current_col],
+                        row_min=pack_current,
+                        limit=signed_limit,
+                        code=code,
+                        unit="A",
+                        max_gap_s=max_gap_s,
+                    )
+                else:
+                    mask = exceeds_limit(pack_current, signed_limit)
+                    events = build_high_events(
+                        numeric=rule_numeric,
+                        timestamps=timestamps,
+                        signal_cols=[pack_current_col],
+                        row_max=pack_current,
+                        limit=signed_limit,
+                        code=code,
+                        unit="A",
+                        max_gap_s=max_gap_s,
+                    )
+                _consume_streaming_rule(
+                    states[code],
+                    mask=mask,
+                    events=events,
+                    timestamps=timestamps,
+                    max_gap_s=max_gap_s,
+                )
 
         rows_analyzed += len(valid_numeric)
 

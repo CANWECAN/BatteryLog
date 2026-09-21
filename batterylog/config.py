@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 
-from batterylog.models import DataQualityMode
+from batterylog.models import CurrentDirection, DataQualityMode
 
 
 class _UniqueKeySafeLoader(yaml.SafeLoader):
@@ -56,6 +56,9 @@ class ValidationLimits:
     imbalance_max_v: float | None = None
     temperature_min_c: float | None = None
     temperature_max_c: float | None = None
+    pack_charge_max_a: float | None = None
+    pack_discharge_max_a: float | None = None
+    pack_current_positive_direction: CurrentDirection | None = None
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -64,6 +67,8 @@ class ValidationLimits:
             ("imbalance_max_v", self.imbalance_max_v),
             ("temperature_min_c", self.temperature_min_c),
             ("temperature_max_c", self.temperature_max_c),
+            ("pack_charge_max_a", self.pack_charge_max_a),
+            ("pack_discharge_max_a", self.pack_discharge_max_a),
         ):
             _validate_optional_number(name, value)
 
@@ -81,6 +86,22 @@ class ValidationLimits:
             and self.temperature_min_c >= self.temperature_max_c
         ):
             raise ValueError("temperature_min_c must be lower than temperature_max_c")
+        for name, value in (
+            ("pack_charge_max_a", self.pack_charge_max_a),
+            ("pack_discharge_max_a", self.pack_discharge_max_a),
+        ):
+            if value is not None and value < 0:
+                raise ValueError(f"{name} must be non-negative or null")
+        if self.pack_current_positive_direction not in {None, "charge", "discharge"}:
+            raise ValueError(
+                "pack_current_positive_direction must be 'charge', 'discharge', or null"
+            )
+        if (
+            self.pack_charge_max_a is not None or self.pack_discharge_max_a is not None
+        ) and self.pack_current_positive_direction is None:
+            raise ValueError(
+                "pack_current_positive_direction is required when a pack-current limit is set"
+            )
 
 
 @dataclass(frozen=True)
@@ -223,7 +244,7 @@ def _load_config_root_bytes(
     schema_version = root.get("schema_version", 1)
     if isinstance(schema_version, bool) or not isinstance(schema_version, int):
         raise TypeError("schema_version must be an integer")
-    if schema_version not in {1, 2, 3}:
+    if schema_version not in {1, 2, 3, 4}:
         raise ValueError(f"Unsupported schema_version: {schema_version!r}")
 
     allowed = {"schema_version", "limits", "event_detection", "signals"}
@@ -234,9 +255,16 @@ def _load_config_root_bytes(
     return root, schema_version
 
 
-def _parse_limits(root: dict[str, Any]) -> ValidationLimits:
+def _parse_limits(
+    root: dict[str, Any],
+    *,
+    schema_version: int,
+) -> ValidationLimits:
     limits_raw = _require_mapping("limits", root.get("limits", {}))
-    _reject_unknown_keys("limits", limits_raw, {"cell_voltage", "temperature"})
+    allowed = {"cell_voltage", "temperature"}
+    if schema_version >= 4:
+        allowed.add("pack_current")
+    _reject_unknown_keys("limits", limits_raw, allowed)
 
     cell_raw = _require_mapping(
         "limits.cell_voltage",
@@ -257,6 +285,19 @@ def _parse_limits(root: dict[str, Any]) -> ValidationLimits:
         temp_raw,
         {"min_c", "max_c"},
     )
+
+    pack_current_raw = _require_mapping(
+        "limits.pack_current",
+        limits_raw.get("pack_current", {}),
+    )
+    _reject_unknown_keys(
+        "limits.pack_current",
+        pack_current_raw,
+        {"charge_max_a", "discharge_max_a", "positive_direction"},
+    )
+    positive_direction = pack_current_raw.get("positive_direction")
+    if positive_direction is not None and not isinstance(positive_direction, str):
+        raise TypeError("limits.pack_current.positive_direction must be a string or null")
 
     defaults = ValidationLimits()
     return ValidationLimits(
@@ -280,6 +321,15 @@ def _parse_limits(root: dict[str, Any]) -> ValidationLimits:
             "limits.temperature.max_c",
             temp_raw.get("max_c", defaults.temperature_max_c),
         ),
+        pack_charge_max_a=_optional_number(
+            "limits.pack_current.charge_max_a",
+            pack_current_raw.get("charge_max_a", defaults.pack_charge_max_a),
+        ),
+        pack_discharge_max_a=_optional_number(
+            "limits.pack_current.discharge_max_a",
+            pack_current_raw.get("discharge_max_a", defaults.pack_discharge_max_a),
+        ),
+        pack_current_positive_direction=positive_direction,  # type: ignore[arg-type]
     )
 
 
@@ -370,7 +420,7 @@ def load_validation_config_bytes(
 ) -> ValidationConfig:
     root, schema_version = _load_config_root_bytes(data, source_name=source_name)
     return ValidationConfig(
-        limits=_parse_limits(root),
+        limits=_parse_limits(root, schema_version=schema_version),
         event_detection=_parse_event_detection(root),
         data_quality=_parse_data_quality(root, schema_version=schema_version),
         signals=_parse_signals(root, schema_version=schema_version),
@@ -397,18 +447,25 @@ def override_validation_limits(
     imbalance_max_v: float | None = None,
     temperature_min_c: float | None = None,
     temperature_max_c: float | None = None,
+    pack_charge_max_a: float | None = None,
+    pack_discharge_max_a: float | None = None,
+    pack_current_positive_direction: CurrentDirection | None = None,
 ) -> ValidationLimits:
-    updates: dict[str, float] = {}
+    updates: dict[str, float | CurrentDirection] = {}
     for name, value in (
         ("cell_min_v", cell_min_v),
         ("cell_max_v", cell_max_v),
         ("imbalance_max_v", imbalance_max_v),
         ("temperature_min_c", temperature_min_c),
         ("temperature_max_c", temperature_max_c),
+        ("pack_charge_max_a", pack_charge_max_a),
+        ("pack_discharge_max_a", pack_discharge_max_a),
     ):
         if value is not None:
             updates[name] = value
 
+    if pack_current_positive_direction is not None:
+        updates["pack_current_positive_direction"] = pack_current_positive_direction
     return replace(limits, **updates)
 
 

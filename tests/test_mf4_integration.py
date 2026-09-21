@@ -30,6 +30,16 @@ LIMITS = ValidationLimits(
     temperature_min_c=-20.0,
     temperature_max_c=55.0,
 )
+CURRENT_LIMITS = ValidationLimits(
+    cell_min_v=2.8,
+    cell_max_v=4.2,
+    imbalance_max_v=0.08,
+    temperature_min_c=-20.0,
+    temperature_max_c=55.0,
+    pack_charge_max_a=15.0,
+    pack_discharge_max_a=30.0,
+    pack_current_positive_direction="discharge",
+)
 
 
 def _save_mdf(path: Path, groups: list[list[Signal]]) -> None:
@@ -104,10 +114,14 @@ def test_real_mf4_matches_equivalent_csv(tmp_path: Path) -> None:
     frame.to_csv(csv_path, index=False)
     _save_mdf(mf4_path, [_canonical_signals(frame)])
 
-    csv_result = analyze_battery_log(csv_path, limits=LIMITS)
-    mf4_result = analyze_battery_log(mf4_path, limits=LIMITS)
+    csv_result = analyze_battery_log(csv_path, limits=CURRENT_LIMITS)
+    mf4_result = analyze_battery_log(mf4_path, limits=CURRENT_LIMITS)
 
     assert mf4_result == csv_result
+    assert {event["code"] for event in mf4_result["violations"]} >= {
+        "PACK_CHARGE_OVERCURRENT",
+        "PACK_DISCHARGE_OVERCURRENT",
+    }
     assert mf4_result["min_pack_current_a"] == -20.0
     assert mf4_result["max_pack_current_a"] == 35.0
     assert mf4_result["min_pack_voltage_v"] == 398.0
@@ -316,8 +330,16 @@ def test_real_mf4_vendor_mapping_matches_vendor_csv(tmp_path: Path) -> None:
         ],
     )
 
-    csv_result = analyze_battery_log(csv_path, limits=LIMITS, signal_mapping=mapping)
-    mf4_result = analyze_battery_log(mf4_path, limits=LIMITS, signal_mapping=mapping)
+    csv_result = analyze_battery_log(
+        csv_path,
+        limits=CURRENT_LIMITS,
+        signal_mapping=mapping,
+    )
+    mf4_result = analyze_battery_log(
+        mf4_path,
+        limits=CURRENT_LIMITS,
+        signal_mapping=mapping,
+    )
 
     assert mf4_result == csv_result
     assert mf4_result["signal_mapping"]["pack_current_source"] == "PackCurrent"

@@ -21,6 +21,15 @@ All notable changes to BatteryLog are documented here.
 - Promoted the machine-readable result contract to schema version 4 with pack-signal provenance and nullable electrical extrema while retaining frozen result-v2 and result-v3 artifacts.
 - Kept the existing five rule codes and their 0.8 threshold, grouping, and PASS/FAIL semantics unchanged; no overcurrent rule is introduced in this change.
 
+### Pack-current validation
+
+- Added config schema version 4 with explicit `limits.pack_current.charge_max_a`, `discharge_max_a`, and required `positive_direction` polarity when either current limit is active.
+- Added deterministic `PACK_CHARGE_OVERCURRENT` and `PACK_DISCHARGE_OVERCURRENT` rules using the existing strict binary64-guarded comparison and event-grouping semantics.
+- Kept configured current limits as non-negative magnitudes while preserving the source current sign in violation `measured_value` and `limit_value` evidence.
+- Active pack-current validation now fails explicitly when `pack_current_a` is unavailable instead of silently producing PASS.
+- Promoted the machine-readable result contract to schema version 5 and retained result-v4 as a frozen pre-overcurrent artifact.
+- Added CLI current-limit overrides/disables, CSV/MF4 parity tests, chunk-boundary event regression coverage, and a pack-current HTML plot sourced from `AnalysisResult` evidence.
+
 ## 0.8.0 - 2026-09-21
 
 ### Structured data quality

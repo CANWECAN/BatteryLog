@@ -511,7 +511,7 @@ def test_all_invalid_data_quality_report_uses_null_safe_extrema_and_empty_plots(
         limits=ValidationLimits(cell_max_v=4.2),
         data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
     )
-    empty_series = ReportSeriesCollector(max_points=12).finish()
+    empty_series = ReportSeriesCollector(max_points=14).finish()
 
     html = render_html_report(result, series=empty_series)
 

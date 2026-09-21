@@ -4,13 +4,16 @@ RuleCode = Literal[
     "CELL_IMBALANCE_HIGH",
     "CELL_OVERVOLTAGE",
     "CELL_UNDERVOLTAGE",
+    "PACK_CHARGE_OVERCURRENT",
+    "PACK_DISCHARGE_OVERCURRENT",
     "TEMPERATURE_HIGH",
     "TEMPERATURE_LOW",
 ]
 
-ResultSchemaVersion = Literal[4]
-RESULT_SCHEMA_VERSION: ResultSchemaVersion = 4
+ResultSchemaVersion = Literal[5]
+RESULT_SCHEMA_VERSION: ResultSchemaVersion = 5
 
+CurrentDirection = Literal["charge", "discharge"]
 ValidationStatus = Literal["NOT_EVALUATED", "PASS", "FAIL"]
 DataQualityMode = Literal["strict", "exclude_invalid_rows"]
 DataQualityCode = Literal[
@@ -34,6 +37,9 @@ class AppliedLimits(TypedDict):
     imbalance_max_v: float | None
     temperature_min_c: float | None
     temperature_max_c: float | None
+    pack_charge_max_a: float | None
+    pack_discharge_max_a: float | None
+    pack_current_positive_direction: CurrentDirection | None
 
 
 class AnalysisOptions(TypedDict):

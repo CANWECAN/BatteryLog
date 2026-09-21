@@ -22,7 +22,7 @@ def test_sample_log_returns_structured_violation_events() -> None:
         ),
     )
 
-    assert result["schema_version"] == 4
+    assert result["schema_version"] == 5
     assert result["validation_status"] == "FAIL"
     assert result["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",
@@ -381,6 +381,9 @@ def test_result_contains_applied_limit_snapshot() -> None:
         "imbalance_max_v": 0.08,
         "temperature_min_c": -20.0,
         "temperature_max_c": 55.0,
+        "pack_charge_max_a": None,
+        "pack_discharge_max_a": None,
+        "pack_current_positive_direction": None,
     }
 
 
@@ -677,3 +680,114 @@ def test_meaningful_values_beyond_boundaries_still_violate(tmp_path: Path) -> No
         "TEMPERATURE_HIGH",
         "TEMPERATURE_LOW",
     }
+
+
+def test_pack_overcurrent_rules_preserve_signed_evidence(tmp_path: Path) -> None:
+    path = tmp_path / "pack_current.csv"
+    path.write_text(
+        "timestamp_s,pack_current_a,temp_c,cell_1_v\n"
+        "0,-50,25,3.8\n"
+        "1,-60,25,3.8\n"
+        "2,-55,25,3.8\n"
+        "3,0,25,3.8\n"
+        "4,100,25,3.8\n"
+        "5,130,25,3.8\n",
+        encoding="utf-8",
+    )
+    limits = ValidationLimits(
+        pack_charge_max_a=50.0,
+        pack_discharge_max_a=100.0,
+        pack_current_positive_direction="discharge",
+    )
+
+    result = analyze_battery_log(path, limits=limits)
+
+    assert result["rules_evaluated"] == [
+        "PACK_CHARGE_OVERCURRENT",
+        "PACK_DISCHARGE_OVERCURRENT",
+    ]
+    assert result["validation_status"] == "FAIL"
+    assert result["limits_applied"]["pack_charge_max_a"] == pytest.approx(50.0)
+    assert result["limits_applied"]["pack_discharge_max_a"] == pytest.approx(100.0)
+    assert result["limits_applied"]["pack_current_positive_direction"] == "discharge"
+    assert result["violations"] == [
+        {
+            "code": "PACK_CHARGE_OVERCURRENT",
+            "start_time_s": 1.0,
+            "end_time_s": 2.0,
+            "peak_time_s": 1.0,
+            "measured_value": -60.0,
+            "limit_value": -50.0,
+            "unit": "A",
+            "signals": ["pack_current_a"],
+        },
+        {
+            "code": "PACK_DISCHARGE_OVERCURRENT",
+            "start_time_s": 5.0,
+            "end_time_s": 5.0,
+            "peak_time_s": 5.0,
+            "measured_value": 130.0,
+            "limit_value": 100.0,
+            "unit": "A",
+            "signals": ["pack_current_a"],
+        },
+    ]
+
+
+def test_pack_overcurrent_rules_support_positive_charge_convention(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "positive_charge.csv"
+    path.write_text(
+        "timestamp_s,pack_current_a,temp_c,cell_1_v\n0,61,25,3.8\n1,-121,25,3.8\n",
+        encoding="utf-8",
+    )
+    limits = ValidationLimits(
+        pack_charge_max_a=60.0,
+        pack_discharge_max_a=120.0,
+        pack_current_positive_direction="charge",
+    )
+
+    result = analyze_battery_log(path, limits=limits)
+    by_code = {event["code"]: event for event in result["violations"]}
+
+    assert by_code["PACK_CHARGE_OVERCURRENT"]["measured_value"] == pytest.approx(61.0)
+    assert by_code["PACK_CHARGE_OVERCURRENT"]["limit_value"] == pytest.approx(60.0)
+    assert by_code["PACK_DISCHARGE_OVERCURRENT"]["measured_value"] == pytest.approx(-121.0)
+    assert by_code["PACK_DISCHARGE_OVERCURRENT"]["limit_value"] == pytest.approx(-120.0)
+
+
+def test_pack_current_exact_boundaries_pass(tmp_path: Path) -> None:
+    path = tmp_path / "pack_boundaries.csv"
+    path.write_text(
+        "timestamp_s,pack_current_a,temp_c,cell_1_v\n0,-50,25,3.8\n1,100,25,3.8\n",
+        encoding="utf-8",
+    )
+    limits = ValidationLimits(
+        pack_charge_max_a=50.0,
+        pack_discharge_max_a=100.0,
+        pack_current_positive_direction="discharge",
+    )
+
+    result = analyze_battery_log(path, limits=limits)
+
+    assert result["validation_status"] == "PASS"
+    assert result["violations"] == []
+
+
+def test_pack_current_rule_requires_signal(tmp_path: Path) -> None:
+    path = tmp_path / "missing_pack_current.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v\n0,25,3.8\n",
+        encoding="utf-8",
+    )
+    limits = ValidationLimits(
+        pack_charge_max_a=50.0,
+        pack_current_positive_direction="discharge",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Pack-current validation requires column 'pack_current_a'",
+    ):
+        analyze_battery_log(path, limits=limits)
