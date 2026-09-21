@@ -67,7 +67,7 @@ The report path happened to use less peak RSS than the standard path on this hos
 
 ## Limits of this measurement
 
-- RSS is sampled every 10 ms, so the sampled series can miss a shorter transient peak. The separately recorded OS-native high-water mark mitigates this on supported platforms and was higher than the sampled peak in several Windows runs.
+- RSS is sampled every 10 ms, so the sampled series can miss a shorter transient peak. The separately recorded OS-native high-water mark provides a second view on supported platforms and was higher than the sampled peak in several Windows runs. The two metrics use platform-specific accounting definitions and are not assumed to be numerically ordered on every operating system.
 - The input is deterministic synthetic MDF rather than proprietary vendor data.
 - All generated channels share one time base and are selected for analysis.
 - The file is uncompressed; compressed/vendor MDFs can have different CPU and memory behavior.
