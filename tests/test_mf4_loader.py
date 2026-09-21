@@ -38,6 +38,7 @@ class FakeMDF:
         },
         index=pd.Index([0.0, 1.0, 2.0], name="timestamps"),
     )
+    bit_counts: ClassVar[dict[str, int]] = {}
     iter_kwargs: dict[str, object] | None = None
 
     def __init__(self, source, **kwargs) -> None:
@@ -55,6 +56,10 @@ class FakeMDF:
     def get_channel_unit(self, *, name: str, group: int, index: int) -> str:
         del group, index
         return self.units[name]
+
+    def get_channel_metadata(self, *, name: str, group: int, index: int):
+        del group, index
+        return SimpleNamespace(bit_count=self.bit_counts.get(name, 64))
 
     def iter_to_dataframe(self, **kwargs):
         type(self).iter_kwargs = kwargs

@@ -810,6 +810,36 @@ def test_cli_report_does_not_materialize_source_bytes(
     assert report.exists()
 
 
+def test_cli_config_v2_rejects_boolean_required_value(tmp_path, capsys) -> None:
+    source = tmp_path / "boolean.csv"
+    source.write_text(
+        "timestamp_s,temp_c,cell_1_v\n0,True,3.80\n",
+        encoding="utf-8",
+    )
+    config = tmp_path / "quality.yaml"
+    config.write_text(
+        "schema_version: 2\ndata_quality:\n  mode: exclude_invalid_rows\n",
+        encoding="utf-8",
+    )
+
+    exit_code = run([str(source), "--config", str(config)])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["validation_status"] == "FAIL"
+    assert payload["rows_analyzed"] == 0
+    assert payload["rows_excluded"] == 1
+    assert payload["data_quality"]["events"] == [
+        {
+            "code": "NON_NUMERIC_REQUIRED_VALUE",
+            "start_row": 1,
+            "end_row": 1,
+            "signals": ["temp_c"],
+            "affected_values": 1,
+        }
+    ]
+
+
 def test_cli_config_v2_excludes_invalid_rows_and_reports_structured_evidence(
     tmp_path,
     capsys,

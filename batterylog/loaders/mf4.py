@@ -111,6 +111,18 @@ def _resolve_mdf_selection(
     return timestamp_source, source_names, channel_specs
 
 
+def _boolean_channel_names(
+    mdf: Any,
+    channel_specs: list[tuple[str, int, int]],
+) -> frozenset[str]:
+    names = {
+        name
+        for name, group, index in channel_specs
+        if int(mdf.get_channel_metadata(name=name, group=group, index=index).bit_count) == 1
+    }
+    return frozenset(names)
+
+
 def _single_group_index(channel_specs: list[tuple[str, int, int]]) -> int | None:
     groups = {group for _, group, _ in channel_specs}
     if len(groups) != 1:
@@ -126,6 +138,7 @@ def _iter_single_group_chunks(
     channel_specs: list[tuple[str, int, int]],
     group_index: int,
     chunk_ram_bytes: int,
+    boolean_sources: frozenset[str] = frozenset(),
 ) -> Iterator[pd.DataFrame]:
     cycles = int(mdf.groups[group_index].channel_group.cycles_nr)
     estimated_row_bytes = (len(channel_specs) + 1) * 8
@@ -176,8 +189,13 @@ def _iter_single_group_chunks(
                     raise ValueError(
                         f"MDF channel {name!r} has invalidation metadata with an unexpected shape"
                     )
-                samples = samples.astype(float, copy=True)
+                if name in boolean_sources:
+                    samples = samples.astype(bool, copy=False).astype(object)
+                else:
+                    samples = samples.astype(float, copy=True)
                 samples[invalid] = np.nan
+            elif name in boolean_sources:
+                samples = samples.astype(bool, copy=False)
 
             data[name] = samples
 
@@ -211,6 +229,7 @@ def _iter_mdf_chunks(
                 signal_mapping,
             )
 
+            boolean_sources = _boolean_channel_names(mdf, channel_specs)
             group_index = _single_group_index(channel_specs)
             if group_index is not None:
                 yield from _iter_single_group_chunks(
@@ -220,6 +239,7 @@ def _iter_mdf_chunks(
                     channel_specs=channel_specs,
                     group_index=group_index,
                     chunk_ram_bytes=chunk_ram_bytes,
+                    boolean_sources=boolean_sources,
                 )
                 return
 
@@ -244,6 +264,15 @@ def _iter_mdf_chunks(
                     raise ValueError(f"MDF extraction omitted required channel(s): {joined}")
 
                 chunk = frame.loc[:, source_names].copy()
+                for name in boolean_sources:
+                    values = chunk[name]
+                    if values.isna().any():
+                        normalized = values.to_numpy(dtype=object, copy=True)
+                        present = ~pd.isna(normalized)
+                        normalized[present] = normalized[present].astype(bool)
+                        chunk[name] = normalized
+                    else:
+                        chunk[name] = values.astype(bool)
                 timestamps = frame.index.to_numpy(dtype=float, copy=True)
                 chunk.insert(0, timestamp_source, timestamps)
                 chunk.reset_index(drop=True, inplace=True)

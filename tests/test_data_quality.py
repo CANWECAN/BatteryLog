@@ -1,3 +1,5 @@
+from io import BytesIO
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -5,8 +7,9 @@ import pytest
 from batterylog import ValidationLimits
 from batterylog.analysis.core import _analyze_battery_frame, analyze_battery_bytes
 from batterylog.analysis.data_quality import DataQualityCollector
-from batterylog.analysis.streaming import _analyze_battery_chunks
+from batterylog.analysis.streaming import _analyze_battery_chunks, analyze_measurement_loader
 from batterylog.config import DataQualityConfig
+from batterylog.loaders import CsvFileLoader
 
 
 def _numeric(frame: pd.DataFrame) -> pd.DataFrame:
@@ -52,6 +55,60 @@ def test_data_quality_collector_classifies_required_numeric_defects() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [
+        ("timestamp_s", True),
+        ("cell_1_v", np.bool_(False)),
+        ("temp_1_c", True),
+    ],
+)
+def test_data_quality_collector_classifies_booleans_as_non_numeric(
+    column: str,
+    value: object,
+) -> None:
+    values: dict[str, list[object]] = {
+        "timestamp_s": [0.0],
+        "cell_1_v": [3.8],
+        "temp_1_c": [25.0],
+    }
+    values[column] = [value]
+    frame = pd.DataFrame(values)
+    collector = DataQualityCollector()
+
+    invalid = collector.consume_chunk(frame, _numeric(frame), row_offset=0)
+
+    assert invalid.tolist() == [True]
+    assert collector.finish() == [
+        {
+            "code": "NON_NUMERIC_REQUIRED_VALUE",
+            "start_row": 1,
+            "end_row": 1,
+            "signals": [column],
+            "affected_values": 1,
+        }
+    ]
+
+
+def test_nullable_boolean_distinguishes_boolean_from_missing() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0],
+            "cell_1_v": pd.Series([True, pd.NA], dtype="boolean"),
+            "temp_1_c": [25.0, 25.0],
+        }
+    )
+    collector = DataQualityCollector()
+
+    invalid = collector.consume_chunk(frame, _numeric(frame), row_offset=0)
+
+    assert invalid.tolist() == [True, True]
+    assert [event["code"] for event in collector.finish()] == [
+        "NON_NUMERIC_REQUIRED_VALUE",
+        "MISSING_REQUIRED_VALUE",
+    ]
+
+
 def test_data_quality_collector_groups_exact_defect_runs_across_chunks() -> None:
     collector = DataQualityCollector()
     first = pd.DataFrame(
@@ -92,6 +149,38 @@ def test_data_quality_collector_groups_exact_defect_runs_across_chunks() -> None
             "signals": ["cell_1_v"],
             "affected_values": 1,
         },
+    ]
+
+
+def test_strict_mode_rejects_typed_boolean_required_value() -> None:
+    frame = pd.DataFrame({"timestamp_s": [0.0], "cell_1_v": [3.8], "temp_c": [True]})
+
+    with pytest.raises(ValueError, match="Required numeric value is missing or non-numeric"):
+        _analyze_battery_frame(frame)
+
+
+def test_csv_boolean_inference_is_chunk_boundary_independent() -> None:
+    data = b"timestamp_s,cell_1_v,temp_c\n0,3.8,True\n1,3.8,bad\n"
+    config = DataQualityConfig(mode="exclude_invalid_rows")
+
+    whole = analyze_battery_bytes(data, data_quality=config)
+    streaming = analyze_measurement_loader(
+        CsvFileLoader(BytesIO(data), chunk_rows=1),
+        data_quality=config,
+    )
+
+    assert streaming == whole
+    assert whole["rows_analyzed"] == 0
+    assert whole["rows_excluded"] == 2
+    assert whole["max_temperature_c"] is None
+    assert whole["data_quality"]["events"] == [
+        {
+            "code": "NON_NUMERIC_REQUIRED_VALUE",
+            "start_row": 1,
+            "end_row": 2,
+            "signals": ["temp_c"],
+            "affected_values": 2,
+        }
     ]
 
 
