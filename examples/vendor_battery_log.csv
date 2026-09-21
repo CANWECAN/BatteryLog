@@ -1,6 +1,6 @@
-Time_s,BMS_CellVoltage_001,BMS_CellVoltage_002,BMS_CellVoltage_003,BMS_CellVoltage_004,BMS_CellVoltage_Max,T_Module_01,T_Module_02
-0,3.95,3.94,3.95,3.94,3.95,28,27
-1,3.91,3.90,3.91,3.90,3.91,30,29
-2,3.84,3.83,3.84,3.82,3.84,34,33
-3,3.76,3.74,3.75,3.71,3.76,42,40
-4,3.68,3.66,3.67,3.58,3.68,48,46
+Time_s,PackCurrent,PackVoltage,BMS_CellVoltage_001,BMS_CellVoltage_002,BMS_CellVoltage_003,BMS_CellVoltage_004,BMS_CellVoltage_Max,T_Module_01,T_Module_02
+0,-25,398,3.95,3.94,3.95,3.94,3.95,28,27
+1,-10,400,3.91,3.90,3.91,3.90,3.91,30,29
+2,0,402,3.84,3.83,3.84,3.82,3.84,34,33
+3,20,404,3.76,3.74,3.75,3.71,3.76,42,40
+4,35,405,3.68,3.66,3.67,3.58,3.68,48,46

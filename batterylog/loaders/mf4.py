@@ -10,7 +10,11 @@ import numpy as np
 import pandas as pd
 
 from batterylog.config import SignalMapping
-from batterylog.signals import find_canonical_signal_columns, resolve_signal_mapping
+from batterylog.signals import (
+    find_canonical_pack_signal_columns,
+    find_canonical_signal_columns,
+    resolve_signal_mapping,
+)
 
 DEFAULT_MDF_CHUNK_RAM_BYTES = 64 * 1024 * 1024
 _MDF_SUFFIXES = frozenset({".mf4", ".mdf"})
@@ -48,9 +52,12 @@ def _normalize_unit(unit: object) -> str:
 
 def _validate_engineering_unit(*, name: str, unit: object, kind: str) -> None:
     normalized = _normalize_unit(unit)
-    if kind == "cell-voltage":
+    if kind in {"cell-voltage", "pack-voltage"}:
         accepted = {"v", "volt", "volts"}
         expected = "V"
+    elif kind == "pack-current":
+        accepted = {"a", "amp", "amps", "ampere", "amperes"}
+        expected = "A"
     elif kind == "temperature":
         accepted = {"degc", "°c", "celsius"}
         expected = "degC/°C"
@@ -87,8 +94,8 @@ def _resolve_mdf_selection(
             raise ValueError("No cell voltage columns found")
         if not temperature_columns:
             raise ValueError("No temperature columns found")
+        pack_current, pack_voltage = find_canonical_pack_signal_columns(channel_names)
         timestamp_source = _CANONICAL_TIMESTAMP
-        source_names = [*cell_columns, *temperature_columns]
     else:
         channel_names = [name for name in channel_names if name != signal_mapping.timestamp]
         resolved = resolve_signal_mapping(
@@ -97,15 +104,28 @@ def _resolve_mdf_selection(
         timestamp_source = resolved.timestamp_source
         cell_columns = [name for _, name in resolved.cell_columns]
         temperature_columns = [name for _, name in resolved.temperature_columns]
-        source_names = [*cell_columns, *temperature_columns]
+        pack_current = resolved.pack_current_source
+        pack_voltage = resolved.pack_voltage_source
 
-    cell_sources = set(cell_columns)
+    source_names = [
+        *(name for name in (pack_current, pack_voltage) if name is not None),
+        *cell_columns,
+        *temperature_columns,
+    ]
+    source_kinds = {
+        **{name: "cell-voltage" for name in cell_columns},
+        **{name: "temperature" for name in temperature_columns},
+    }
+    if pack_current is not None:
+        source_kinds[pack_current] = "pack-current"
+    if pack_voltage is not None:
+        source_kinds[pack_voltage] = "pack-voltage"
+
     channel_specs: list[tuple[str, int, int]] = []
     for name in source_names:
         group, index = _unique_occurrence(mdf, name)
         unit = mdf.get_channel_unit(name=name, group=group, index=index)
-        kind = "cell-voltage" if name in cell_sources else "temperature"
-        _validate_engineering_unit(name=name, unit=unit, kind=kind)
+        _validate_engineering_unit(name=name, unit=unit, kind=source_kinds[name])
         channel_specs.append((name, group, index))
 
     return timestamp_source, source_names, channel_specs

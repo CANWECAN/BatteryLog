@@ -107,6 +107,14 @@ def _signal_mapping_rows(result: AnalysisResult) -> str:
             ("Timestamp source", mapping["timestamp_source"]),
             ("Cell voltage mapping", "Canonical cell_<n>_v"),
             ("Temperature mapping", "Canonical temp_<n>_c or temp_c"),
+            (
+                "Pack current source",
+                mapping["pack_current_source"] or "Not present",
+            ),
+            (
+                "Pack voltage source",
+                mapping["pack_voltage_source"] or "Not present",
+            ),
         ]
     else:
         items = [
@@ -119,6 +127,14 @@ def _signal_mapping_rows(result: AnalysisResult) -> str:
             (
                 "Temperature pattern",
                 mapping["temperature_pattern"] or "Not specified",
+            ),
+            (
+                "Pack current source",
+                mapping["pack_current_source"] or "Not configured",
+            ),
+            (
+                "Pack voltage source",
+                mapping["pack_voltage_source"] or "Not configured",
             ),
         ]
 
@@ -196,6 +212,22 @@ def _measured_metric_rows(result: AnalysisResult) -> str:
             _metric_row(
                 "Minimum temperature",
                 _fmt_measurement(result["min_temperature_c"], "degC"),
+            ),
+            _metric_row(
+                "Maximum pack current",
+                _fmt_measurement(result["max_pack_current_a"], "A"),
+            ),
+            _metric_row(
+                "Minimum pack current",
+                _fmt_measurement(result["min_pack_current_a"], "A"),
+            ),
+            _metric_row(
+                "Maximum pack voltage",
+                _fmt_measurement(result["max_pack_voltage_v"], "V"),
+            ),
+            _metric_row(
+                "Minimum pack voltage",
+                _fmt_measurement(result["min_pack_voltage_v"], "V"),
             ),
         ]
     )

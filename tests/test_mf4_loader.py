@@ -288,6 +288,29 @@ def test_mdf_loader_rejects_unsupported_units(monkeypatch) -> None:
         list(MdfPathLoader(Path("capture.mf4")).iter_chunks(signal_mapping=None))
 
 
+def test_mdf_loader_validates_pack_current_units(monkeypatch) -> None:
+    class PackMDF(FakeMDF):
+        channels_db: ClassVar[dict[str, tuple[tuple[int, int], ...]]] = {
+            **FakeMDF.channels_db,
+            "pack_current_a": ((2, 4),),
+            "pack_voltage_v": ((2, 5),),
+        }
+        units: ClassVar[dict[str, str]] = {
+            **FakeMDF.units,
+            "pack_current_a": "kA",
+            "pack_voltage_v": "V",
+        }
+        frame: ClassVar[pd.DataFrame] = FakeMDF.frame.assign(
+            pack_current_a=[-10.0, 0.0, 20.0],
+            pack_voltage_v=[398.0, 400.0, 405.0],
+        )
+
+    _install_fake_mdf(monkeypatch, PackMDF)
+
+    with pytest.raises(ValueError, match="pack_current_a.*expected A"):
+        list(MdfPathLoader(Path("capture.mf4")).iter_chunks(signal_mapping=None))
+
+
 def test_mdf_loader_rejects_missing_canonical_cell_channels(monkeypatch) -> None:
     class NoCellMDF(FakeMDF):
         channels_db: ClassVar[dict[str, tuple[tuple[int, int], ...]]] = {

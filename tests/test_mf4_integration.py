@@ -44,17 +44,56 @@ def _save_mdf(path: Path, groups: list[list[Signal]]) -> None:
 
 def _canonical_signals(frame: pd.DataFrame) -> list[Signal]:
     timestamps = frame["timestamp_s"].to_numpy(dtype=float)
-    return [
-        Signal(frame["cell_1_v"].to_numpy(dtype=float), timestamps, name="cell_1_v", unit="V"),
-        Signal(frame["cell_2_v"].to_numpy(dtype=float), timestamps, name="cell_2_v", unit="V"),
-        Signal(frame["temp_1_c"].to_numpy(dtype=float), timestamps, name="temp_1_c", unit="degC"),
-    ]
+    signals: list[Signal] = []
+    if "pack_current_a" in frame:
+        signals.append(
+            Signal(
+                frame["pack_current_a"].to_numpy(dtype=float),
+                timestamps,
+                name="pack_current_a",
+                unit="A",
+            )
+        )
+    if "pack_voltage_v" in frame:
+        signals.append(
+            Signal(
+                frame["pack_voltage_v"].to_numpy(dtype=float),
+                timestamps,
+                name="pack_voltage_v",
+                unit="V",
+            )
+        )
+    signals.extend(
+        [
+            Signal(
+                frame["cell_1_v"].to_numpy(dtype=float),
+                timestamps,
+                name="cell_1_v",
+                unit="V",
+            ),
+            Signal(
+                frame["cell_2_v"].to_numpy(dtype=float),
+                timestamps,
+                name="cell_2_v",
+                unit="V",
+            ),
+            Signal(
+                frame["temp_1_c"].to_numpy(dtype=float),
+                timestamps,
+                name="temp_1_c",
+                unit="degC",
+            ),
+        ]
+    )
+    return signals
 
 
 def test_real_mf4_matches_equivalent_csv(tmp_path: Path) -> None:
     frame = pd.DataFrame(
         {
             "timestamp_s": [0.0, 1.0, 2.0, 3.0],
+            "pack_current_a": [-20.0, -5.0, 10.0, 35.0],
+            "pack_voltage_v": [398.0, 400.0, 403.0, 405.0],
             "cell_1_v": [3.80, 4.30, 4.31, 3.80],
             "cell_2_v": [3.79, 3.90, 3.89, 3.79],
             "temp_1_c": [25.0, 56.0, 57.0, 25.0],
@@ -69,6 +108,10 @@ def test_real_mf4_matches_equivalent_csv(tmp_path: Path) -> None:
     mf4_result = analyze_battery_log(mf4_path, limits=LIMITS)
 
     assert mf4_result == csv_result
+    assert mf4_result["min_pack_current_a"] == -20.0
+    assert mf4_result["max_pack_current_a"] == 35.0
+    assert mf4_result["min_pack_voltage_v"] == 398.0
+    assert mf4_result["max_pack_voltage_v"] == 405.0
 
 
 def test_real_mf4_single_group_multichunk_matches_csv(tmp_path: Path) -> None:
@@ -233,6 +276,8 @@ def test_real_mf4_vendor_mapping_matches_vendor_csv(tmp_path: Path) -> None:
     vendor = pd.DataFrame(
         {
             "vendor_time": timestamps,
+            "PackCurrent": [-20.0, 0.0, 35.0],
+            "PackVoltage": [398.0, 401.0, 405.0],
             "U_Cell_01": [3.80, 4.30, 3.80],
             "U_Cell_02": [3.79, 3.90, 3.79],
             "T_Mod_01": [25.0, 56.0, 25.0],
@@ -242,6 +287,8 @@ def test_real_mf4_vendor_mapping_matches_vendor_csv(tmp_path: Path) -> None:
         timestamp="vendor_time",
         cell_voltage=SignalPattern(pattern=r"U_Cell_(?P<index>[0-9]+)"),
         temperature=SignalPattern(pattern=r"T_Mod_(?P<index>[0-9]+)"),
+        pack_current="PackCurrent",
+        pack_voltage="PackVoltage",
     )
     csv_path = tmp_path / "vendor.csv"
     mf4_path = tmp_path / "vendor.mf4"
@@ -250,6 +297,18 @@ def test_real_mf4_vendor_mapping_matches_vendor_csv(tmp_path: Path) -> None:
         mf4_path,
         [
             [
+                Signal(
+                    vendor["PackCurrent"].to_numpy(),
+                    timestamps,
+                    name="PackCurrent",
+                    unit="ampere",
+                ),
+                Signal(
+                    vendor["PackVoltage"].to_numpy(),
+                    timestamps,
+                    name="PackVoltage",
+                    unit="volt",
+                ),
                 Signal(vendor["U_Cell_01"].to_numpy(), timestamps, name="U_Cell_01", unit="V"),
                 Signal(vendor["U_Cell_02"].to_numpy(), timestamps, name="U_Cell_02", unit="V"),
                 Signal(vendor["T_Mod_01"].to_numpy(), timestamps, name="T_Mod_01", unit="°C"),
@@ -261,6 +320,8 @@ def test_real_mf4_vendor_mapping_matches_vendor_csv(tmp_path: Path) -> None:
     mf4_result = analyze_battery_log(mf4_path, limits=LIMITS, signal_mapping=mapping)
 
     assert mf4_result == csv_result
+    assert mf4_result["signal_mapping"]["pack_current_source"] == "PackCurrent"
+    assert mf4_result["signal_mapping"]["pack_voltage_source"] == "PackVoltage"
 
 
 def test_real_mf4_misaligned_rasters_fail_closed(tmp_path: Path) -> None:

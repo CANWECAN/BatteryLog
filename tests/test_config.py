@@ -81,7 +81,7 @@ limits:
 @pytest.mark.parametrize(
     ("content", "exception_type", "message"),
     [
-        ("schema_version: 3\n", ValueError, "Unsupported schema_version"),
+        ("schema_version: 4\n", ValueError, "Unsupported schema_version"),
         ("limits: []\n", TypeError, "limits must be a mapping"),
         (
             "limits:\n  cell_voltage:\n    typo_v: 4.2\n",
@@ -367,6 +367,52 @@ signals:
     )
 
 
+def test_config_schema_v3_parses_optional_pack_signal_sources(tmp_path: Path) -> None:
+    config = load_validation_config(
+        _write(
+            tmp_path,
+            r"""
+schema_version: 3
+signals:
+  timestamp: Time_s
+  pack_current: PackCurrent
+  pack_voltage: PackVoltage
+  cell_voltage:
+    pattern: 'BMS_CellVoltage_(?P<index>\d+)'
+  temperature:
+    pattern: 'T_Module_(?P<index>\d+)'
+""",
+        )
+    )
+
+    assert config.signals == SignalMapping(
+        timestamp="Time_s",
+        cell_voltage=SignalPattern(r"BMS_CellVoltage_(?P<index>\d+)"),
+        temperature=SignalPattern(r"T_Module_(?P<index>\d+)"),
+        pack_current="PackCurrent",
+        pack_voltage="PackVoltage",
+    )
+
+
+def test_config_schema_v2_rejects_pack_signal_sources(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="Unknown signals key.*pack_current"):
+        load_validation_config(
+            _write(
+                tmp_path,
+                r"""
+schema_version: 2
+signals:
+  timestamp: Time_s
+  pack_current: PackCurrent
+  cell_voltage:
+    pattern: 'BMS_CellVoltage_(?P<index>\d+)'
+  temperature:
+    pattern: 'T_Module_(?P<index>\d+)'
+""",
+            )
+        )
+
+
 def test_load_validation_limits_accepts_config_with_signal_mapping(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
@@ -519,6 +565,24 @@ def test_signal_pattern_rejects_empty_string_directly() -> None:
                 "temperature": "bad",
             },
             "signals.temperature must be a SignalPattern",
+        ),
+        (
+            {
+                "timestamp": "Time_s",
+                "cell_voltage": SignalPattern(r"Cell_(?P<index>\d+)"),
+                "temperature": SignalPattern(r"Temp_(?P<index>\d+)"),
+                "pack_current": 123,
+            },
+            "signals.pack_current must be a string or null",
+        ),
+        (
+            {
+                "timestamp": "Time_s",
+                "cell_voltage": SignalPattern(r"Cell_(?P<index>\d+)"),
+                "temperature": SignalPattern(r"Temp_(?P<index>\d+)"),
+                "pack_voltage": "",
+            },
+            "signals.pack_voltage must not be empty",
         ),
     ],
 )

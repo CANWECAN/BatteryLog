@@ -9,6 +9,8 @@ from .config import SignalMapping, SignalPattern
 
 _CANONICAL_CELL_RE = re.compile(r"^cell_(\d+)_v$")
 _CANONICAL_TEMP_RE = re.compile(r"^temp_(\d+)_c$")
+CANONICAL_PACK_CURRENT = "pack_current_a"
+CANONICAL_PACK_VOLTAGE = "pack_voltage_v"
 
 
 @dataclass(frozen=True)
@@ -16,19 +18,36 @@ class ResolvedSignalMapping:
     timestamp_source: str
     cell_columns: tuple[tuple[int, str], ...]
     temperature_columns: tuple[tuple[int, str], ...]
+    pack_current_source: str | None = None
+    pack_voltage_source: str | None = None
 
     @property
     def source_columns(self) -> tuple[str, ...]:
+        pack_sources = tuple(
+            source
+            for source in (self.pack_current_source, self.pack_voltage_source)
+            if source is not None
+        )
         return (
             self.timestamp_source,
+            *pack_sources,
             *(column for _, column in self.cell_columns),
             *(column for _, column in self.temperature_columns),
         )
 
     @property
     def canonical_columns(self) -> tuple[str, ...]:
+        pack_columns = tuple(
+            canonical
+            for canonical, source in (
+                (CANONICAL_PACK_CURRENT, self.pack_current_source),
+                (CANONICAL_PACK_VOLTAGE, self.pack_voltage_source),
+            )
+            if source is not None
+        )
         return (
             "timestamp_s",
+            *pack_columns,
             *(f"cell_{index}_v" for index, _ in self.cell_columns),
             *(f"temp_{index}_c" for index, _ in self.temperature_columns),
         )
@@ -57,6 +76,25 @@ def _indexed_canonical_columns(
 
     indexed.sort(key=lambda item: (item[0], item[1]))
     return [column for _, column in indexed]
+
+
+def find_canonical_pack_signal_columns(
+    columns: Iterable[object],
+) -> tuple[str | None, str | None]:
+    raw_columns = [str(column) for column in columns]
+    duplicates = {
+        name
+        for name in (CANONICAL_PACK_CURRENT, CANONICAL_PACK_VOLTAGE)
+        if raw_columns.count(name) > 1
+    }
+    if duplicates:
+        joined = ", ".join(repr(name) for name in sorted(duplicates))
+        raise ValueError(f"Duplicate canonical pack signal name(s): {joined}")
+
+    return (
+        CANONICAL_PACK_CURRENT if CANONICAL_PACK_CURRENT in raw_columns else None,
+        CANONICAL_PACK_VOLTAGE if CANONICAL_PACK_VOLTAGE in raw_columns else None,
+    )
 
 
 def find_canonical_signal_columns(columns: Iterable[object]) -> tuple[list[str], list[str]]:
@@ -152,10 +190,42 @@ def resolve_signal_mapping(
             f"Mapped timestamp column {mapping.timestamp!r} also matches a sensor pattern"
         )
 
+    scalar_sources = {
+        "timestamp": mapping.timestamp,
+        "pack-current": mapping.pack_current,
+        "pack-voltage": mapping.pack_voltage,
+    }
+    missing_scalars = [
+        source
+        for source in (mapping.pack_current, mapping.pack_voltage)
+        if source is not None and source not in string_columns
+    ]
+    if missing_scalars:
+        joined = ", ".join(repr(source) for source in missing_scalars)
+        raise ValueError(f"Mapped pack signal column(s) are missing: {joined}")
+
+    assigned_roles: dict[str, list[str]] = {}
+    for role, source in scalar_sources.items():
+        if source is not None:
+            assigned_roles.setdefault(source, []).append(role)
+    for source in cell_sources:
+        assigned_roles.setdefault(source, []).append("cell-voltage")
+    for source in temperature_sources:
+        assigned_roles.setdefault(source, []).append("temperature")
+
+    ambiguous = {source: roles for source, roles in assigned_roles.items() if len(roles) > 1}
+    if ambiguous:
+        details = "; ".join(
+            f"{source!r} as {', '.join(roles)}" for source, roles in sorted(ambiguous.items())
+        )
+        raise ValueError(f"Signal mapping assigns one source to multiple roles: {details}")
+
     return ResolvedSignalMapping(
         timestamp_source=mapping.timestamp,
         cell_columns=tuple(cell_columns),
         temperature_columns=tuple(temperature_columns),
+        pack_current_source=mapping.pack_current,
+        pack_voltage_source=mapping.pack_voltage,
     )
 
 

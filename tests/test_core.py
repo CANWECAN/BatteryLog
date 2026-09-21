@@ -22,7 +22,7 @@ def test_sample_log_returns_structured_violation_events() -> None:
         ),
     )
 
-    assert result["schema_version"] == 3
+    assert result["schema_version"] == 4
     assert result["validation_status"] == "FAIL"
     assert result["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",
@@ -487,16 +487,18 @@ def test_event_gap_exact_decimal_boundary_is_not_split_by_float_noise(
 def test_explicit_signal_mapping_flows_through_full_analysis(tmp_path: Path) -> None:
     path = tmp_path / "vendor.csv"
     path.write_text(
-        "Time_s,BMS_CellVoltage_010,BMS_CellVoltage_002,"
+        "Time_s,PackCurrent,PackVoltage,BMS_CellVoltage_010,BMS_CellVoltage_002,"
         "BMS_CellVoltage_001,BMS_CellVoltage_Max,T_Module_02,T_Module_01\n"
-        "0.0,3.90,3.80,3.70,4.20,30,28\n"
-        "1.0,3.95,3.82,3.68,4.25,50,47\n",
+        "0.0,-20,398,3.90,3.80,3.70,4.20,30,28\n"
+        "1.0,35,405,3.95,3.82,3.68,4.25,50,47\n",
         encoding="utf-8",
     )
     mapping = SignalMapping(
         timestamp="Time_s",
         cell_voltage=SignalPattern(r"BMS_CellVoltage_(?P<index>\d+)"),
         temperature=SignalPattern(r"T_Module_(?P<index>\d+)"),
+        pack_current="PackCurrent",
+        pack_voltage="PackVoltage",
     )
 
     result = analyze_battery_log(
@@ -513,17 +515,45 @@ def test_explicit_signal_mapping_flows_through_full_analysis(tmp_path: Path) -> 
     assert result["max_cell_voltage_v"] == pytest.approx(3.95)
     assert result["max_delta_v"] == pytest.approx(0.27)
     assert result["max_temperature_c"] == pytest.approx(50.0)
+    assert result["min_pack_current_a"] == pytest.approx(-20.0)
+    assert result["max_pack_current_a"] == pytest.approx(35.0)
+    assert result["min_pack_voltage_v"] == pytest.approx(398.0)
+    assert result["max_pack_voltage_v"] == pytest.approx(405.0)
     assert result["signal_mapping"] == {
         "mode": "explicit",
         "timestamp_source": "Time_s",
         "cell_voltage_pattern": r"BMS_CellVoltage_(?P<index>\d+)",
         "temperature_pattern": r"T_Module_(?P<index>\d+)",
+        "pack_current_source": "PackCurrent",
+        "pack_voltage_source": "PackVoltage",
     }
     assert [event["code"] for event in result["violations"]] == [
         "CELL_IMBALANCE_HIGH",
         "TEMPERATURE_HIGH",
     ]
     assert result["violations"][0]["signals"] == ["cell_10_v", "cell_1_v"]
+
+
+def test_canonical_pack_signals_are_optional_first_class_measurements(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "pack.csv"
+    path.write_text(
+        "timestamp_s,pack_current_a,pack_voltage_v,cell_1_v,temp_c\n"
+        "0,-12.5,399.0,3.8,25\n"
+        "1,24.0,405.5,3.9,26\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_battery_log(path)
+
+    assert result["validation_status"] == "NOT_EVALUATED"
+    assert result["max_pack_current_a"] == pytest.approx(24.0)
+    assert result["min_pack_current_a"] == pytest.approx(-12.5)
+    assert result["max_pack_voltage_v"] == pytest.approx(405.5)
+    assert result["min_pack_voltage_v"] == pytest.approx(399.0)
+    assert result["signal_mapping"]["pack_current_source"] == "pack_current_a"
+    assert result["signal_mapping"]["pack_voltage_source"] == "pack_voltage_v"
 
 
 def test_canonical_analysis_records_canonical_mapping_mode() -> None:
@@ -534,6 +564,8 @@ def test_canonical_analysis_records_canonical_mapping_mode() -> None:
         "timestamp_source": "timestamp_s",
         "cell_voltage_pattern": None,
         "temperature_pattern": None,
+        "pack_current_source": None,
+        "pack_voltage_source": None,
     }
 
 

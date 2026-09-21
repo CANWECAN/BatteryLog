@@ -24,7 +24,10 @@ from batterylog.models import (
     RuleCode,
     ViolationEvent,
 )
-from batterylog.signals import canonicalize_battery_signals
+from batterylog.signals import (
+    canonicalize_battery_signals,
+    find_canonical_pack_signal_columns,
+)
 
 from .comparison import below_limit, exceeds_limit, exceeds_limit_scalar
 from .core import (
@@ -196,6 +199,7 @@ def _analyze_battery_chunks(
     )
     expected_cell_cols: list[str] | None = None
     expected_temp_cols: list[str] | None = None
+    expected_pack_cols: tuple[str | None, str | None] | None = None
     previous_timestamp: float | None = None
 
     max_cell_voltage_v: float | None = None
@@ -203,6 +207,10 @@ def _analyze_battery_chunks(
     max_delta_v: float | None = None
     max_temperature_c: float | None = None
     min_temperature_c: float | None = None
+    max_pack_current_a: float | None = None
+    min_pack_current_a: float | None = None
+    max_pack_voltage_v: float | None = None
+    min_pack_voltage_v: float | None = None
 
     for frame in chunks:
         if frame.empty:
@@ -217,14 +225,23 @@ def _analyze_battery_chunks(
             raise ValueError("No cell voltage columns found")
         if not temp_cols:
             raise ValueError("No temperature columns found")
+        pack_current_col, pack_voltage_col = find_canonical_pack_signal_columns(frame.columns)
+        pack_cols = [
+            column for column in (pack_current_col, pack_voltage_col) if column is not None
+        ]
 
         if expected_cell_cols is None:
             expected_cell_cols = cell_cols
             expected_temp_cols = temp_cols
-        elif cell_cols != expected_cell_cols or temp_cols != expected_temp_cols:
+            expected_pack_cols = (pack_current_col, pack_voltage_col)
+        elif (
+            cell_cols != expected_cell_cols
+            or temp_cols != expected_temp_cols
+            or (pack_current_col, pack_voltage_col) != expected_pack_cols
+        ):
             raise ValueError("Canonical signal columns changed between measurement chunks")
 
-        numeric_cols = ["timestamp_s", *cell_cols, *temp_cols]
+        numeric_cols = ["timestamp_s", *pack_cols, *cell_cols, *temp_cols]
         numeric = frame[numeric_cols].apply(pd.to_numeric, errors="coerce")
         if data_quality_collector is None:
             _raise_invalid_numeric_value(
@@ -262,7 +279,10 @@ def _analyze_battery_chunks(
             columns=numeric.columns,
         )
         if chunk_rows_excluded:
-            rule_numeric.loc[invalid_rows, [*cell_cols, *temp_cols]] = float("nan")
+            rule_numeric.loc[
+                invalid_rows,
+                [*pack_cols, *cell_cols, *temp_cols],
+            ] = float("nan")
         timestamps = rule_numeric["timestamp_s"]
         cell_max = rule_numeric[cell_cols].max(axis=1)
         cell_min = rule_numeric[cell_cols].min(axis=1)
@@ -317,6 +337,36 @@ def _analyze_battery_chunks(
                 if min_temperature_c is None
                 else min(min_temperature_c, chunk_min_temp)
             )
+
+            if pack_current_col is not None:
+                valid_pack_current = valid_numeric[pack_current_col]
+                chunk_max_current = float(valid_pack_current.max())
+                chunk_min_current = float(valid_pack_current.min())
+                max_pack_current_a = (
+                    chunk_max_current
+                    if max_pack_current_a is None
+                    else max(max_pack_current_a, chunk_max_current)
+                )
+                min_pack_current_a = (
+                    chunk_min_current
+                    if min_pack_current_a is None
+                    else min(min_pack_current_a, chunk_min_current)
+                )
+
+            if pack_voltage_col is not None:
+                valid_pack_voltage = valid_numeric[pack_voltage_col]
+                chunk_max_voltage = float(valid_pack_voltage.max())
+                chunk_min_voltage = float(valid_pack_voltage.min())
+                max_pack_voltage_v = (
+                    chunk_max_voltage
+                    if max_pack_voltage_v is None
+                    else max(max_pack_voltage_v, chunk_max_voltage)
+                )
+                min_pack_voltage_v = (
+                    chunk_min_voltage
+                    if min_pack_voltage_v is None
+                    else min(min_pack_voltage_v, chunk_min_voltage)
+                )
 
         max_gap_s = resolved_event_detection.max_gap_s
 
@@ -420,12 +470,19 @@ def _analyze_battery_chunks(
 
     assert expected_cell_cols is not None
     assert expected_temp_cols is not None
+    assert expected_pack_cols is not None
     if rows_analyzed:
         assert max_cell_voltage_v is not None
         assert min_cell_voltage_v is not None
         assert max_delta_v is not None
         assert max_temperature_c is not None
         assert min_temperature_c is not None
+        if expected_pack_cols[0] is not None:
+            assert max_pack_current_a is not None
+            assert min_pack_current_a is not None
+        if expected_pack_cols[1] is not None:
+            assert max_pack_voltage_v is not None
+            assert min_pack_voltage_v is not None
 
     data_quality_events: list[DataQualityEvent] = (
         data_quality_collector.finish() if data_quality_collector is not None else []
@@ -447,7 +504,11 @@ def _analyze_battery_chunks(
         "limits_applied": _limits_snapshot(resolved_limits),
         "analysis_options": _analysis_options_snapshot(resolved_event_detection),
         "comparison_policy": _comparison_policy_snapshot(),
-        "signal_mapping": _signal_mapping_snapshot(signal_mapping),
+        "signal_mapping": _signal_mapping_snapshot(
+            signal_mapping,
+            pack_current_detected=expected_pack_cols[0] is not None,
+            pack_voltage_detected=expected_pack_cols[1] is not None,
+        ),
         "data_quality": _data_quality_snapshot(resolved_data_quality, data_quality_events),
         "rows_input": rows_input,
         "rows_analyzed": rows_analyzed,
@@ -459,6 +520,10 @@ def _analyze_battery_chunks(
         "max_delta_v": round(max_delta_v, 12) if max_delta_v is not None else None,
         "max_temperature_c": max_temperature_c,
         "min_temperature_c": min_temperature_c,
+        "max_pack_current_a": max_pack_current_a,
+        "min_pack_current_a": min_pack_current_a,
+        "max_pack_voltage_v": max_pack_voltage_v,
+        "min_pack_voltage_v": min_pack_voltage_v,
         "violations": violations,
     }
 

@@ -191,6 +191,36 @@ def test_strict_mode_preserves_fail_fast_invalid_numeric_behavior() -> None:
         analyze_battery_bytes(data)
 
 
+def test_pack_signals_participate_in_required_numeric_data_quality() -> None:
+    data = (
+        b"timestamp_s,pack_current_a,pack_voltage_v,cell_1_v,temp_c\n"
+        b"0,-10,400,3.8,25\n"
+        b"1,bad,401,3.9,26\n"
+    )
+
+    with pytest.raises(ValueError, match="column 'pack_current_a': 'bad'"):
+        analyze_battery_bytes(data)
+
+    result = analyze_battery_bytes(
+        data,
+        data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
+    )
+
+    assert result["rows_analyzed"] == 1
+    assert result["rows_excluded"] == 1
+    assert result["max_pack_current_a"] == -10.0
+    assert result["min_pack_voltage_v"] == 400.0
+    assert result["data_quality"]["events"] == [
+        {
+            "code": "NON_NUMERIC_REQUIRED_VALUE",
+            "start_row": 2,
+            "end_row": 2,
+            "signals": ["pack_current_a"],
+            "affected_values": 1,
+        }
+    ]
+
+
 def test_exclude_invalid_rows_records_evidence_and_breaks_rule_continuity() -> None:
     data = b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,4.30,3.80,25\n1,bad,3.80,25\n2,4.40,3.80,25\n"
 

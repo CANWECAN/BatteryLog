@@ -9,13 +9,13 @@ They do not need to use the same version number.
 
 ## Configuration schema
 
-The current YAML configuration schema is version 2:
+The current YAML configuration schema is version 3:
 
 ```yaml
-schema_version: 2
+schema_version: 3
 ```
 
-Configuration schema 2 adds the optional `data_quality` block and its explicit `strict` / `exclude_invalid_rows` mode. Configuration schema 1 remains accepted for backward compatibility and is interpreted with strict fail-fast data-quality behavior. A `data_quality` block is rejected when `schema_version: 1` is selected.
+Configuration schema 2 adds the optional `data_quality` block and its explicit `strict` / `exclude_invalid_rows` mode. Configuration schema 3 adds optional scalar `signals.pack_current` and `signals.pack_voltage` source names. Configuration schemas 1 and 2 remain accepted with their historical behavior: schema 1 is strict fail-fast and rejects `data_quality`; schema 2 accepts `data_quality` but rejects the new pack-signal mapping keys.
 
 This version identifies the structure accepted by the validation-config parser and is independent from the result-schema version.
 
@@ -51,7 +51,7 @@ The schema is strict and rejects unknown fields. The frozen v2 artifact remains 
 
 ### Result schema version 3
 
-Result schema version 3 is the current BatteryLog machine-readable result contract for the 0.8 development line. Its Draft 2020-12 JSON Schema is:
+Result schema version 3 is the frozen BatteryLog machine-readable result contract for the 0.8 release line. Its Draft 2020-12 JSON Schema is:
 
 ```text
 batterylog/schema/result-v3.json
@@ -69,6 +69,25 @@ Version 3 adds structured required-data quality evidence and explicit row accoun
 The validation-status invariant also changes: `FAIL` may now be justified by one or more engineering-rule violations, one or more structured data-quality events, or both. `PASS` and `NOT_EVALUATED` cannot contain data-quality events. Non-empty data-quality evidence requires at least one excluded row, and zero analyzed rows cannot contain engineering-rule violations.
 
 Draft 2020-12 validation does not establish every cross-field arithmetic relationship in the contract. BatteryLog's producer additionally guarantees `rows_input == rows_analyzed + rows_excluded`; each data-quality event satisfies `1 <= start_row <= end_row <= rows_input`; and `affected_values` equals the inclusive row span multiplied by the number of signals. Consumers that accept results from untrusted or independent producers should apply these semantic checks in addition to validating against the JSON Schema.
+
+### Result schema version 4
+
+Result schema version 4 is the current BatteryLog machine-readable result contract for the 0.9 development line. Its Draft 2020-12 JSON Schema is:
+
+```text
+batterylog/schema/result-v4.json
+```
+
+Version 4 adds optional pack-level electrical measurement evidence:
+
+- `signal_mapping.pack_current_source`
+- `signal_mapping.pack_voltage_source`
+- `max_pack_current_a` and `min_pack_current_a`
+- `max_pack_voltage_v` and `min_pack_voltage_v`
+
+Canonical provenance uses the exact names `pack_current_a` and `pack_voltage_v`; absent signals use `null`. Explicit provenance records the configured vendor source name. A selected signal has numeric extrema whenever at least one row was analyzed, while absent signals and all-excluded inputs use `null`.
+
+The v2 and v3 artifacts remain frozen and packaged for existing consumers.
 
 ## Versioning policy from v2 onward
 

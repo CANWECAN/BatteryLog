@@ -126,6 +126,8 @@ class SignalMapping:
     timestamp: str
     cell_voltage: SignalPattern
     temperature: SignalPattern
+    pack_current: str | None = None
+    pack_voltage: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.timestamp, str):
@@ -136,6 +138,15 @@ class SignalMapping:
             raise TypeError("signals.cell_voltage must be a SignalPattern")
         if not isinstance(self.temperature, SignalPattern):
             raise TypeError("signals.temperature must be a SignalPattern")
+
+        for name, value in (
+            ("signals.pack_current", self.pack_current),
+            ("signals.pack_voltage", self.pack_voltage),
+        ):
+            if value is not None and not isinstance(value, str):
+                raise TypeError(f"{name} must be a string or null")
+            if value == "":
+                raise ValueError(f"{name} must not be empty")
 
 
 @dataclass(frozen=True)
@@ -212,7 +223,7 @@ def _load_config_root_bytes(
     schema_version = root.get("schema_version", 1)
     if isinstance(schema_version, bool) or not isinstance(schema_version, int):
         raise TypeError("schema_version must be an integer")
-    if schema_version not in {1, 2}:
+    if schema_version not in {1, 2, 3}:
         raise ValueError(f"Unsupported schema_version: {schema_version!r}")
 
     allowed = {"schema_version", "limits", "event_detection", "signals"}
@@ -310,16 +321,19 @@ def _parse_signal_pattern(
     return SignalPattern(pattern=_required_string(f"{name}.pattern", raw["pattern"]))
 
 
-def _parse_signals(root: dict[str, Any]) -> SignalMapping | None:
+def _parse_signals(
+    root: dict[str, Any],
+    *,
+    schema_version: int,
+) -> SignalMapping | None:
     if "signals" not in root:
         return None
 
     raw = _require_mapping("signals", root["signals"])
-    _reject_unknown_keys(
-        "signals",
-        raw,
-        {"timestamp", "cell_voltage", "temperature"},
-    )
+    allowed = {"timestamp", "cell_voltage", "temperature"}
+    if schema_version >= 3:
+        allowed.update({"pack_current", "pack_voltage"})
+    _reject_unknown_keys("signals", raw, allowed)
 
     missing = sorted({"timestamp", "cell_voltage", "temperature"} - set(raw))
     if missing:
@@ -336,6 +350,16 @@ def _parse_signals(root: dict[str, Any]) -> SignalMapping | None:
             "signals.temperature",
             raw["temperature"],
         ),
+        pack_current=(
+            _required_string("signals.pack_current", raw["pack_current"])
+            if "pack_current" in raw
+            else None
+        ),
+        pack_voltage=(
+            _required_string("signals.pack_voltage", raw["pack_voltage"])
+            if "pack_voltage" in raw
+            else None
+        ),
     )
 
 
@@ -349,7 +373,7 @@ def load_validation_config_bytes(
         limits=_parse_limits(root),
         event_detection=_parse_event_detection(root),
         data_quality=_parse_data_quality(root, schema_version=schema_version),
-        signals=_parse_signals(root),
+        signals=_parse_signals(root, schema_version=schema_version),
     )
 
 
