@@ -8,8 +8,8 @@ RuleCode = Literal[
     "TEMPERATURE_LOW",
 ]
 
-ResultSchemaVersion = Literal[3]
-RESULT_SCHEMA_VERSION: ResultSchemaVersion = 3
+ResultSchemaVersion = Literal[4]
+RESULT_SCHEMA_VERSION: ResultSchemaVersion = 4
 
 ValidationStatus = Literal["NOT_EVALUATED", "PASS", "FAIL"]
 DataQualityMode = Literal["strict", "exclude_invalid_rows"]
@@ -45,6 +45,8 @@ class SignalMappingInfo(TypedDict):
     timestamp_source: str
     cell_voltage_pattern: str | None
     temperature_pattern: str | None
+    pack_current_source: str | None
+    pack_voltage_source: str | None
 
 
 class DataQualityEvent(TypedDict):
@@ -90,4 +92,8 @@ class AnalysisResult(TypedDict):
     max_delta_v: float | None
     max_temperature_c: float | None
     min_temperature_c: float | None
+    max_pack_current_a: float | None
+    min_pack_current_a: float | None
+    max_pack_voltage_v: float | None
+    min_pack_voltage_v: float | None
     violations: list[ViolationEvent]

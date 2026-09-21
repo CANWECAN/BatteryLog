@@ -24,7 +24,13 @@ from batterylog.models import (
     SignalMappingInfo,
     ViolationEvent,
 )
-from batterylog.signals import canonicalize_battery_signals, find_canonical_signal_columns
+from batterylog.signals import (
+    CANONICAL_PACK_CURRENT,
+    CANONICAL_PACK_VOLTAGE,
+    canonicalize_battery_signals,
+    find_canonical_pack_signal_columns,
+    find_canonical_signal_columns,
+)
 
 from .comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
 from .data_quality import DataQualityCollector, _required_boolean_mask
@@ -156,13 +162,20 @@ def _comparison_policy_snapshot() -> ComparisonPolicyInfo:
     }
 
 
-def _signal_mapping_snapshot(mapping: SignalMapping | None) -> SignalMappingInfo:
+def _signal_mapping_snapshot(
+    mapping: SignalMapping | None,
+    *,
+    pack_current_detected: bool,
+    pack_voltage_detected: bool,
+) -> SignalMappingInfo:
     if mapping is None:
         return {
             "mode": "canonical",
             "timestamp_source": "timestamp_s",
             "cell_voltage_pattern": None,
             "temperature_pattern": None,
+            "pack_current_source": (CANONICAL_PACK_CURRENT if pack_current_detected else None),
+            "pack_voltage_source": (CANONICAL_PACK_VOLTAGE if pack_voltage_detected else None),
         }
 
     return {
@@ -170,6 +183,8 @@ def _signal_mapping_snapshot(mapping: SignalMapping | None) -> SignalMappingInfo
         "timestamp_source": mapping.timestamp,
         "cell_voltage_pattern": mapping.cell_voltage.pattern,
         "temperature_pattern": mapping.temperature.pattern,
+        "pack_current_source": mapping.pack_current,
+        "pack_voltage_source": mapping.pack_voltage,
     }
 
 
@@ -224,8 +239,10 @@ def _analyze_battery_frame(
         raise ValueError("No cell voltage columns found")
     if not temp_cols:
         raise ValueError("No temperature columns found")
+    pack_current_col, pack_voltage_col = find_canonical_pack_signal_columns(df.columns)
+    pack_cols = [column for column in (pack_current_col, pack_voltage_col) if column is not None]
 
-    numeric_cols = ["timestamp_s", *cell_cols, *temp_cols]
+    numeric_cols = ["timestamp_s", *pack_cols, *cell_cols, *temp_cols]
     numeric = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
     rows_input = len(df)
     data_quality_events: list[DataQualityEvent] = []
@@ -253,7 +270,7 @@ def _analyze_battery_frame(
         columns=numeric.columns,
     )
     if rows_excluded:
-        rule_numeric.loc[invalid_rows, [*cell_cols, *temp_cols]] = np.nan
+        rule_numeric.loc[invalid_rows, [*pack_cols, *cell_cols, *temp_cols]] = np.nan
     timestamps = rule_numeric["timestamp_s"]
     cell_max = rule_numeric[cell_cols].max(axis=1)
     cell_min = rule_numeric[cell_cols].min(axis=1)
@@ -344,7 +361,11 @@ def _analyze_battery_frame(
         "limits_applied": _limits_snapshot(resolved_limits),
         "analysis_options": _analysis_options_snapshot(resolved_event_detection),
         "comparison_policy": _comparison_policy_snapshot(),
-        "signal_mapping": _signal_mapping_snapshot(signal_mapping),
+        "signal_mapping": _signal_mapping_snapshot(
+            signal_mapping,
+            pack_current_detected=pack_current_col is not None,
+            pack_voltage_detected=pack_voltage_col is not None,
+        ),
         "data_quality": _data_quality_snapshot(resolved_data_quality, data_quality_events),
         "rows_input": rows_input,
         "rows_analyzed": rows_analyzed,
@@ -356,6 +377,26 @@ def _analyze_battery_frame(
         "max_delta_v": round(float(delta_v.loc[valid_rows].max()), 12) if rows_analyzed else None,
         "max_temperature_c": (float(row_max_temp.loc[valid_rows].max()) if rows_analyzed else None),
         "min_temperature_c": (float(row_min_temp.loc[valid_rows].min()) if rows_analyzed else None),
+        "max_pack_current_a": (
+            float(rule_numeric.loc[valid_rows, pack_current_col].max())
+            if rows_analyzed and pack_current_col is not None
+            else None
+        ),
+        "min_pack_current_a": (
+            float(rule_numeric.loc[valid_rows, pack_current_col].min())
+            if rows_analyzed and pack_current_col is not None
+            else None
+        ),
+        "max_pack_voltage_v": (
+            float(rule_numeric.loc[valid_rows, pack_voltage_col].max())
+            if rows_analyzed and pack_voltage_col is not None
+            else None
+        ),
+        "min_pack_voltage_v": (
+            float(rule_numeric.loc[valid_rows, pack_voltage_col].min())
+            if rows_analyzed and pack_voltage_col is not None
+            else None
+        ),
         "violations": violations,
     }
 

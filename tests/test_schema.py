@@ -16,7 +16,8 @@ from batterylog import (
 from batterylog.analysis.core import analyze_battery_bytes
 
 ROOT = Path(__file__).parents[1]
-SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v3.json"
+SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v4.json"
+V3_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v3.json"
 V2_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v2.json"
 LEGACY_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v1.json"
 SAMPLE = ROOT / "examples" / "sample_battery_log.csv"
@@ -57,7 +58,7 @@ def _results_for_all_statuses() -> list[dict[str, object]]:
     return [not_evaluated, passed, failed]
 
 
-def test_generated_results_validate_against_schema_v3(
+def test_generated_results_validate_against_schema_v4(
     validator: Draft202012Validator,
 ) -> None:
     for result in _results_for_all_statuses():
@@ -128,6 +129,30 @@ def test_schema_rejects_invalid_canonical_mapping_provenance(
         validator.validate(result)
 
 
+def test_schema_v4_validates_pack_measurement_provenance_and_extrema(
+    validator: Draft202012Validator,
+) -> None:
+    result = analyze_battery_bytes(
+        b"timestamp_s,pack_current_a,pack_voltage_v,cell_1_v,temp_c\n"
+        b"0,-10,398,3.8,25\n"
+        b"1,20,405,3.9,26\n"
+    )
+
+    validator.validate(result)
+    assert result["signal_mapping"]["pack_current_source"] == "pack_current_a"
+    assert result["signal_mapping"]["pack_voltage_source"] == "pack_voltage_v"
+
+    missing_provenance = copy.deepcopy(result)
+    missing_provenance["signal_mapping"]["pack_current_source"] = None
+    with pytest.raises(ValidationError):
+        validator.validate(missing_provenance)
+
+    invalid_canonical_source = copy.deepcopy(result)
+    invalid_canonical_source["signal_mapping"]["pack_voltage_source"] = "VendorVoltage"
+    with pytest.raises(ValidationError):
+        validator.validate(invalid_canonical_source)
+
+
 def test_schema_rejects_rule_unit_mismatch(
     validator: Draft202012Validator,
 ) -> None:
@@ -147,12 +172,12 @@ def test_schema_rejects_rule_unit_mismatch(
 def test_schema_artifact_matches_runtime_version(
     result_schema: dict[str, object],
 ) -> None:
-    assert RESULT_SCHEMA_VERSION == 3
+    assert RESULT_SCHEMA_VERSION == 4
     assert SCHEMA_PATH.name == f"result-v{RESULT_SCHEMA_VERSION}.json"
-    assert result_schema["title"] == "BatteryLog Analysis Result v3"
+    assert result_schema["title"] == "BatteryLog Analysis Result v4"
     assert result_schema["$id"] == (
         "https://raw.githubusercontent.com/CANWECAN/BatteryLog/"
-        "v0.8.0/batterylog/schema/result-v3.json"
+        "v0.9.0/batterylog/schema/result-v4.json"
     )
     assert "/main/" not in str(result_schema["$id"])
     assert "/blob/" not in str(result_schema["$id"])
@@ -162,6 +187,22 @@ def test_schema_artifact_matches_runtime_version(
     schema_version = properties["schema_version"]
     assert isinstance(schema_version, dict)
     assert schema_version["const"] == RESULT_SCHEMA_VERSION
+
+
+def test_result_schema_v3_remains_frozen() -> None:
+    schema = json.loads(V3_SCHEMA_PATH.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+
+    assert schema["title"] == "BatteryLog Analysis Result v3"
+    assert schema["$id"] == (
+        "https://raw.githubusercontent.com/CANWECAN/BatteryLog/"
+        "v0.8.0/batterylog/schema/result-v3.json"
+    )
+    properties = schema["properties"]
+    assert isinstance(properties, dict)
+    assert properties["schema_version"] == {"const": 3}
+    assert "max_pack_current_a" not in properties
+    assert "max_pack_voltage_v" not in properties
 
 
 def test_result_schema_v2_remains_frozen() -> None:
@@ -185,7 +226,7 @@ def test_no_strict_legacy_v1_schema_is_published() -> None:
     assert not LEGACY_SCHEMA_PATH.exists()
 
 
-def test_schema_v3_accepts_data_quality_only_fail_and_all_excluded(
+def test_schema_v4_accepts_data_quality_only_fail_and_all_excluded(
     validator: Draft202012Validator,
 ) -> None:
     config = DataQualityConfig(mode="exclude_invalid_rows")
@@ -208,7 +249,7 @@ def test_schema_v3_accepts_data_quality_only_fail_and_all_excluded(
     assert all_excluded["max_cell_voltage_v"] is None
 
 
-def test_schema_v3_rejects_legacy_result_version_number(
+def test_schema_v4_rejects_legacy_result_version_number(
     validator: Draft202012Validator,
 ) -> None:
     result = copy.deepcopy(analyze_battery_log(SAMPLE))
@@ -218,7 +259,7 @@ def test_schema_v3_rejects_legacy_result_version_number(
         validator.validate(result)
 
 
-def test_schema_v3_rejects_data_quality_event_on_pass(
+def test_schema_v4_rejects_data_quality_event_on_pass(
     validator: Draft202012Validator,
 ) -> None:
     result = copy.deepcopy(
@@ -242,7 +283,7 @@ def test_schema_v3_rejects_data_quality_event_on_pass(
         validator.validate(result)
 
 
-def test_schema_v3_rejects_non_null_extrema_when_all_rows_excluded(
+def test_schema_v4_rejects_non_null_extrema_when_all_rows_excluded(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(
@@ -257,7 +298,7 @@ def test_schema_v3_rejects_non_null_extrema_when_all_rows_excluded(
         validator.validate(payload)
 
 
-def test_schema_v3_rejects_data_quality_events_without_excluded_rows(
+def test_schema_v4_rejects_data_quality_events_without_excluded_rows(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(
@@ -272,7 +313,7 @@ def test_schema_v3_rejects_data_quality_events_without_excluded_rows(
         validator.validate(payload)
 
 
-def test_schema_v3_rejects_rule_violations_when_no_rows_were_analyzed(
+def test_schema_v4_rejects_rule_violations_when_no_rows_were_analyzed(
     validator: Draft202012Validator,
 ) -> None:
     all_excluded = analyze_battery_bytes(
@@ -310,7 +351,7 @@ def test_generated_results_satisfy_semantic_row_accounting() -> None:
             assert event["affected_values"] == row_span * len(event["signals"])
 
 
-def test_schema_v3_rejects_excluded_rows_in_strict_mode(
+def test_schema_v4_rejects_excluded_rows_in_strict_mode(
     validator: Draft202012Validator,
 ) -> None:
     result = copy.deepcopy(analyze_battery_log(SAMPLE))

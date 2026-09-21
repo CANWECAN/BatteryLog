@@ -35,7 +35,7 @@ The preview below is generated from the repository's vendor-style sample CSV and
 - Analyze CSV battery logs in bounded row chunks in both standard analysis and HTML evidence-report paths
 - Optionally ingest ASAM MDF/MF4 measurement files through the same chunked validation engine
 - Preserve violation events, extrema, and timestamp-ordering checks across chunk boundaries
-- Map vendor-specific timestamp, cell-voltage, and temperature channel names into a canonical signal model
+- Map vendor-specific timestamp, pack-current, pack-voltage, cell-voltage, and temperature channel names into a canonical signal model
 - Load validation limits from YAML
 - Detect cell overvoltage and undervoltage
 - Detect excessive cell-voltage imbalance
@@ -44,7 +44,7 @@ The preview below is generated from the repository's vendor-style sample CSV and
 - Optionally split sparse failing samples using a configurable maximum timestamp gap
 - Record event start, end, and worst-case timestamps
 - Record measured value, engineering limit, unit, and implicated signals
-- Support one or more cell-voltage and temperature signals
+- Support optional scalar pack-current/pack-voltage signals plus one or more cell-voltage and temperature signals
 - Reject missing, non-numeric, non-finite, or time-disordered required data
 - Emit explicit `NOT_EVALUATED`, `PASS`, or `FAIL` validation status
 - Report which rules were actually evaluated
@@ -66,14 +66,16 @@ Without an explicit signal-mapping block, every input must contain:
 
 Examples are `cell_1_v`, `cell_96_v`, `temp_1_c`, and `temp_24_c`. The legacy single-temperature name `temp_c` is supported only when indexed temperature signals are not present.
 
+The optional scalar electrical channels are `pack_current_a` and `pack_voltage_v`. They may appear independently. When present, they participate in required-numeric data-quality handling and their minimum/maximum values are emitted in result schema v4; they do not activate an engineering rule by themselves. BatteryLog preserves the signed current values without inferring charge/discharge polarity; that convention and its limits are deferred to the overcurrent feature.
+
 Aggregate names such as `cell_min_v`, `cell_max_v`, or `temp_max_c` are intentionally not treated as raw sensor channels.
 
 Example:
 
 ```csv
-timestamp_s,temp_1_c,temp_2_c,cell_1_v,cell_2_v
-0,28,27,3.95,3.94
-1,48,46,3.68,3.58
+timestamp_s,pack_current_a,pack_voltage_v,temp_1_c,temp_2_c,cell_1_v,cell_2_v
+0,-25,398,28,27,3.95,3.94
+1,35,405,48,46,3.68,3.58
 ```
 
 `timestamp_s` must be numeric and non-decreasing.
@@ -83,8 +85,11 @@ timestamp_s,temp_1_c,temp_2_c,cell_1_v,cell_2_v
 Vendor exports do not need to be renamed before analysis. A YAML config can explicitly map source channel names into BatteryLog's canonical model:
 
 ```yaml
+schema_version: 3
 signals:
   timestamp: Time_s
+  pack_current: PackCurrent
+  pack_voltage: PackVoltage
   cell_voltage:
     pattern: 'BMS_CellVoltage_(?P<index>\d+)'
   temperature:
@@ -93,9 +98,9 @@ signals:
 
 Signal patterns are applied as **full matches**, not substring searches. Both cell-voltage and temperature patterns must define a named `index` capture group containing ASCII digits. The numeric index determines canonical ordering, so source names such as `BMS_CellVoltage_001`, `BMS_CellVoltage_2`, and `BMS_CellVoltage_10` become `cell_1_v`, `cell_2_v`, and `cell_10_v`.
 
-When a `signals` block is present, `timestamp`, `cell_voltage`, and `temperature` are all required. BatteryLog fails closed when:
+When a `signals` block is present, `timestamp`, `cell_voltage`, and `temperature` are required. Config schema v3 additionally accepts optional `pack_current` and `pack_voltage` source names. BatteryLog fails closed when:
 
-- the mapped timestamp is missing
+- the mapped timestamp or a configured pack signal is missing
 - a pattern matches no required channels
 - two source channels resolve to the same logical index
 - one source channel matches both sensor patterns
@@ -107,10 +112,11 @@ Extra columns that do not match the explicit patterns are not part of the canoni
 Signal mapping performs **naming/canonicalization only**. It does not convert units. CSV values must already use:
 
 - seconds for the timestamp
-- volts for cell voltage
+- amperes for pack current
+- volts for pack and cell voltage
 - degrees Celsius for temperature
 
-Violation events use canonical names such as `cell_1_v` and `temp_2_c`. The machine-readable result and HTML report record whether canonical or explicit mapping was used, along with the source timestamp and configured patterns.
+Violation events use canonical names such as `cell_1_v` and `temp_2_c`. The machine-readable result and HTML report record whether canonical or explicit mapping was used, along with the source timestamp, configured patterns, and selected pack-signal sources.
 
 A tested vendor-style example is included:
 
@@ -130,11 +136,11 @@ Installed distributions use the standard Python extra syntax `batterylog[mf4]`. 
 
 The MDF adapter consumes already-decoded physical measurement channels. It deliberately disables automatic bus-logging processing; raw CAN/LIN decoding and DBC-driven extraction are separate future capabilities.
 
-For canonical MDF channels, use names such as `cell_1_v`, `cell_2_v`, and `temp_1_c`. With an explicit `signals` mapping, BatteryLog selects the mapped vendor channels and uses the MDF master time as the source timestamp. The configured `signals.timestamp` name is assigned to that master time before the existing canonicalization step, so the same mapping contract can be reused across CSV and MDF inputs.
+For canonical MDF channels, use names such as `pack_current_a`, `pack_voltage_v`, `cell_1_v`, `cell_2_v`, and `temp_1_c`. With an explicit `signals` mapping, BatteryLog selects the mapped vendor channels and uses the MDF master time as the source timestamp. The configured `signals.timestamp` name is assigned to that master time before the existing canonicalization step, so the same mapping contract can be reused across CSV and MDF inputs.
 
 MDF timestamps are preserved as stored; BatteryLog does not silently shift the master to start at zero. Channel alignment is fail-closed: the first MDF implementation disables interpolation. If selected channels use different timestamp rasters, missing aligned samples become `NaN` and are rejected by the existing required-data validation instead of being silently interpolated.
 
-MDF unit metadata is validated before data reaches the rule engine. Cell-voltage channels must identify volts (`V`, `volt`, or `volts`) and temperature channels must identify degrees Celsius (`degC`, `°C`, or `Celsius`). Missing units and units requiring conversion, such as `mV` or Fahrenheit, are rejected; automatic unit conversion is not yet supported.
+MDF unit metadata is validated before data reaches the rule engine. Pack-current channels must identify amperes (`A`, `amp`, `amps`, `ampere`, or `amperes`); pack/cell-voltage channels must identify volts (`V`, `volt`, or `volts`); and temperature channels must identify degrees Celsius (`degC`, `°C`, or `Celsius`). Missing units and units requiring conversion, such as `mV` or Fahrenheit, are rejected; automatic unit conversion is not yet supported.
 
 Example:
 
@@ -154,14 +160,14 @@ BatteryLog currently emits these rule codes:
 | `TEMPERATURE_HIGH` | at least one temperature signal is above the configured maximum |
 | `TEMPERATURE_LOW` | at least one temperature signal is below the configured minimum |
 
-A rule can be disabled by setting its YAML value to `null`.
+A rule can be disabled by setting its YAML value to `null`. Pack current and pack voltage are measurement/evidence fields in this release slice; overcurrent rules are intentionally deferred to the next feature PR.
 
 ## YAML configuration
 
 Example:
 
 ```yaml
-schema_version: 2
+schema_version: 3
 
 limits:
   cell_voltage:
@@ -205,13 +211,13 @@ If `max_gap_s` is omitted or `null`, BatteryLog preserves the original row-conti
 Configuration schema 2 adds an explicit `data_quality.mode`:
 
 - `strict` is the default and preserves the historical fail-fast behavior: the first missing, non-numeric, or non-finite required numeric value raises an input error.
-- `exclude_invalid_rows` is opt-in. Rows containing an invalid required timestamp, cell-voltage, or temperature value are excluded from engineering-rule evaluation and measured extrema, and the defect is recorded as structured evidence.
+- `exclude_invalid_rows` is opt-in. Rows containing an invalid required timestamp, present/configured pack-current or pack-voltage, cell-voltage, or temperature value are excluded from engineering-rule evaluation and measured extrema, and the defect is recorded as structured evidence.
 
 Exclusion can never turn defective input into a passing result. Any structured data-quality event forces `validation_status` to `FAIL`, even when no engineering rule is active or no engineering-rule violation is recorded. Excluded rows also break violation-event continuity, so BatteryLog never bridges a rule event across unknown data.
 
 Result row accounting distinguishes `rows_input`, `rows_analyzed`, and `rows_excluded`. Structured data-quality events use 1-based source data-row numbers and one of `MISSING_REQUIRED_VALUE`, `NON_NUMERIC_REQUIRED_VALUE`, or `NON_FINITE_REQUIRED_VALUE`. Adjacent rows with the same defect code and signal set are grouped into one deterministic event run.
 
-Configuration schema 1 remains accepted for backward compatibility and is equivalent to `data_quality.mode: strict`. The `data_quality` block itself is available only with `schema_version: 2`.
+Configuration schemas 1 and 2 remain accepted for backward compatibility. Schema 1 is equivalent to `data_quality.mode: strict`; schema 2 adds the `data_quality` block; schema 3 adds optional explicit `signals.pack_current` and `signals.pack_voltage` sources without changing schema-2 behavior.
 
 ## Numerical comparison semantics
 
@@ -243,9 +249,9 @@ The result also contains `rules_evaluated`, so downstream reports can show exact
 
 ## Result schema
 
-Machine-readable analysis results include their own `schema_version`. The current **result schema is 3**.
+Machine-readable analysis results include their own `schema_version`. The current **result schema is 4**.
 
-The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v3.json`](batterylog/schema/result-v3.json) and is included in the Python distribution package. The frozen v2 artifact remains packaged at [`batterylog/schema/result-v2.json`](batterylog/schema/result-v2.json) for consumers of the 0.7 contract.
+The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v4.json`](batterylog/schema/result-v4.json) and is included in the Python distribution package. The frozen v3 and v2 artifacts remain packaged at [`batterylog/schema/result-v3.json`](batterylog/schema/result-v3.json) and [`batterylog/schema/result-v2.json`](batterylog/schema/result-v2.json) for 0.8 and 0.7 consumers.
 
 Result schema version 2 was BatteryLog's **first formally frozen result contract**. Result schema version 3 extends that contract with structured data-quality evidence and explicit row accounting:
 
@@ -253,7 +259,15 @@ Result schema version 2 was BatteryLog's **first formally frozen result contract
 - `rows_input`, `rows_analyzed`, and `rows_excluded`
 - nullable measured extrema when every input row is excluded
 
-The v3 schema rejects unknown top-level/nested fields and encodes status invariants such as:
+Result schema version 4 adds pack-signal provenance and nullable electrical extrema:
+
+- `signal_mapping.pack_current_source` and `signal_mapping.pack_voltage_source`
+- `max_pack_current_a` and `min_pack_current_a`
+- `max_pack_voltage_v` and `min_pack_voltage_v`
+
+A pack extrema pair is numeric only when that signal was selected and at least one row was analyzed; otherwise it is `null`.
+
+The v4 schema rejects unknown top-level/nested fields and encodes status invariants such as:
 
 - `NOT_EVALUATED`: no rules evaluated, no violation events, and no data-quality events
 - `PASS`: at least one rule evaluated, no violation events, and no data-quality events
@@ -263,7 +277,7 @@ The v3 schema rejects unknown top-level/nested fields and encodes status invaria
 
 Some arithmetic relationships require semantic validation beyond Draft 2020-12 JSON Schema. BatteryLog-generated results guarantee `rows_input == rows_analyzed + rows_excluded`, event bounds satisfy `1 <= start_row <= end_row <= rows_input`, and each event's `affected_values` equals its inclusive row span multiplied by its signal count. Consumers of results from independent or untrusted producers should check these relationships in addition to schema validation.
 
-Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 2; config schema 1 remains accepted as the strict-mode legacy format.
+Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 3; config schemas 1 and 2 remain accepted with their historical behavior.
 
 From result schema v2 onward, adding, removing, renaming, changing the required status/type/meaning of result fields, or otherwise changing the machine-readable wire contract requires a new result-schema version. The full policy and historical rationale are documented in [`docs/RESULT_SCHEMA_VERSIONING.md`](docs/RESULT_SCHEMA_VERSIONING.md).
 
@@ -438,11 +452,11 @@ The legacy `imbalance_limit_v` and `temp_warning_c` arguments to `analyze_batter
 
 ## Engineering notes
 
-The analyzer fails closed on invalid required sensor values. A missing cell or temperature sample is treated as invalid input instead of being silently excluded from min/max calculations, because silently skipping a signal can hide a real validation failure. The validation error identifies the first failing data row, column, and value to make large-log diagnosis practical.
+The analyzer fails closed on invalid required measurement values. A missing present/configured pack signal, cell, or temperature sample is treated as invalid input instead of being silently excluded from min/max calculations, because silently skipping a signal can hide a real validation failure. The validation error identifies the first failing data row, column, and value to make large-log diagnosis practical.
 
 Event grouping uses row contiguity by default and can optionally split sparse failures with `event_detection.max_gap_s`.
 
-Signal mapping deliberately does not infer units or perform unit conversion. CSV inputs remain responsible for canonical engineering units. The MDF/MF4 loader uses available channel metadata to validate volts and degrees Celsius explicitly before canonical data reaches the rule engine.
+Signal mapping deliberately does not infer units or perform unit conversion. CSV inputs remain responsible for canonical engineering units. The MDF/MF4 loader uses available channel metadata to validate amperes, volts, and degrees Celsius explicitly before canonical data reaches the rule engine.
 
 HTML evidence generation copies the source measurement file into a private temporary-file snapshot while computing SHA-256 in the same streaming pass. Analysis then consumes that exact snapshot through the selected loader. CSV uses 50,000-row chunks. When all required MDF/MF4 channels share one channel group, BatteryLog reads record-bounded selected-signal chunks sized from a 64 MiB numeric-row target; multi-group inputs retain the `asammdf` no-interpolation DataFrame fallback with a 64 MiB output-chunk target. The optional YAML config remains an immutable byte snapshot. This keeps the provenance content-addressed: the bytes named by the report hashes are the bytes that produced the result, without retaining the full source measurement as one large Python `bytes` object.
 

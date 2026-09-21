@@ -26,12 +26,18 @@ def test_vendor_mapping_example_runs_end_to_end() -> None:
     assert result["max_cell_voltage_v"] == pytest.approx(3.95)
     assert result["max_delta_v"] == pytest.approx(0.10)
     assert result["max_temperature_c"] == pytest.approx(48.0)
+    assert result["min_pack_current_a"] == pytest.approx(-25.0)
+    assert result["max_pack_current_a"] == pytest.approx(35.0)
+    assert result["min_pack_voltage_v"] == pytest.approx(398.0)
+    assert result["max_pack_voltage_v"] == pytest.approx(405.0)
     assert result["analysis_options"] == {"max_event_gap_s": 2.0}
     assert result["signal_mapping"] == {
         "mode": "explicit",
         "timestamp_source": "Time_s",
         "cell_voltage_pattern": r"BMS_CellVoltage_(?P<index>\d+)",
         "temperature_pattern": r"T_Module_(?P<index>\d+)",
+        "pack_current_source": "PackCurrent",
+        "pack_voltage_source": "PackVoltage",
     }
     assert [event["code"] for event in result["violations"]] == [
         "CELL_IMBALANCE_HIGH",

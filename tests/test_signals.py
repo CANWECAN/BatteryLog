@@ -10,11 +10,15 @@ def _mapping(
     timestamp: str = "Time_s",
     cell_pattern: str = r"BMS_CellVoltage_(?P<index>\d+)",
     temp_pattern: str = r"T_Module_(?P<index>\d+)",
+    pack_current: str | None = None,
+    pack_voltage: str | None = None,
 ) -> SignalMapping:
     return SignalMapping(
         timestamp=timestamp,
         cell_voltage=SignalPattern(cell_pattern),
         temperature=SignalPattern(temp_pattern),
+        pack_current=pack_current,
+        pack_voltage=pack_voltage,
     )
 
 
@@ -63,6 +67,62 @@ def test_explicit_mapping_canonicalizes_and_sorts_numeric_indexes() -> None:
         "temp_1_c": 28.0,
         "temp_3_c": 30.0,
     }
+
+
+def test_explicit_mapping_canonicalizes_optional_pack_signals() -> None:
+    frame = pd.DataFrame(
+        {
+            "Time_s": [0.0],
+            "Pack_A": [-12.5],
+            "Pack_V": [402.3],
+            "BMS_CellVoltage_1": [3.8],
+            "T_Module_1": [25.0],
+        }
+    )
+
+    result = canonicalize_battery_signals(
+        frame,
+        _mapping(pack_current="Pack_A", pack_voltage="Pack_V"),
+    )
+
+    assert list(result.columns) == [
+        "timestamp_s",
+        "pack_current_a",
+        "pack_voltage_v",
+        "cell_1_v",
+        "temp_1_c",
+    ]
+    assert result["pack_current_a"].tolist() == [-12.5]
+    assert result["pack_voltage_v"].tolist() == [402.3]
+
+
+def test_missing_mapped_pack_signal_is_rejected() -> None:
+    frame = pd.DataFrame(
+        {
+            "Time_s": [0.0],
+            "BMS_CellVoltage_1": [3.8],
+            "T_Module_1": [25.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="Mapped pack signal column.*Pack_A"):
+        canonicalize_battery_signals(frame, _mapping(pack_current="Pack_A"))
+
+
+def test_pack_signal_cannot_share_a_sensor_source() -> None:
+    frame = pd.DataFrame(
+        {
+            "Time_s": [0.0],
+            "BMS_CellVoltage_1": [3.8],
+            "T_Module_1": [25.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="one source to multiple roles"):
+        canonicalize_battery_signals(
+            frame,
+            _mapping(pack_voltage="BMS_CellVoltage_1"),
+        )
 
 
 def test_duplicate_logical_indexes_are_rejected() -> None:

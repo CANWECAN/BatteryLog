@@ -516,7 +516,7 @@ def test_all_invalid_data_quality_report_uses_null_safe_extrema_and_empty_plots(
     html = render_html_report(result, series=empty_series)
 
     assert result["rows_analyzed"] == 0
-    assert html.count("N/A") == 5
+    assert html.count("N/A") == 9
     assert "No plot data available." in html
     assert "Rows excluded</strong><br>2" in html
     assert "NON_NUMERIC_REQUIRED_VALUE" in html

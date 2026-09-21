@@ -31,7 +31,7 @@ def test_cli_fail_emits_json_and_returns_exit_1(capsys) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 1
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     assert payload["validation_status"] == "FAIL"
     assert payload["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",
@@ -344,6 +344,8 @@ def test_cli_applies_explicit_signal_mapping_from_yaml(tmp_path, capsys) -> None
         "timestamp_source": "Time_s",
         "cell_voltage_pattern": r"BMS_CellVoltage_(?P<index>\d+)",
         "temperature_pattern": r"T_Module_(?P<index>\d+)",
+        "pack_current_source": None,
+        "pack_voltage_source": None,
     }
     assert payload["max_cell_voltage_v"] == 3.9
     assert payload["violations"][0]["signals"] == ["cell_2_v", "cell_1_v"]
@@ -614,7 +616,7 @@ def test_cli_report_preserves_json_stdout_contract(tmp_path, capsys) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     assert payload["validation_status"] == "PASS"
     assert "plot" not in payload
     assert "report_series" not in payload
@@ -873,7 +875,7 @@ def test_cli_config_v2_excludes_invalid_rows_and_reports_structured_evidence(
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 1
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     assert payload["validation_status"] == "FAIL"
     assert payload["rows_input"] == 2
     assert payload["rows_analyzed"] == 1

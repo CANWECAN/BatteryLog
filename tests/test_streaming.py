@@ -105,6 +105,28 @@ def test_streaming_matches_whole_frame_across_chunk_boundaries(
     assert actual == expected
 
 
+def test_pack_signal_extrema_are_chunk_boundary_invariant(tmp_path: Path) -> None:
+    path = tmp_path / "pack.csv"
+    path.write_text(
+        "timestamp_s,pack_current_a,pack_voltage_v,temp_c,cell_1_v\n"
+        "0,-20,398,25,3.8\n"
+        "1,0,400,26,3.9\n"
+        "2,35,405,27,3.85\n",
+        encoding="utf-8",
+    )
+
+    expected = _analyze_battery_frame(load_battery_csv(path))
+    actual = _analyze_battery_chunks(
+        iter_battery_csv(path, chunk_rows=1),
+    )
+
+    assert actual == expected
+    assert actual["min_pack_current_a"] == -20.0
+    assert actual["max_pack_current_a"] == 35.0
+    assert actual["min_pack_voltage_v"] == 398.0
+    assert actual["max_pack_voltage_v"] == 405.0
+
+
 def test_streaming_preserves_first_equal_peak_across_chunk_boundary(tmp_path: Path) -> None:
     path = tmp_path / "equal_peak.csv"
     path.write_text(

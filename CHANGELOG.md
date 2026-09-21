@@ -13,6 +13,14 @@ All notable changes to BatteryLog are documented here.
 - Treat SOC plausibility and rate-of-change analysis as candidates that must be justified against real validation data before entering the release scope.
 - Keep capacity/energy/DCIR, balancing analysis, raw CAN/DBC decoding, generic rule DSLs, dashboards, and unrelated framework expansion outside the initial 0.9 scope.
 
+### Pack electrical signals
+
+- Added optional canonical `pack_current_a` and `pack_voltage_v` measurements with streaming/whole-frame extrema parity.
+- Added config schema version 3 for optional explicit vendor pack-current and pack-voltage source names while retaining schemas 1 and 2 unchanged.
+- Added CSV/MDF semantic parity, including fail-closed MDF ampere/volt unit validation and required-numeric data-quality handling.
+- Promoted the machine-readable result contract to schema version 4 with pack-signal provenance and nullable electrical extrema while retaining frozen result-v2 and result-v3 artifacts.
+- Kept the existing five rule codes and their 0.8 threshold, grouping, and PASS/FAIL semantics unchanged; no overcurrent rule is introduced in this change.
+
 ## 0.8.0 - 2026-09-21
 
 ### Structured data quality
