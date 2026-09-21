@@ -186,4 +186,7 @@ def test_real_mf4_cli_report_uses_file_backed_snapshot(tmp_path: Path, capsys) -
     assert exit_code == 0
     assert '"validation_status": "PASS"' in capsys.readouterr().out
     assert report_path.exists()
-    assert mf4_path.name in report_path.read_text(encoding="utf-8")
+    html = report_path.read_text(encoding="utf-8")
+    assert mf4_path.name in html
+    assert html.count('class="timeseries-chart"') == 3
+    assert "Cell-voltage envelope" in html

@@ -6,6 +6,7 @@ import sys
 from importlib.metadata import version
 from importlib.resources import files
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import jsonschema
 
@@ -18,18 +19,26 @@ assert empty_series.source_rows == 0
 assert empty_series.points == ()
 schema = json.loads(files("batterylog").joinpath("schema/result-v2.json").read_text())
 jsonschema.Draft202012Validator.check_schema(schema)
-completed = subprocess.run(
-    [
-        str(Path(sys.executable).with_name("batterylog")),
-        str(Path(sample).resolve()),
-        "--cell-max-v",
-        "5",
-    ],
-    check=True,
-    capture_output=True,
-    text=True,
-)
-result = json.loads(completed.stdout)
-jsonschema.validate(result, schema)
-assert result["validation_status"] == "PASS"
-print(f"Installed BatteryLog {expected_version}: CLI and packaged schema verified")
+with TemporaryDirectory() as directory:
+    report = Path(directory) / "report.html"
+    completed = subprocess.run(
+        [
+            str(Path(sys.executable).with_name("batterylog")),
+            str(Path(sample).resolve()),
+            "--cell-max-v",
+            "5",
+            "--report",
+            str(report),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = json.loads(completed.stdout)
+    jsonschema.validate(result, schema)
+    assert result["validation_status"] == "PASS"
+    html = report.read_text(encoding="utf-8")
+    assert html.count('class="timeseries-chart"') == 3
+    assert "Cell-voltage envelope" in html
+
+print(f"Installed BatteryLog {expected_version}: CLI, schema, and HTML plots verified")

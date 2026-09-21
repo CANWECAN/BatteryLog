@@ -13,6 +13,7 @@ from batterylog import (
     ValidationLimits,
     analyze_battery_log,
 )
+from batterylog.analysis.streaming import analyze_battery_file_with_report_series
 from batterylog.reporting import (
     FileEvidence,
     ReportMetadata,
@@ -74,6 +75,25 @@ def test_render_html_report_contains_validation_evidence() -> None:
     assert "<script>" not in html
     assert "&lt;script&gt;" in html
     assert "limits&lt;unsafe&gt;.yaml" in html
+    assert 'class="timeseries-chart"' not in html
+
+
+def test_full_html_report_with_plots_is_deterministic_for_fixed_inputs() -> None:
+    with SAMPLE.open("rb") as handle:
+        result, series = analyze_battery_file_with_report_series(
+            handle,
+            source_name=SAMPLE.name,
+            limits=ValidationLimits(
+                imbalance_max_v=0.08,
+                temperature_max_c=45.0,
+            ),
+        )
+
+    first = render_html_report(result, metadata=_metadata(), series=series)
+    second = render_html_report(result, metadata=_metadata(), series=series)
+
+    assert first == second
+    assert first.count('class="timeseries-chart"') == 3
 
 
 def test_not_evaluated_report_is_not_presented_as_pass() -> None:

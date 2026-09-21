@@ -42,6 +42,14 @@ BatteryLog treats CSV, MDF/MF4, and YAML inputs as untrusted data and validates 
 
 Validation limits are engineering inputs. BatteryLog does not infer universal safe limits.
 
+## Visualization evidence boundary
+
+HTML time-series plots are presentation artifacts derived from row-level metrics computed during the same snapshot-backed analysis pass. They are not a second validation engine and do not determine `NOT_EVALUATED`, `PASS`, or `FAIL`.
+
+Plot geometry may be deterministically downsampled for large inputs. Configured limit lines are rendered from the effective `AnalysisResult["limits_applied"]`, while shaded violation intervals and worst-case markers are rendered from `AnalysisResult["violations"]`. Downsampling therefore cannot remove a structured violation event from the report's validation evidence, even if an interior visual sample is not retained in the plotted series.
+
+The machine-readable result and structured violation table remain authoritative. A visualization defect could misrepresent presentation, but must not alter the validation decision or structured evidence contract.
+
 ## Memory and temporary-storage tradeoff
 
 CSV analysis processes source data in fixed row chunks and carries validation state across chunk boundaries. MDF/MF4 requests 64 MiB output DataFrame chunks from the optional `asammdf` loader; that target does not by itself establish a total-process RSS bound for third-party filtering internals. The returned violation-event list is still materialized and can grow with the number of distinct events.

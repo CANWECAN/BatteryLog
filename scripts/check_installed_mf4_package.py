@@ -78,6 +78,9 @@ with TemporaryDirectory() as tmp:
     assert exit_code == 0
     assert payload["validation_status"] == "PASS"
     assert report.exists()
-    assert source.name in report.read_text(encoding="utf-8")
+    html = report.read_text(encoding="utf-8")
+    assert source.name in html
+    assert html.count('class="timeseries-chart"') == 3
+    assert "Cell-voltage envelope" in html
 
-print(f"Installed BatteryLog {expected_version}: MF4 extra and report path verified")
+print(f"Installed BatteryLog {expected_version}: MF4 extra, report path, and HTML plots verified")

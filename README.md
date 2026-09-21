@@ -51,6 +51,7 @@ The preview below is generated from the repository's vendor-style sample CSV and
 - Emit a versioned machine-readable JSON result
 - Publish and CI-validate the result contract as Draft 2020-12 JSON Schema
 - Generate self-contained HTML validation reports
+- Render deterministic inline SVG plots for cell-voltage envelope, cell delta, temperature envelope, configured limits, and violation evidence
 - Record input/config SHA-256 provenance in HTML reports
 - Return CI-friendly process exit codes
 - Run as a Python API
@@ -349,7 +350,7 @@ Write the canonical JSON result explicitly as UTF-8:
 
 JSON remains the canonical stdout output for completed analyses, including when `--report` or `--json-out` is supplied. `--json-out` adds an atomically written UTF-8 file; it does not suppress stdout. This avoids relying on shell-specific redirection encodings while preserving the existing script-friendly stdout contract.
 
-The HTML report contains the validation status, dataset summary, measured extrema, effective limits, evaluated rules, signal-mapping provenance, violation events, BatteryLog version, result-schema version, UTC generation timestamp, and SHA-256 provenance for the input log and optional YAML config.
+The HTML report contains the validation status, dataset summary, measured extrema, deterministic inline SVG time-series plots, effective limits, evaluated rules, signal-mapping provenance, violation events, BatteryLog version, result-schema version, UTC generation timestamp, and SHA-256 provenance for the input log and optional YAML config. The plots cover the cell-voltage min/max envelope, cell-voltage delta, and temperature min/max envelope. Configured limit lines come from the effective `limits_applied` result, while shaded violation intervals and worst-case markers come from the existing structured violation events.
 
 Report and JSON output paths are not allowed to overwrite the input log or validation config, and the JSON and HTML output paths must be distinct.
 
@@ -428,9 +429,9 @@ CSV standard analysis and HTML evidence-report analysis use 50,000-row source ch
 
 Evidence-report mode requires temporary storage approximately proportional to the source measurement-file size while the report is being generated. The temporary snapshot is closed and removed automatically when analysis finishes. The optional YAML config is still retained in memory and therefore contributes memory proportional to config size.
 
-Time-series plot preparation is intentionally separate from `AnalysisResult`: the reducer consumes row-level extrema already computed by the streaming analyzer and never recalculates PASS/FAIL decisions, limits, or violation events. Inputs within the configured point budget remain lossless; larger inputs use deterministic extrema-preserving reduction that is independent of loader chunk boundaries. The detailed contract is documented in [`docs/REPORT_SERIES.md`](docs/REPORT_SERIES.md).
+Time-series plotting is intentionally separate from `AnalysisResult`: the reducer consumes row-level extrema already computed by the streaming analyzer and never recalculates PASS/FAIL decisions, limits, or violation events. Inputs within the configured point budget remain lossless; larger inputs use deterministic extrema-preserving reduction that is independent of loader chunk boundaries. HTML reports render the retained geometry directly as inline SVG, with no external JavaScript, image files, or plotting dependency. The default retained-point budget is 2,400; violation intervals and worst-case markers are overlaid from `AnalysisResult["violations"]`, so downsampling cannot erase validation evidence. The detailed contract is documented in [`docs/REPORT_SERIES.md`](docs/REPORT_SERIES.md).
 
-Planned follow-on work includes rendering the prepared report series as self-contained plots, CAN/DBC decoding, richer rule metadata, broader unit-conversion policy, and signed evidence manifests.
+Planned follow-on work includes CAN/DBC decoding, richer rule metadata, broader unit-conversion policy, signed evidence manifests, and further real-world report/performance validation.
 
 ## Status
 

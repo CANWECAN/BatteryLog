@@ -13,12 +13,17 @@ All notable changes to BatteryLog are documented here.
 - Added real MDF4 integration tests for CSV equivalence, vendor signal mapping, misaligned rasters, duplicate channel names, and HTML evidence reports.
 - Gated tagged releases on dedicated MDF/MF4 integration jobs across Python 3.11-3.14 and Windows.
 
-### Report plot preparation
+### Report plots
 
 - Added a separate immutable report-series contract without changing result schema v2 or validation semantics.
 - Added deterministic `extrema-preserving-v1` downsampling with a configurable retained-point budget.
 - Preserved first/last samples and per-bucket extrema for cell minimum/maximum voltage, cell delta, and temperature minimum/maximum.
 - Added chunk-boundary invariance and property-based tests proving retained-point bounds and global-extrema preservation.
+- Added three self-contained inline SVG plots to HTML evidence reports: cell-voltage envelope, cell-voltage delta, and temperature envelope.
+- Rendered configured limit lines from the effective result limits and violation intervals/worst-case markers from structured `AnalysisResult` events rather than re-evaluating rules from plot data.
+- Kept JSON/result schema v2 unchanged and kept plot collection off the standard non-report analysis path.
+- Added CSV and real MDF4 CLI report tests covering plot generation, provenance, deterministic rendering, and event-marker sourcing.
+- Hardened plot evidence after adversarial review: malformed per-point envelopes/deltas, non-finite or out-of-domain events, reversed event timing, and unmapped rule codes now fail closed; instantaneous events use exact vertical markers and single-row plots show explicit samples.
 
 ### Large-log analysis
 
