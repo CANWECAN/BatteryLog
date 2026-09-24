@@ -89,7 +89,7 @@ Canonical provenance uses the exact names `pack_current_a` and `pack_voltage_v`;
 
 ### Result schema version 5
 
-Result schema version 5 is the current BatteryLog machine-readable result contract for the 0.9 development line. Its Draft 2020-12 JSON Schema is:
+Result schema version 5 introduced explicit pack-current validation evidence for the 0.9 development line. Its frozen Draft 2020-12 JSON Schema is:
 
 ```text
 batterylog/schema/result-v5.json
@@ -105,7 +105,24 @@ Version 5 adds explicit pack-current validation evidence:
 
 When either pack-current limit is active, `pack_current_positive_direction` is `charge` or `discharge`; it cannot be `null`. Runtime analysis also requires a selected `pack_current_a` signal when either overcurrent rule is active.
 
-The v2, v3, and v4 artifacts remain frozen and packaged for existing consumers.
+The v2, v3, v4, and v5 artifacts remain frozen and packaged for existing consumers.
+
+### Result schema version 6
+
+Result schema version 6 is the current BatteryLog machine-readable result contract for the 0.9 development line. Its Draft 2020-12 JSON Schema is:
+
+```text
+batterylog/schema/result-v6.json
+```
+
+Version 6 adds explicit temperature-spread validation evidence:
+
+- rule code `TEMPERATURE_SPREAD_HIGH`
+- applied limit `temperature_spread_max_c`
+- exact measured metric `max_temperature_spread_c`
+- peak sensor evidence containing the hottest and coldest temperature signal(s)
+
+Temperature spread is evaluated per analyzed row as maximum temperature minus minimum temperature. The configured limit and measured maximum are non-negative. The v2, v3, v4, and v5 artifacts remain frozen and packaged for existing consumers.
 
 ## Versioning policy from v2 onward
 

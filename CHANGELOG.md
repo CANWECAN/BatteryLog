@@ -30,6 +30,14 @@ All notable changes to BatteryLog are documented here.
 - Promoted the machine-readable result contract to schema version 5 and retained result-v4 as a frozen pre-overcurrent artifact.
 - Added CLI current-limit overrides/disables, CSV/MF4 parity tests, chunk-boundary event regression coverage, and a pack-current HTML plot sourced from `AnalysisResult` evidence.
 
+### Temperature-spread validation
+
+- Added config schema version 5 with `limits.temperature.max_spread_c` while retaining config schemas 1-4.
+- Added deterministic `TEMPERATURE_SPREAD_HIGH` evaluation from row-wise maximum minus minimum temperature using the existing strict binary64-guarded comparison and event-grouping semantics.
+- Added peak evidence identifying the hottest and coldest temperature signal(s), plus exact `max_temperature_spread_c` result evidence.
+- Promoted the machine-readable result contract to schema version 6 while retaining result-v5 as a frozen pre-temperature-spread artifact.
+- Added CLI override/disable support, whole-frame/streaming chunk-boundary parity tests, schema coverage, and a dedicated temperature-spread HTML plot without changing report-series point-budget semantics.
+
 ## 0.8.0 - 2026-09-21
 
 ### Structured data quality
