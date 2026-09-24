@@ -22,7 +22,7 @@ def test_sample_log_returns_structured_violation_events() -> None:
         ),
     )
 
-    assert result["schema_version"] == 5
+    assert result["schema_version"] == 6
     assert result["validation_status"] == "FAIL"
     assert result["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",
@@ -381,6 +381,7 @@ def test_result_contains_applied_limit_snapshot() -> None:
         "imbalance_max_v": 0.08,
         "temperature_min_c": -20.0,
         "temperature_max_c": 55.0,
+        "temperature_spread_max_c": None,
         "pack_charge_max_a": None,
         "pack_discharge_max_a": None,
         "pack_current_positive_direction": None,
@@ -791,3 +792,37 @@ def test_pack_current_rule_requires_signal(tmp_path: Path) -> None:
         match="Pack-current validation requires column 'pack_current_a'",
     ):
         analyze_battery_log(path, limits=limits)
+
+def test_temperature_spread_rule_preserves_peak_sensor_pair(tmp_path: Path) -> None:
+    path = tmp_path / "temperature_spread.csv"
+    path.write_text(
+        "timestamp_s,temp_1_c,temp_2_c,temp_3_c,cell_1_v\n"
+        "0,20,30,25,3.8\n1,22,34,25,3.8\n2,24,40,30,3.8\n3,25,30,28,3.8\n",
+        encoding="utf-8",
+    )
+    result = analyze_battery_log(
+        path, limits=ValidationLimits(temperature_spread_max_c=10.0)
+    )
+    assert result["rules_evaluated"] == ["TEMPERATURE_SPREAD_HIGH"]
+    assert result["validation_status"] == "FAIL"
+    assert result["limits_applied"]["temperature_spread_max_c"] == pytest.approx(10.0)
+    assert result["max_temperature_spread_c"] == pytest.approx(16.0)
+    assert result["violations"] == [{
+        "code": "TEMPERATURE_SPREAD_HIGH",
+        "start_time_s": 1.0, "end_time_s": 2.0, "peak_time_s": 2.0,
+        "measured_value": 16.0, "limit_value": 10.0, "unit": "degC",
+        "signals": ["temp_2_c", "temp_1_c"],
+    }]
+
+def test_temperature_spread_exact_boundary_passes(tmp_path: Path) -> None:
+    path = tmp_path / "temperature_spread_boundary.csv"
+    path.write_text(
+        "timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,20,30,3.8\n1,21,31,3.8\n",
+        encoding="utf-8",
+    )
+    result = analyze_battery_log(
+        path, limits=ValidationLimits(temperature_spread_max_c=10.0)
+    )
+    assert result["validation_status"] == "PASS"
+    assert result["max_temperature_spread_c"] == pytest.approx(10.0)
+    assert result["violations"] == []

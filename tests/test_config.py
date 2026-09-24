@@ -31,6 +31,7 @@ def test_default_limits_enable_no_engineering_rules() -> None:
     assert limits.imbalance_max_v is None
     assert limits.temperature_min_c is None
     assert limits.temperature_max_c is None
+    assert limits.temperature_spread_max_c is None
 
 
 def test_load_validation_limits_from_yaml(tmp_path: Path) -> None:
@@ -76,12 +77,13 @@ limits:
 
     assert limits.imbalance_max_v is None
     assert limits.temperature_max_c is None
+    assert limits.temperature_spread_max_c is None
 
 
 @pytest.mark.parametrize(
     ("content", "exception_type", "message"),
     [
-        ("schema_version: 5\n", ValueError, "Unsupported schema_version"),
+        ("schema_version: 6\n", ValueError, "Unsupported schema_version"),
         ("limits: []\n", TypeError, "limits must be a mapping"),
         (
             "limits:\n  cell_voltage:\n    typo_v: 4.2\n",
@@ -759,3 +761,25 @@ def test_pack_current_limit_contract_rejects_ambiguous_values(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         ValidationLimits(**kwargs)  # type: ignore[arg-type]
+
+def test_config_schema_v5_parses_temperature_spread_limit(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "schema_version: 5\nlimits:\n  temperature:\n    max_spread_c: 12\n",
+    )
+    config = load_validation_config(path)
+    assert config.limits.temperature_spread_max_c == pytest.approx(12.0)
+
+
+def test_config_schema_v4_rejects_temperature_spread_limit(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "schema_version: 4\nlimits:\n  temperature:\n    max_spread_c: 12\n",
+    )
+    with pytest.raises(ValueError, match="Unknown limits.temperature key"):
+        load_validation_config(path)
+
+
+def test_temperature_spread_limit_must_be_non_negative() -> None:
+    with pytest.raises(ValueError, match="temperature_spread_max_c must be non-negative"):
+        ValidationLimits(temperature_spread_max_c=-0.1)

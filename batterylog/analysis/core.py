@@ -35,7 +35,12 @@ from batterylog.signals import (
 
 from .comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
 from .data_quality import DataQualityCollector, _required_boolean_mask
-from .rules import build_high_events, build_imbalance_events, build_low_events
+from .rules import (
+    build_high_events,
+    build_imbalance_events,
+    build_low_events,
+    build_temperature_spread_events,
+)
 
 
 def _find_signal_columns(columns: pd.Index) -> tuple[list[str], list[str]]:
@@ -148,6 +153,7 @@ def _limits_snapshot(limits: ValidationLimits) -> AppliedLimits:
         "imbalance_max_v": limits.imbalance_max_v,
         "temperature_min_c": limits.temperature_min_c,
         "temperature_max_c": limits.temperature_max_c,
+        "temperature_spread_max_c": limits.temperature_spread_max_c,
         "pack_charge_max_a": limits.pack_charge_max_a,
         "pack_discharge_max_a": limits.pack_discharge_max_a,
         "pack_current_positive_direction": limits.pack_current_positive_direction,
@@ -231,6 +237,8 @@ def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
         codes.append("TEMPERATURE_HIGH")
     if limits.temperature_min_c is not None:
         codes.append("TEMPERATURE_LOW")
+    if limits.temperature_spread_max_c is not None:
+        codes.append("TEMPERATURE_SPREAD_HIGH")
     if limits.pack_charge_max_a is not None:
         codes.append("PACK_CHARGE_OVERCURRENT")
     if limits.pack_discharge_max_a is not None:
@@ -317,6 +325,7 @@ def _analyze_battery_frame(
     delta_v = cell_max - cell_min
     row_max_temp = rule_numeric[temp_cols].max(axis=1)
     row_min_temp = rule_numeric[temp_cols].min(axis=1)
+    temperature_spread = row_max_temp - row_min_temp
 
     rules_evaluated = _active_rule_codes(resolved_limits)
     violations: list[ViolationEvent] = []
@@ -385,6 +394,17 @@ def _analyze_battery_frame(
             )
         )
 
+    if resolved_limits.temperature_spread_max_c is not None:
+        violations.extend(
+            build_temperature_spread_events(
+                rule_numeric,
+                timestamps,
+                temp_cols,
+                temperature_spread,
+                resolved_limits.temperature_spread_max_c,
+                max_gap_s=resolved_event_detection.max_gap_s,
+            )
+        )
     if pack_current_col is not None:
         pack_current = rule_numeric[pack_current_col]
         for direction, code in (
@@ -442,6 +462,9 @@ def _analyze_battery_frame(
         "max_delta_v": round(float(delta_v.loc[valid_rows].max()), 12) if rows_analyzed else None,
         "max_temperature_c": (float(row_max_temp.loc[valid_rows].max()) if rows_analyzed else None),
         "min_temperature_c": (float(row_min_temp.loc[valid_rows].min()) if rows_analyzed else None),
+        "max_temperature_spread_c": (
+            round(float(temperature_spread.loc[valid_rows].max()), 12) if rows_analyzed else None
+        ),
         "max_pack_current_a": (
             float(rule_numeric.loc[valid_rows, pack_current_col].max())
             if rows_analyzed and pack_current_col is not None

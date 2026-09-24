@@ -340,3 +340,20 @@ def test_pack_overcurrent_streaming_matches_whole_frame_across_chunk_boundary() 
     )
 
     assert actual == expected
+
+def test_temperature_spread_streaming_matches_whole_frame_across_chunk_boundary() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0, 2.0, 3.0],
+            "temp_1_c": [20.0, 22.0, 24.0, 25.0],
+            "temp_2_c": [30.0, 34.0, 40.0, 30.0],
+            "cell_1_v": [3.8, 3.8, 3.8, 3.8],
+        }
+    )
+    limits = ValidationLimits(temperature_spread_max_c=10.0)
+    expected = _analyze_battery_frame(frame, limits=limits)
+    actual = _analyze_battery_chunks(
+        [frame.iloc[:2].copy(), frame.iloc[2:3].copy(), frame.iloc[3:].copy()],
+        limits=limits,
+    )
+    assert actual == expected

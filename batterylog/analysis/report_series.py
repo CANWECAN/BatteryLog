@@ -30,6 +30,10 @@ class ReportSeriesPoint:
     temperature_max_c: float
     pack_current_a: float | None = None
 
+    @property
+    def temperature_spread_c(self) -> float:
+        return self.temperature_max_c - self.temperature_min_c
+
 
 @dataclass(frozen=True, slots=True)
 class ReportSeries:

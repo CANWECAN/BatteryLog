@@ -33,6 +33,7 @@ def _limits_rows(result: AnalysisResult) -> str:
         ("Maximum cell delta", limits["imbalance_max_v"], "V"),
         ("Minimum temperature", limits["temperature_min_c"], "degC"),
         ("Maximum temperature", limits["temperature_max_c"], "degC"),
+        ("Maximum temperature spread", limits["temperature_spread_max_c"], "degC"),
         ("Maximum pack charge current", limits["pack_charge_max_a"], "A"),
         ("Maximum pack discharge current", limits["pack_discharge_max_a"], "A"),
     ]
@@ -221,6 +222,10 @@ def _measured_metric_rows(result: AnalysisResult) -> str:
             _metric_row(
                 "Minimum temperature",
                 _fmt_measurement(result["min_temperature_c"], "degC"),
+            ),
+            _metric_row(
+                "Maximum temperature spread",
+                _fmt_measurement(result["max_temperature_spread_c"], "degC"),
             ),
             _metric_row(
                 "Maximum pack current",

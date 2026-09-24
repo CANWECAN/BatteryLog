@@ -8,10 +8,11 @@ RuleCode = Literal[
     "PACK_DISCHARGE_OVERCURRENT",
     "TEMPERATURE_HIGH",
     "TEMPERATURE_LOW",
+    "TEMPERATURE_SPREAD_HIGH",
 ]
 
-ResultSchemaVersion = Literal[5]
-RESULT_SCHEMA_VERSION: ResultSchemaVersion = 5
+ResultSchemaVersion = Literal[6]
+RESULT_SCHEMA_VERSION: ResultSchemaVersion = 6
 
 CurrentDirection = Literal["charge", "discharge"]
 ValidationStatus = Literal["NOT_EVALUATED", "PASS", "FAIL"]
@@ -40,6 +41,7 @@ class AppliedLimits(TypedDict):
     pack_charge_max_a: float | None
     pack_discharge_max_a: float | None
     pack_current_positive_direction: CurrentDirection | None
+    temperature_spread_max_c: float | None
 
 
 class AnalysisOptions(TypedDict):
@@ -98,6 +100,7 @@ class AnalysisResult(TypedDict):
     max_delta_v: float | None
     max_temperature_c: float | None
     min_temperature_c: float | None
+    max_temperature_spread_c: float | None
     max_pack_current_a: float | None
     min_pack_current_a: float | None
     max_pack_voltage_v: float | None
