@@ -76,10 +76,13 @@ def _merge_streaming_events(
     merged: ViolationEvent = {
         **previous,
         "end_time_s": current["end_time_s"],
+        "sample_count": previous["sample_count"] + current["sample_count"],
+        "duration_s": round(current["end_time_s"] - previous["start_time_s"], 12),
     }
     if current_is_more_severe:
         merged["peak_time_s"] = current["peak_time_s"]
         merged["measured_value"] = current_value
+        merged["peak_excursion"] = current["peak_excursion"]
         merged["signals"] = current["signals"]
 
     return merged

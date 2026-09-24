@@ -179,6 +179,9 @@ def _violation_rows(result: AnalysisResult) -> str:
             f"<td>{event['peak_time_s']:.12g}</td>"
             f"<td>{event['measured_value']:.12g} {escape(event['unit'])}</td>"
             f"<td>{event['limit_value']:.12g} {escape(event['unit'])}</td>"
+            f"<td>{event['sample_count']}</td>"
+            f"<td>{event['duration_s']:.12g}</td>"
+            f"<td>{event['peak_excursion']:.12g} {escape(event['unit'])}</td>"
             f"<td>{escape(signals)}</td>"
             "</tr>"
         )
@@ -266,7 +269,8 @@ def render_html_report(
     violations = _violation_rows(result)
     violation_section = (
         f"<table><thead><tr><th>Code</th><th>Start (s)</th><th>End (s)</th>"
-        f"<th>Worst (s)</th><th>Measured</th><th>Limit</th><th>Signals</th>"
+        f"<th>Worst (s)</th><th>Measured</th><th>Limit</th><th>Samples</th>"
+        f"<th>Duration (s)</th><th>Peak excursion</th><th>Signals</th>"
         f"</tr></thead><tbody>{violations}</tbody></table>"
         if violations
         else "<p>No violation events were recorded.</p>"

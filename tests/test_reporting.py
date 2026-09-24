@@ -71,6 +71,11 @@ def test_render_html_report_contains_validation_evidence() -> None:
     assert "TEMPERATURE_HIGH" in html
     assert "0.08 V" in html
     assert "45 degC" in html
+    assert "<th>Samples</th>" in html
+    assert "<th>Duration (s)</th>" in html
+    assert "<th>Peak excursion</th>" in html
+    assert "0.02 V" in html
+    assert "3 degC" in html
     assert "0.4.0" in html
     assert "source-digest" in html
     assert "config-digest" in html

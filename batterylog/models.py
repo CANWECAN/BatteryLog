@@ -11,8 +11,8 @@ RuleCode = Literal[
     "TEMPERATURE_SPREAD_HIGH",
 ]
 
-ResultSchemaVersion = Literal[6]
-RESULT_SCHEMA_VERSION: ResultSchemaVersion = 6
+ResultSchemaVersion = Literal[7]
+RESULT_SCHEMA_VERSION: ResultSchemaVersion = 7
 
 CurrentDirection = Literal["charge", "discharge"]
 ValidationStatus = Literal["NOT_EVALUATED", "PASS", "FAIL"]
@@ -77,6 +77,9 @@ class ViolationEvent(TypedDict):
     peak_time_s: float
     measured_value: float
     limit_value: float
+    sample_count: int
+    duration_s: float
+    peak_excursion: float
     unit: str
     signals: list[str]
 
