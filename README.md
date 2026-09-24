@@ -85,7 +85,7 @@ timestamp_s,pack_current_a,pack_voltage_v,temp_1_c,temp_2_c,cell_1_v,cell_2_v
 Vendor exports do not need to be renamed before analysis. A YAML config can explicitly map source channel names into BatteryLog's canonical model:
 
 ```yaml
-schema_version: 4
+schema_version: 5
 signals:
   timestamp: Time_s
   pack_current: PackCurrent
@@ -161,6 +161,7 @@ BatteryLog currently emits these rule codes:
 | `PACK_DISCHARGE_OVERCURRENT` | signed pack current exceeds the configured discharge-current magnitude in the declared discharge direction |
 | `TEMPERATURE_HIGH` | at least one temperature signal is above the configured maximum |
 | `TEMPERATURE_LOW` | at least one temperature signal is below the configured minimum |
+| `TEMPERATURE_SPREAD_HIGH` | row-wise maximum temperature minus minimum temperature exceeds the configured spread limit |
 
 A rule can be disabled by setting its YAML value to `null`. Pack voltage remains a measurement/evidence field and does not activate a rule.
 
@@ -169,7 +170,7 @@ A rule can be disabled by setting its YAML value to `null`. Pack voltage remains
 Example:
 
 ```yaml
-schema_version: 4
+schema_version: 5
 
 limits:
   cell_voltage:
@@ -180,6 +181,7 @@ limits:
   temperature:
     min_c: -20
     max_c: 55
+    max_spread_c: 12
 
   pack_current:
     charge_max_a: 80
@@ -226,7 +228,7 @@ Exclusion can never turn defective input into a passing result. Any structured d
 
 Result row accounting distinguishes `rows_input`, `rows_analyzed`, and `rows_excluded`. Structured data-quality events use 1-based source data-row numbers and one of `MISSING_REQUIRED_VALUE`, `NON_NUMERIC_REQUIRED_VALUE`, or `NON_FINITE_REQUIRED_VALUE`. Adjacent rows with the same defect code and signal set are grouped into one deterministic event run.
 
-Configuration schemas 1–3 remain accepted with their historical behavior. Schema 1 is equivalent to `data_quality.mode: strict`; schema 2 adds the `data_quality` block; schema 3 adds optional explicit `signals.pack_current` and `signals.pack_voltage` sources. Schema 4 adds explicit pack-current magnitude limits and the required `positive_direction` convention.
+Configuration schemas 1-4 remain accepted with their historical behavior. Schema 1 is equivalent to `data_quality.mode: strict`; schema 2 adds the `data_quality` block; schema 3 adds optional explicit `signals.pack_current` and `signals.pack_voltage` sources. Schema 4 adds explicit pack-current magnitude limits and the required `positive_direction` convention. Schema 5 adds `limits.temperature.max_spread_c` for deterministic temperature-spread validation.
 
 ## Numerical comparison semantics
 
@@ -258,9 +260,9 @@ The result also contains `rules_evaluated`, so downstream reports can show exact
 
 ## Result schema
 
-Machine-readable analysis results include their own `schema_version`. The current **result schema is 5**.
+Machine-readable analysis results include their own `schema_version`. The current **result schema is 6**.
 
-The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v5.json`](batterylog/schema/result-v5.json) and is included in the Python distribution package. The frozen v4, v3, and v2 artifacts remain packaged for earlier consumers.
+The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v6.json`](batterylog/schema/result-v6.json) and is included in the Python distribution package. The frozen v5, v4, v3, and v2 artifacts remain packaged for earlier consumers.
 
 Result schema version 2 was BatteryLog's **first formally frozen result contract**. Result schema version 3 extends that contract with structured data-quality evidence and explicit row accounting:
 
@@ -282,6 +284,8 @@ Result schema version 5 adds `PACK_CHARGE_OVERCURRENT` and `PACK_DISCHARGE_OVERC
 - `pack_discharge_max_a`
 - `pack_current_positive_direction`
 
+Result schema version 6 adds `TEMPERATURE_SPREAD_HIGH`, `limits_applied.temperature_spread_max_c`, and exact `max_temperature_spread_c` evidence. Spread events identify the hottest and coldest temperature signal(s) at the event peak.
+
 The current schema rejects unknown top-level/nested fields and encodes status invariants such as:
 
 - `NOT_EVALUATED`: no rules evaluated, no violation events, and no data-quality events
@@ -292,7 +296,7 @@ The current schema rejects unknown top-level/nested fields and encodes status in
 
 Some arithmetic relationships require semantic validation beyond Draft 2020-12 JSON Schema. BatteryLog-generated results guarantee `rows_input == rows_analyzed + rows_excluded`, event bounds satisfy `1 <= start_row <= end_row <= rows_input`, and each event's `affected_values` equals its inclusive row span multiplied by its signal count. Consumers of results from independent or untrusted producers should check these relationships in addition to schema validation.
 
-Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 4; config schemas 1–3 remain accepted with their historical behavior.
+Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 5; config schemas 1-4 remain accepted with their historical behavior.
 
 From result schema v2 onward, adding, removing, renaming, changing the required status/type/meaning of result fields, or otherwise changing the machine-readable wire contract requires a new result-schema version. The full policy and historical rationale are documented in [`docs/RESULT_SCHEMA_VERSIONING.md`](docs/RESULT_SCHEMA_VERSIONING.md).
 
@@ -404,7 +408,7 @@ Write the canonical JSON result explicitly as UTF-8:
 
 JSON remains the canonical stdout output for completed analyses, including when `--report` or `--json-out` is supplied. `--json-out` adds an atomically written UTF-8 file; it does not suppress stdout. This avoids relying on shell-specific redirection encodings while preserving the existing script-friendly stdout contract.
 
-The HTML report contains the validation status, dataset summary, measured extrema, deterministic inline SVG time-series plots, effective limits, evaluated rules, signal-mapping provenance, violation events, BatteryLog version, result-schema version, UTC generation timestamp, and SHA-256 provenance for the input log and optional YAML config. The plots cover the cell-voltage min/max envelope, cell-voltage delta, and temperature min/max envelope. Configured limit lines come from the effective `limits_applied` result, while shaded violation intervals and worst-case markers come from the existing structured violation events.
+The HTML report contains the validation status, dataset summary, measured extrema, deterministic inline SVG time-series plots, effective limits, evaluated rules, signal-mapping provenance, violation events, BatteryLog version, result-schema version, UTC generation timestamp, and SHA-256 provenance for the input log and optional YAML config. The plots cover the cell-voltage min/max envelope, cell-voltage delta, temperature min/max envelope, an optional temperature-spread chart when that rule is configured, and an optional pack-current chart when pack current is present. Configured limit lines come from the effective `limits_applied` result, while shaded violation intervals and worst-case markers come from the existing structured violation events.
 
 Report and JSON output paths are not allowed to overwrite the input log or validation config, and the JSON and HTML output paths must be distinct.
 

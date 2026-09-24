@@ -20,8 +20,11 @@ _TICK_COUNT = 5
 _VOLTAGE_CODES = frozenset({"CELL_UNDERVOLTAGE", "CELL_OVERVOLTAGE"})
 _DELTA_CODES = frozenset({"CELL_IMBALANCE_HIGH"})
 _TEMPERATURE_CODES = frozenset({"TEMPERATURE_LOW", "TEMPERATURE_HIGH"})
+_TEMPERATURE_SPREAD_CODES = frozenset({"TEMPERATURE_SPREAD_HIGH"})
 _CURRENT_CODES = frozenset({"PACK_CHARGE_OVERCURRENT", "PACK_DISCHARGE_OVERCURRENT"})
-_ALL_PLOT_CODES = _VOLTAGE_CODES | _DELTA_CODES | _TEMPERATURE_CODES | _CURRENT_CODES
+_ALL_PLOT_CODES = (
+    _VOLTAGE_CODES | _DELTA_CODES | _TEMPERATURE_CODES | _TEMPERATURE_SPREAD_CODES | _CURRENT_CODES
+)
 
 GeometryBuilder = Callable[[tuple[ReportSeriesPoint, ...], float, float, float, float], str]
 
@@ -360,6 +363,24 @@ def _temperature_geometry(
     )
 
 
+def _temperature_spread_geometry(
+    points: tuple[ReportSeriesPoint, ...],
+    x_start: float,
+    x_end: float,
+    y_min: float,
+    y_max: float,
+) -> str:
+    return _polyline(
+        points,
+        lambda point: point.temperature_spread_c,
+        x_start=x_start,
+        x_end=x_end,
+        y_min=y_min,
+        y_max=y_max,
+        css_class="series-primary",
+    )
+
+
 def _current_geometry(
     points: tuple[ReportSeriesPoint, ...],
     x_start: float,
@@ -540,6 +561,7 @@ def render_report_plots(result: AnalysisResult, series: ReportSeries) -> str:
         ("Temp min", limits["temperature_min_c"]),
         ("Temp max", limits["temperature_max_c"]),
     )
+    temperature_spread_limit = limits["temperature_spread_max_c"]
     positive_direction = limits["pack_current_positive_direction"]
     charge_limit = limits["pack_charge_max_a"]
     discharge_limit = limits["pack_discharge_max_a"]
@@ -609,6 +631,21 @@ def render_report_plots(result: AnalysisResult, series: ReportSeries) -> str:
         ),
     )
 
+    temperature_spread = ""
+    if temperature_spread_limit is not None:
+        temperature_spread = _render_chart(
+            title="Temperature spread",
+            points=points,
+            result=result,
+            codes=_TEMPERATURE_SPREAD_CODES,
+            y_values=(point.temperature_spread_c for point in points),
+            limits=(("Spread max", temperature_spread_limit),),
+            y_unit="degC",
+            y_padding_floor=1.0,
+            geometry_builder=_temperature_spread_geometry,
+            legend='<span class="legend-primary">spread</span>',
+        )
+
     current = ""
     if points[0].pack_current_a is not None:
         current = _render_chart(
@@ -638,5 +675,5 @@ def render_report_plots(result: AnalysisResult, series: ReportSeries) -> str:
     return (
         '<section class="timeseries"><h2>Time-series plots</h2>'
         f'<p class="small plot-note">{sampling}</p>'
-        f"{voltage}{delta}{temperature}{current}</section>"
+        f"{voltage}{delta}{temperature}{temperature_spread}{current}</section>"
     )

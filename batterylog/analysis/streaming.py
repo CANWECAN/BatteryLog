@@ -56,6 +56,7 @@ from .rules import (
     build_high_events,
     build_imbalance_events,
     build_low_events,
+    build_temperature_spread_events,
     contiguous_true_ranges,
 )
 
@@ -209,6 +210,7 @@ def _analyze_battery_chunks(
     max_delta_v: float | None = None
     max_temperature_c: float | None = None
     min_temperature_c: float | None = None
+    max_temperature_spread_c: float | None = None
     max_pack_current_a: float | None = None
     min_pack_current_a: float | None = None
     max_pack_voltage_v: float | None = None
@@ -296,12 +298,14 @@ def _analyze_battery_chunks(
         delta_v = cell_max - cell_min
         row_max_temp = rule_numeric[temp_cols].max(axis=1)
         row_min_temp = rule_numeric[temp_cols].min(axis=1)
+        temperature_spread = row_max_temp - row_min_temp
 
         valid_cell_max = cell_max.loc[valid_rows]
         valid_cell_min = cell_min.loc[valid_rows]
         valid_delta_v = delta_v.loc[valid_rows]
         valid_row_max_temp = row_max_temp.loc[valid_rows]
         valid_row_min_temp = row_min_temp.loc[valid_rows]
+        valid_temperature_spread = temperature_spread.loc[valid_rows]
 
         if report_series_collector is not None and len(valid_numeric):
             report_series_collector.consume_chunk(
@@ -325,6 +329,7 @@ def _analyze_battery_chunks(
             chunk_max_delta = float(valid_delta_v.max())
             chunk_max_temp = float(valid_row_max_temp.max())
             chunk_min_temp = float(valid_row_min_temp.min())
+            chunk_max_temperature_spread = float(valid_temperature_spread.max())
 
             max_cell_voltage_v = (
                 chunk_max_cell
@@ -348,6 +353,11 @@ def _analyze_battery_chunks(
                 chunk_min_temp
                 if min_temperature_c is None
                 else min(min_temperature_c, chunk_min_temp)
+            )
+            max_temperature_spread_c = (
+                chunk_max_temperature_spread
+                if max_temperature_spread_c is None
+                else max(max_temperature_spread_c, chunk_max_temperature_spread)
             )
 
             if pack_current_col is not None:
@@ -475,6 +485,22 @@ def _analyze_battery_chunks(
                 max_gap_s=max_gap_s,
             )
 
+        if resolved_limits.temperature_spread_max_c is not None:
+            limit = resolved_limits.temperature_spread_max_c
+            _consume_streaming_rule(
+                states["TEMPERATURE_SPREAD_HIGH"],
+                mask=exceeds_limit(temperature_spread, limit),
+                events=build_temperature_spread_events(
+                    rule_numeric,
+                    timestamps,
+                    temp_cols,
+                    temperature_spread,
+                    limit,
+                    max_gap_s=max_gap_s,
+                ),
+                timestamps=timestamps,
+                max_gap_s=max_gap_s,
+            )
         if pack_current_col is not None:
             pack_current = rule_numeric[pack_current_col]
             for direction, code in (
@@ -531,6 +557,7 @@ def _analyze_battery_chunks(
         assert max_delta_v is not None
         assert max_temperature_c is not None
         assert min_temperature_c is not None
+        assert max_temperature_spread_c is not None
         if expected_pack_cols[0] is not None:
             assert max_pack_current_a is not None
             assert min_pack_current_a is not None
@@ -574,6 +601,9 @@ def _analyze_battery_chunks(
         "max_delta_v": round(max_delta_v, 12) if max_delta_v is not None else None,
         "max_temperature_c": max_temperature_c,
         "min_temperature_c": min_temperature_c,
+        "max_temperature_spread_c": (
+            round(max_temperature_spread_c, 12) if max_temperature_spread_c is not None else None
+        ),
         "max_pack_current_a": max_pack_current_a,
         "min_pack_current_a": min_pack_current_a,
         "max_pack_voltage_v": max_pack_voltage_v,

@@ -110,6 +110,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Disable maximum temperature validation",
     )
 
+    temp_spread_group = parser.add_mutually_exclusive_group()
+    temp_spread_group.add_argument(
+        "--temp-spread-max-c",
+        type=float,
+        help="Override maximum allowed temperature spread",
+    )
+    temp_spread_group.add_argument(
+        "--no-temp-spread-max-c",
+        action="store_true",
+        help="Disable temperature-spread validation",
+    )
+
     charge_current_group = parser.add_mutually_exclusive_group()
     charge_current_group.add_argument(
         "--pack-charge-max-a",
@@ -197,6 +209,11 @@ def _resolve_cli_config(
             base.limits.temperature_max_c,
             args.temp_max_c,
             args.no_temp_max_c,
+        ),
+        temperature_spread_max_c=_resolve_cli_limit(
+            base.limits.temperature_spread_max_c,
+            args.temp_spread_max_c,
+            args.no_temp_spread_max_c,
         ),
         pack_charge_max_a=_resolve_cli_limit(
             base.limits.pack_charge_max_a,

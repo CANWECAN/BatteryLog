@@ -1,4 +1,4 @@
-schema_version: 2
+schema_version: 5
 
 # Illustrative engineering limits only.
 # Replace these values with limits appropriate to the tested cell, pack,
@@ -12,6 +12,7 @@ limits:
   temperature:
     min_c: -20
     max_c: 55
+    max_spread_c: 12
 
 # Analysis semantics, not a battery safety limit.
 # Consecutive failing samples separated by more than this gap start

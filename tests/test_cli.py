@@ -31,7 +31,7 @@ def test_cli_fail_emits_json_and_returns_exit_1(capsys) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 1
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     assert payload["validation_status"] == "FAIL"
     assert payload["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",
@@ -430,6 +430,7 @@ def test_cli_can_disable_each_yaml_rule(
         (["--imbalance-limit-v", "0.1"], "--no-imbalance-limit-v"),
         (["--temp-min-c", "-20"], "--no-temp-min-c"),
         (["--temp-max-c", "50"], "--no-temp-max-c"),
+        (["--temp-spread-max-c", "10"], "--no-temp-spread-max-c"),
         (["--pack-charge-max-a", "60"], "--no-pack-charge-max-a"),
         (["--pack-discharge-max-a", "120"], "--no-pack-discharge-max-a"),
     ],
@@ -488,6 +489,7 @@ def test_cli_unspecified_limit_options_preserve_yaml_values(
         "imbalance_max_v": 0.08,
         "temperature_min_c": 29.0,
         "temperature_max_c": 45.0,
+        "temperature_spread_max_c": None,
         "pack_charge_max_a": None,
         "pack_discharge_max_a": None,
         "pack_current_positive_direction": None,
@@ -621,7 +623,7 @@ def test_cli_report_preserves_json_stdout_contract(tmp_path, capsys) -> None:
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     assert payload["validation_status"] == "PASS"
     assert "plot" not in payload
     assert "report_series" not in payload
@@ -880,7 +882,7 @@ def test_cli_config_v2_excludes_invalid_rows_and_reports_structured_evidence(
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 1
-    assert payload["schema_version"] == 5
+    assert payload["schema_version"] == 6
     assert payload["validation_status"] == "FAIL"
     assert payload["rows_input"] == 2
     assert payload["rows_analyzed"] == 1
@@ -985,3 +987,26 @@ def test_cli_pack_current_limit_without_direction_is_runtime_error(
     assert exit_code == EXIT_RUNTIME_ERROR
     assert "pack_current_positive_direction is required" in captured.err
     assert captured.out == ""
+
+
+def test_cli_temperature_spread_limit_and_disable(tmp_path: Path, capsys) -> None:
+    source = tmp_path / "temperature_spread.csv"
+    source.write_text(
+        "timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,20,35,3.8\n",
+        encoding="utf-8",
+    )
+
+    assert run([str(source), "--temp-spread-max-c", "10"]) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["rules_evaluated"] == ["TEMPERATURE_SPREAD_HIGH"]
+    assert payload["limits_applied"]["temperature_spread_max_c"] == 10.0
+
+    config = tmp_path / "spread.yaml"
+    config.write_text(
+        "schema_version: 5\nlimits:\n  temperature:\n    max_spread_c: 10\n",
+        encoding="utf-8",
+    )
+    assert run([str(source), "--config", str(config), "--no-temp-spread-max-c"]) == 3
+    disabled = json.loads(capsys.readouterr().out)
+    assert disabled["limits_applied"]["temperature_spread_max_c"] is None
+    assert "TEMPERATURE_SPREAD_HIGH" not in disabled["rules_evaluated"]

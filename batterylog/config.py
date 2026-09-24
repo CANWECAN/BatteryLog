@@ -59,6 +59,7 @@ class ValidationLimits:
     pack_charge_max_a: float | None = None
     pack_discharge_max_a: float | None = None
     pack_current_positive_direction: CurrentDirection | None = None
+    temperature_spread_max_c: float | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -67,6 +68,7 @@ class ValidationLimits:
             ("imbalance_max_v", self.imbalance_max_v),
             ("temperature_min_c", self.temperature_min_c),
             ("temperature_max_c", self.temperature_max_c),
+            ("temperature_spread_max_c", self.temperature_spread_max_c),
             ("pack_charge_max_a", self.pack_charge_max_a),
             ("pack_discharge_max_a", self.pack_discharge_max_a),
         ):
@@ -74,6 +76,8 @@ class ValidationLimits:
 
         if self.imbalance_max_v is not None and self.imbalance_max_v < 0:
             raise ValueError("imbalance_max_v must be non-negative or null")
+        if self.temperature_spread_max_c is not None and self.temperature_spread_max_c < 0:
+            raise ValueError("temperature_spread_max_c must be non-negative or null")
         if (
             self.cell_min_v is not None
             and self.cell_max_v is not None
@@ -244,7 +248,7 @@ def _load_config_root_bytes(
     schema_version = root.get("schema_version", 1)
     if isinstance(schema_version, bool) or not isinstance(schema_version, int):
         raise TypeError("schema_version must be an integer")
-    if schema_version not in {1, 2, 3, 4}:
+    if schema_version not in {1, 2, 3, 4, 5}:
         raise ValueError(f"Unsupported schema_version: {schema_version!r}")
 
     allowed = {"schema_version", "limits", "event_detection", "signals"}
@@ -283,7 +287,7 @@ def _parse_limits(
     _reject_unknown_keys(
         "limits.temperature",
         temp_raw,
-        {"min_c", "max_c"},
+        {"min_c", "max_c", "max_spread_c"} if schema_version >= 5 else {"min_c", "max_c"},
     )
 
     pack_current_raw = _require_mapping(
@@ -330,6 +334,10 @@ def _parse_limits(
             pack_current_raw.get("discharge_max_a", defaults.pack_discharge_max_a),
         ),
         pack_current_positive_direction=positive_direction,  # type: ignore[arg-type]
+        temperature_spread_max_c=_optional_number(
+            "limits.temperature.max_spread_c",
+            temp_raw.get("max_spread_c", defaults.temperature_spread_max_c),
+        ),
     )
 
 
@@ -450,6 +458,7 @@ def override_validation_limits(
     pack_charge_max_a: float | None = None,
     pack_discharge_max_a: float | None = None,
     pack_current_positive_direction: CurrentDirection | None = None,
+    temperature_spread_max_c: float | None = None,
 ) -> ValidationLimits:
     updates: dict[str, float | CurrentDirection] = {}
     for name, value in (
@@ -458,6 +467,7 @@ def override_validation_limits(
         ("imbalance_max_v", imbalance_max_v),
         ("temperature_min_c", temperature_min_c),
         ("temperature_max_c", temperature_max_c),
+        ("temperature_spread_max_c", temperature_spread_max_c),
         ("pack_charge_max_a", pack_charge_max_a),
         ("pack_discharge_max_a", pack_discharge_max_a),
     ):

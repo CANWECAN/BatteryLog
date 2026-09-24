@@ -95,6 +95,49 @@ def build_imbalance_events(
     return events
 
 
+def build_temperature_spread_events(
+    numeric: pd.DataFrame,
+    timestamps: pd.Series,
+    temp_cols: list[str],
+    temperature_spread: pd.Series,
+    limit_c: float,
+    *,
+    max_gap_s: float | None = None,
+) -> list[ViolationEvent]:
+    events: list[ViolationEvent] = []
+    temp_values = numeric.loc[:, temp_cols].to_numpy(dtype=float, copy=False)
+    spread_values = temperature_spread.to_numpy(dtype=float, copy=False)
+    timestamp_values = timestamps.to_numpy(dtype=float, copy=False)
+
+    for start, end in contiguous_true_ranges(
+        exceeds_limit(temperature_spread, limit_c),
+        timestamps=timestamps,
+        max_gap_s=max_gap_s,
+    ):
+        segment = spread_values[start : end + 1]
+        peak_pos = start + int(np.argmax(segment))
+        peak_temperatures = temp_values[peak_pos]
+        max_value = float(np.max(peak_temperatures))
+        min_value = float(np.min(peak_temperatures))
+        max_signals = [temp_cols[index] for index in np.flatnonzero(peak_temperatures == max_value)]
+        min_signals = [temp_cols[index] for index in np.flatnonzero(peak_temperatures == min_value)]
+
+        events.append(
+            {
+                "code": "TEMPERATURE_SPREAD_HIGH",
+                "start_time_s": float(timestamp_values[start]),
+                "end_time_s": float(timestamp_values[end]),
+                "peak_time_s": float(timestamp_values[peak_pos]),
+                "measured_value": round(float(spread_values[peak_pos]), 12),
+                "limit_value": limit_c,
+                "unit": "degC",
+                "signals": [*max_signals, *min_signals],
+            }
+        )
+
+    return events
+
+
 def _build_extreme_events(
     *,
     numeric: pd.DataFrame,

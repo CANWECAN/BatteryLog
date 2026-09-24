@@ -346,3 +346,20 @@ def test_pack_current_rules_render_signed_limits_and_event_markers() -> None:
     assert 'data-code="PACK_CHARGE_OVERCURRENT"' in html
     assert 'data-code="PACK_DISCHARGE_OVERCURRENT"' in html
     assert all(point.pack_current_a is not None for point in series.points)
+
+
+def test_temperature_spread_rule_renders_dedicated_chart_and_exact_event_marker() -> None:
+    source = BytesIO(
+        b"timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,20,30,3.8\n1,22,34,3.8\n2,24,40,3.8\n"
+    )
+    result, series = analyze_battery_file_with_report_series(
+        source,
+        source_name="temperature-spread.csv",
+        limits=ValidationLimits(temperature_spread_max_c=10.0),
+        max_points=14,
+    )
+    html = render_report_plots(result, series)
+    assert html.count('class="timeseries-chart"') == 4
+    assert "Temperature spread" in html
+    assert 'data-limit="Spread max" data-value="10"' in html
+    assert 'data-code="TEMPERATURE_SPREAD_HIGH"' in html

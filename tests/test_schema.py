@@ -16,7 +16,8 @@ from batterylog import (
 from batterylog.analysis.core import analyze_battery_bytes
 
 ROOT = Path(__file__).parents[1]
-SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v5.json"
+SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v6.json"
+V5_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v5.json"
 V4_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v4.json"
 V3_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v3.json"
 V2_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v2.json"
@@ -59,7 +60,7 @@ def _results_for_all_statuses() -> list[dict[str, object]]:
     return [not_evaluated, passed, failed]
 
 
-def test_generated_results_validate_against_schema_v5(
+def test_generated_results_validate_against_schema_v6(
     validator: Draft202012Validator,
 ) -> None:
     for result in _results_for_all_statuses():
@@ -130,7 +131,7 @@ def test_schema_rejects_invalid_canonical_mapping_provenance(
         validator.validate(result)
 
 
-def test_schema_v5_validates_pack_measurement_provenance_and_extrema(
+def test_schema_v6_validates_pack_measurement_provenance_and_extrema(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(
@@ -154,7 +155,7 @@ def test_schema_v5_validates_pack_measurement_provenance_and_extrema(
         validator.validate(invalid_canonical_source)
 
 
-def test_schema_v5_validates_pack_overcurrent_contract(
+def test_schema_v6_validates_pack_overcurrent_contract(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(
@@ -199,12 +200,12 @@ def test_schema_rejects_rule_unit_mismatch(
 def test_schema_artifact_matches_runtime_version(
     result_schema: dict[str, object],
 ) -> None:
-    assert RESULT_SCHEMA_VERSION == 5
+    assert RESULT_SCHEMA_VERSION == 6
     assert SCHEMA_PATH.name == f"result-v{RESULT_SCHEMA_VERSION}.json"
-    assert result_schema["title"] == "BatteryLog Analysis Result v5"
+    assert result_schema["title"] == "BatteryLog Analysis Result v6"
     assert result_schema["$id"] == (
         "https://raw.githubusercontent.com/CANWECAN/BatteryLog/"
-        "v0.9.0/batterylog/schema/result-v5.json"
+        "v0.9.0/batterylog/schema/result-v6.json"
     )
     assert "/main/" not in str(result_schema["$id"])
     assert "/blob/" not in str(result_schema["$id"])
@@ -273,7 +274,7 @@ def test_no_strict_legacy_v1_schema_is_published() -> None:
     assert not LEGACY_SCHEMA_PATH.exists()
 
 
-def test_schema_v5_accepts_data_quality_only_fail_and_all_excluded(
+def test_schema_v6_accepts_data_quality_only_fail_and_all_excluded(
     validator: Draft202012Validator,
 ) -> None:
     config = DataQualityConfig(mode="exclude_invalid_rows")
@@ -296,7 +297,7 @@ def test_schema_v5_accepts_data_quality_only_fail_and_all_excluded(
     assert all_excluded["max_cell_voltage_v"] is None
 
 
-def test_schema_v5_rejects_legacy_result_version_number(
+def test_schema_v6_rejects_legacy_result_version_number(
     validator: Draft202012Validator,
 ) -> None:
     result = copy.deepcopy(analyze_battery_log(SAMPLE))
@@ -306,7 +307,7 @@ def test_schema_v5_rejects_legacy_result_version_number(
         validator.validate(result)
 
 
-def test_schema_v5_rejects_data_quality_event_on_pass(
+def test_schema_v6_rejects_data_quality_event_on_pass(
     validator: Draft202012Validator,
 ) -> None:
     result = copy.deepcopy(
@@ -330,7 +331,7 @@ def test_schema_v5_rejects_data_quality_event_on_pass(
         validator.validate(result)
 
 
-def test_schema_v5_rejects_non_null_extrema_when_all_rows_excluded(
+def test_schema_v6_rejects_non_null_extrema_when_all_rows_excluded(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(
@@ -345,7 +346,7 @@ def test_schema_v5_rejects_non_null_extrema_when_all_rows_excluded(
         validator.validate(payload)
 
 
-def test_schema_v5_rejects_data_quality_events_without_excluded_rows(
+def test_schema_v6_rejects_data_quality_events_without_excluded_rows(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(
@@ -360,7 +361,7 @@ def test_schema_v5_rejects_data_quality_events_without_excluded_rows(
         validator.validate(payload)
 
 
-def test_schema_v5_rejects_rule_violations_when_no_rows_were_analyzed(
+def test_schema_v6_rejects_rule_violations_when_no_rows_were_analyzed(
     validator: Draft202012Validator,
 ) -> None:
     all_excluded = analyze_battery_bytes(
@@ -398,7 +399,7 @@ def test_generated_results_satisfy_semantic_row_accounting() -> None:
             assert event["affected_values"] == row_span * len(event["signals"])
 
 
-def test_schema_v5_rejects_excluded_rows_in_strict_mode(
+def test_schema_v6_rejects_excluded_rows_in_strict_mode(
     validator: Draft202012Validator,
 ) -> None:
     result = copy.deepcopy(analyze_battery_log(SAMPLE))
@@ -406,3 +407,41 @@ def test_schema_v5_rejects_excluded_rows_in_strict_mode(
 
     with pytest.raises(ValidationError):
         validator.validate(result)
+
+
+def test_schema_v6_validates_temperature_spread_contract(
+    validator: Draft202012Validator,
+) -> None:
+    result = analyze_battery_bytes(
+        b"timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,20,30,3.8\n1,22,40,3.8\n",
+        limits=ValidationLimits(temperature_spread_max_c=10.0),
+    )
+
+    validator.validate(result)
+    assert result["max_temperature_spread_c"] == pytest.approx(18.0)
+    assert result["violations"][0]["code"] == "TEMPERATURE_SPREAD_HIGH"
+    assert result["violations"][0]["unit"] == "degC"
+    assert len(result["violations"][0]["signals"]) == 2
+
+    negative_limit = copy.deepcopy(result)
+    negative_limit["limits_applied"]["temperature_spread_max_c"] = -1.0
+    with pytest.raises(ValidationError):
+        validator.validate(negative_limit)
+
+
+def test_result_schema_v5_remains_frozen() -> None:
+    schema = json.loads(V5_SCHEMA_PATH.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+
+    assert schema["title"] == "BatteryLog Analysis Result v5"
+    assert schema["$id"] == (
+        "https://raw.githubusercontent.com/CANWECAN/BatteryLog/"
+        "v0.9.0/batterylog/schema/result-v5.json"
+    )
+    properties = schema["properties"]
+    assert isinstance(properties, dict)
+    assert properties["schema_version"] == {"const": 5}
+    assert "max_temperature_spread_c" not in properties
+    definitions = schema["$defs"]
+    assert isinstance(definitions, dict)
+    assert "TEMPERATURE_SPREAD_HIGH" not in definitions["ruleCode"]["enum"]
