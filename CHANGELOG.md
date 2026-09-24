@@ -38,6 +38,13 @@ All notable changes to BatteryLog are documented here.
 - Promoted the machine-readable result contract to schema version 6 while retaining result-v5 as a frozen pre-temperature-spread artifact.
 - Added CLI override/disable support, whole-frame/streaming chunk-boundary parity tests, schema coverage, and a dedicated temperature-spread HTML plot without changing report-series point-budget semantics.
 
+### Rule-event evidence
+
+- Added `sample_count`, `duration_s`, and `peak_excursion` to every engineering violation event without changing threshold, grouping, tie-break, or PASS/FAIL semantics.
+- Defined `duration_s` as the first-to-last failing timestamp span rather than an integrated dwell estimate, so single-sample events and duplicate timestamps may legitimately report zero duration.
+- Preserved whole-frame/streaming parity by summing sample counts across chunk merges, recomputing merged duration from event endpoints, and carrying peak excursion with the selected worst peak.
+- Promoted the machine-readable result contract to schema version 7 while retaining result-v6 as a frozen pre-event-evidence artifact.
+- Exposed the enriched evidence in HTML violation tables and added schema, duplicate-timestamp, arithmetic-invariant, and chunk-boundary regression coverage.
 ## 0.8.0 - 2026-09-21
 
 ### Structured data quality

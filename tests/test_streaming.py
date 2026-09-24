@@ -152,6 +152,9 @@ def test_streaming_preserves_first_equal_peak_across_chunk_boundary(tmp_path: Pa
             "peak_time_s": 1.0,
             "measured_value": 4.3,
             "limit_value": 4.2,
+            "sample_count": 2,
+            "duration_s": 1.0,
+            "peak_excursion": 0.1,
             "unit": "V",
             "signals": ["cell_1_v"],
         }

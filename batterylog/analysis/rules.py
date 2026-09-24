@@ -78,6 +78,7 @@ def build_imbalance_events(
         min_value = float(np.min(peak_cells))
         max_signals = [cell_cols[index] for index in np.flatnonzero(peak_cells == max_value)]
         min_signals = [cell_cols[index] for index in np.flatnonzero(peak_cells == min_value)]
+        measured = round(float(delta_values[peak_pos]), 12)
 
         events.append(
             {
@@ -85,8 +86,11 @@ def build_imbalance_events(
                 "start_time_s": float(timestamp_values[start]),
                 "end_time_s": float(timestamp_values[end]),
                 "peak_time_s": float(timestamp_values[peak_pos]),
-                "measured_value": round(float(delta_values[peak_pos]), 12),
+                "measured_value": measured,
                 "limit_value": limit_v,
+                "sample_count": end - start + 1,
+                "duration_s": round(float(timestamp_values[end] - timestamp_values[start]), 12),
+                "peak_excursion": round(abs(measured - limit_v), 12),
                 "unit": "V",
                 "signals": [*max_signals, *min_signals],
             }
@@ -121,6 +125,7 @@ def build_temperature_spread_events(
         min_value = float(np.min(peak_temperatures))
         max_signals = [temp_cols[index] for index in np.flatnonzero(peak_temperatures == max_value)]
         min_signals = [temp_cols[index] for index in np.flatnonzero(peak_temperatures == min_value)]
+        measured = round(float(spread_values[peak_pos]), 12)
 
         events.append(
             {
@@ -128,8 +133,11 @@ def build_temperature_spread_events(
                 "start_time_s": float(timestamp_values[start]),
                 "end_time_s": float(timestamp_values[end]),
                 "peak_time_s": float(timestamp_values[peak_pos]),
-                "measured_value": round(float(spread_values[peak_pos]), 12),
+                "measured_value": measured,
                 "limit_value": limit_c,
+                "sample_count": end - start + 1,
+                "duration_s": round(float(timestamp_values[end] - timestamp_values[start]), 12),
+                "peak_excursion": round(abs(measured - limit_c), 12),
                 "unit": "degC",
                 "signals": [*max_signals, *min_signals],
             }
@@ -175,6 +183,9 @@ def _build_extreme_events(
                 "peak_time_s": float(timestamp_values[peak_pos]),
                 "measured_value": measured,
                 "limit_value": limit,
+                "sample_count": end - start + 1,
+                "duration_s": round(float(timestamp_values[end] - timestamp_values[start]), 12),
+                "peak_excursion": round(abs(measured - limit), 12),
                 "unit": unit,
                 "signals": implicated,
             }

@@ -22,7 +22,7 @@ def test_sample_log_returns_structured_violation_events() -> None:
         ),
     )
 
-    assert result["schema_version"] == 6
+    assert result["schema_version"] == 7
     assert result["validation_status"] == "FAIL"
     assert result["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",
@@ -41,6 +41,9 @@ def test_sample_log_returns_structured_violation_events() -> None:
             "peak_time_s": 4.0,
             "measured_value": 0.1,
             "limit_value": 0.08,
+            "sample_count": 1,
+            "duration_s": 0.0,
+            "peak_excursion": 0.02,
             "unit": "V",
             "signals": ["cell_1_v", "cell_4_v"],
         },
@@ -51,6 +54,9 @@ def test_sample_log_returns_structured_violation_events() -> None:
             "peak_time_s": 4.0,
             "measured_value": 48.0,
             "limit_value": 45.0,
+            "sample_count": 1,
+            "duration_s": 0.0,
+            "peak_excursion": 3.0,
             "unit": "degC",
             "signals": ["temp_c"],
         },
@@ -89,6 +95,9 @@ def test_contiguous_violations_are_grouped_into_events(tmp_path: Path) -> None:
     assert imbalance_events[0]["end_time_s"] == 2.0
     assert imbalance_events[0]["peak_time_s"] == 2.0
     assert imbalance_events[0]["measured_value"] == pytest.approx(0.14)
+    assert imbalance_events[0]["sample_count"] == 2
+    assert imbalance_events[0]["duration_s"] == pytest.approx(1.0)
+    assert imbalance_events[0]["peak_excursion"] == pytest.approx(0.06)
     assert imbalance_events[0]["signals"] == ["cell_1_v", "cell_2_v"]
     assert imbalance_events[1]["start_time_s"] == 4.0
 
@@ -96,9 +105,29 @@ def test_contiguous_violations_are_grouped_into_events(tmp_path: Path) -> None:
     assert temperature_events[0]["start_time_s"] == 1.0
     assert temperature_events[0]["end_time_s"] == 2.0
     assert temperature_events[0]["peak_time_s"] == 2.0
+    assert temperature_events[0]["sample_count"] == 2
+    assert temperature_events[0]["duration_s"] == pytest.approx(1.0)
+    assert temperature_events[0]["peak_excursion"] == pytest.approx(3.0)
     assert temperature_events[0]["signals"] == ["temp_1_c"]
     assert temperature_events[1]["signals"] == ["temp_2_c"]
     assert result["temperature_sensors_detected"] == 2
+
+
+def test_violation_event_evidence_distinguishes_sample_count_from_duration(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "duplicate_timestamps.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v\n0,25,4.3\n0,25,4.4\n1,25,3.8\n",
+        encoding="utf-8",
+    )
+
+    result = analyze_battery_log(path, limits=ValidationLimits(cell_max_v=4.2))
+    event = result["violations"][0]
+
+    assert event["sample_count"] == 2
+    assert event["duration_s"] == pytest.approx(0.0)
+    assert event["peak_excursion"] == pytest.approx(0.2)
 
 
 def test_custom_limits_can_clear_violations() -> None:
@@ -719,6 +748,9 @@ def test_pack_overcurrent_rules_preserve_signed_evidence(tmp_path: Path) -> None
             "peak_time_s": 1.0,
             "measured_value": -60.0,
             "limit_value": -50.0,
+            "sample_count": 2,
+            "duration_s": 1.0,
+            "peak_excursion": 10.0,
             "unit": "A",
             "signals": ["pack_current_a"],
         },
@@ -729,6 +761,9 @@ def test_pack_overcurrent_rules_preserve_signed_evidence(tmp_path: Path) -> None
             "peak_time_s": 5.0,
             "measured_value": 130.0,
             "limit_value": 100.0,
+            "sample_count": 1,
+            "duration_s": 0.0,
+            "peak_excursion": 30.0,
             "unit": "A",
             "signals": ["pack_current_a"],
         },
@@ -814,6 +849,9 @@ def test_temperature_spread_rule_preserves_peak_sensor_pair(tmp_path: Path) -> N
             "peak_time_s": 2.0,
             "measured_value": 16.0,
             "limit_value": 10.0,
+            "sample_count": 2,
+            "duration_s": 1.0,
+            "peak_excursion": 6.0,
             "unit": "degC",
             "signals": ["temp_2_c", "temp_1_c"],
         }

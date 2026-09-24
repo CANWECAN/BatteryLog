@@ -16,7 +16,8 @@ from batterylog import (
 from batterylog.analysis.core import analyze_battery_bytes
 
 ROOT = Path(__file__).parents[1]
-SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v6.json"
+SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v7.json"
+V6_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v6.json"
 V5_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v5.json"
 V4_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v4.json"
 V3_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v3.json"
@@ -60,7 +61,7 @@ def _results_for_all_statuses() -> list[dict[str, object]]:
     return [not_evaluated, passed, failed]
 
 
-def test_generated_results_validate_against_schema_v6(
+def test_generated_results_validate_against_schema_v7(
     validator: Draft202012Validator,
 ) -> None:
     for result in _results_for_all_statuses():
@@ -131,7 +132,7 @@ def test_schema_rejects_invalid_canonical_mapping_provenance(
         validator.validate(result)
 
 
-def test_schema_v6_validates_pack_measurement_provenance_and_extrema(
+def test_schema_v7_validates_pack_measurement_provenance_and_extrema(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(
@@ -155,7 +156,7 @@ def test_schema_v6_validates_pack_measurement_provenance_and_extrema(
         validator.validate(invalid_canonical_source)
 
 
-def test_schema_v6_validates_pack_overcurrent_contract(
+def test_schema_v7_validates_pack_overcurrent_contract(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(
@@ -197,15 +198,47 @@ def test_schema_rejects_rule_unit_mismatch(
         validator.validate(result)
 
 
+def test_schema_v7_requires_violation_event_evidence(
+    validator: Draft202012Validator,
+) -> None:
+    result = analyze_battery_bytes(
+        b"timestamp_s,cell_1_v,temp_c\n0,4.3,25\n1,4.4,25\n",
+        limits=ValidationLimits(cell_max_v=4.2),
+    )
+    validator.validate(result)
+
+    event = result["violations"][0]
+    assert event["sample_count"] == 2
+    assert event["duration_s"] == pytest.approx(1.0)
+    assert event["peak_excursion"] == pytest.approx(0.2)
+
+    for field in ("sample_count", "duration_s", "peak_excursion"):
+        missing = copy.deepcopy(result)
+        missing["violations"][0].pop(field)
+        with pytest.raises(ValidationError):
+            validator.validate(missing)
+
+    invalid_count = copy.deepcopy(result)
+    invalid_count["violations"][0]["sample_count"] = 0
+    with pytest.raises(ValidationError):
+        validator.validate(invalid_count)
+
+    for field in ("duration_s", "peak_excursion"):
+        negative = copy.deepcopy(result)
+        negative["violations"][0][field] = -1.0
+        with pytest.raises(ValidationError):
+            validator.validate(negative)
+
+
 def test_schema_artifact_matches_runtime_version(
     result_schema: dict[str, object],
 ) -> None:
-    assert RESULT_SCHEMA_VERSION == 6
+    assert RESULT_SCHEMA_VERSION == 7
     assert SCHEMA_PATH.name == f"result-v{RESULT_SCHEMA_VERSION}.json"
-    assert result_schema["title"] == "BatteryLog Analysis Result v6"
+    assert result_schema["title"] == "BatteryLog Analysis Result v7"
     assert result_schema["$id"] == (
         "https://raw.githubusercontent.com/CANWECAN/BatteryLog/"
-        "v0.9.0/batterylog/schema/result-v6.json"
+        "v0.9.0/batterylog/schema/result-v7.json"
     )
     assert "/main/" not in str(result_schema["$id"])
     assert "/blob/" not in str(result_schema["$id"])
@@ -215,6 +248,32 @@ def test_schema_artifact_matches_runtime_version(
     schema_version = properties["schema_version"]
     assert isinstance(schema_version, dict)
     assert schema_version["const"] == RESULT_SCHEMA_VERSION
+
+
+def test_result_schema_v6_remains_frozen() -> None:
+    schema = json.loads(V6_SCHEMA_PATH.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+
+    assert schema["title"] == "BatteryLog Analysis Result v6"
+    assert schema["$id"] == (
+        "https://raw.githubusercontent.com/CANWECAN/BatteryLog/"
+        "v0.9.0/batterylog/schema/result-v6.json"
+    )
+    properties = schema["properties"]
+    assert isinstance(properties, dict)
+    assert properties["schema_version"] == {"const": 6}
+
+    definitions = schema["$defs"]
+    assert isinstance(definitions, dict)
+    violation_event = definitions["violationEvent"]
+    assert isinstance(violation_event, dict)
+    required = violation_event["required"]
+    event_properties = violation_event["properties"]
+    assert isinstance(required, list)
+    assert isinstance(event_properties, dict)
+    for field in ("sample_count", "duration_s", "peak_excursion"):
+        assert field not in required
+        assert field not in event_properties
 
 
 def test_result_schema_v4_remains_frozen() -> None:
@@ -274,7 +333,7 @@ def test_no_strict_legacy_v1_schema_is_published() -> None:
     assert not LEGACY_SCHEMA_PATH.exists()
 
 
-def test_schema_v6_accepts_data_quality_only_fail_and_all_excluded(
+def test_schema_v7_accepts_data_quality_only_fail_and_all_excluded(
     validator: Draft202012Validator,
 ) -> None:
     config = DataQualityConfig(mode="exclude_invalid_rows")
@@ -297,7 +356,7 @@ def test_schema_v6_accepts_data_quality_only_fail_and_all_excluded(
     assert all_excluded["max_cell_voltage_v"] is None
 
 
-def test_schema_v6_rejects_legacy_result_version_number(
+def test_schema_v7_rejects_legacy_result_version_number(
     validator: Draft202012Validator,
 ) -> None:
     result = copy.deepcopy(analyze_battery_log(SAMPLE))
@@ -307,7 +366,7 @@ def test_schema_v6_rejects_legacy_result_version_number(
         validator.validate(result)
 
 
-def test_schema_v6_rejects_data_quality_event_on_pass(
+def test_schema_v7_rejects_data_quality_event_on_pass(
     validator: Draft202012Validator,
 ) -> None:
     result = copy.deepcopy(
@@ -331,7 +390,7 @@ def test_schema_v6_rejects_data_quality_event_on_pass(
         validator.validate(result)
 
 
-def test_schema_v6_rejects_non_null_extrema_when_all_rows_excluded(
+def test_schema_v7_rejects_non_null_extrema_when_all_rows_excluded(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(
@@ -346,7 +405,7 @@ def test_schema_v6_rejects_non_null_extrema_when_all_rows_excluded(
         validator.validate(payload)
 
 
-def test_schema_v6_rejects_data_quality_events_without_excluded_rows(
+def test_schema_v7_rejects_data_quality_events_without_excluded_rows(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(
@@ -361,7 +420,7 @@ def test_schema_v6_rejects_data_quality_events_without_excluded_rows(
         validator.validate(payload)
 
 
-def test_schema_v6_rejects_rule_violations_when_no_rows_were_analyzed(
+def test_schema_v7_rejects_rule_violations_when_no_rows_were_analyzed(
     validator: Draft202012Validator,
 ) -> None:
     all_excluded = analyze_battery_bytes(
@@ -393,13 +452,19 @@ def test_generated_results_satisfy_semantic_row_accounting() -> None:
         assert result["rows_input"] == result["rows_analyzed"] + result["rows_excluded"]
         if result["rows_analyzed"] == 0:
             assert result["violations"] == []
+        for event in result["violations"]:
+            assert event["sample_count"] >= 1
+            assert event["duration_s"] == pytest.approx(event["end_time_s"] - event["start_time_s"])
+            assert event["peak_excursion"] == pytest.approx(
+                abs(event["measured_value"] - event["limit_value"])
+            )
         for event in result["data_quality"]["events"]:
             assert 1 <= event["start_row"] <= event["end_row"] <= result["rows_input"]
             row_span = event["end_row"] - event["start_row"] + 1
             assert event["affected_values"] == row_span * len(event["signals"])
 
 
-def test_schema_v6_rejects_excluded_rows_in_strict_mode(
+def test_schema_v7_rejects_excluded_rows_in_strict_mode(
     validator: Draft202012Validator,
 ) -> None:
     result = copy.deepcopy(analyze_battery_log(SAMPLE))
@@ -409,7 +474,7 @@ def test_schema_v6_rejects_excluded_rows_in_strict_mode(
         validator.validate(result)
 
 
-def test_schema_v6_validates_temperature_spread_contract(
+def test_schema_v7_validates_temperature_spread_contract(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(

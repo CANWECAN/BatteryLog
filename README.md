@@ -260,9 +260,9 @@ The result also contains `rules_evaluated`, so downstream reports can show exact
 
 ## Result schema
 
-Machine-readable analysis results include their own `schema_version`. The current **result schema is 6**.
+Machine-readable analysis results include their own `schema_version`. The current **result schema is 7**.
 
-The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v6.json`](batterylog/schema/result-v6.json) and is included in the Python distribution package. The frozen v5, v4, v3, and v2 artifacts remain packaged for earlier consumers.
+The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v7.json`](batterylog/schema/result-v7.json) and is included in the Python distribution package. The frozen v6, v5, v4, v3, and v2 artifacts remain packaged for earlier consumers.
 
 Result schema version 2 was BatteryLog's **first formally frozen result contract**. Result schema version 3 extends that contract with structured data-quality evidence and explicit row accounting:
 
@@ -286,6 +286,8 @@ Result schema version 5 adds `PACK_CHARGE_OVERCURRENT` and `PACK_DISCHARGE_OVERC
 
 Result schema version 6 adds `TEMPERATURE_SPREAD_HIGH`, `limits_applied.temperature_spread_max_c`, and exact `max_temperature_spread_c` evidence. Spread events identify the hottest and coldest temperature signal(s) at the event peak.
 
+Result schema version 7 enriches every engineering violation event with `sample_count`, `duration_s`, and `peak_excursion`. The threshold, grouping, first-equal-peak tie-break, and PASS/FAIL semantics are unchanged.
+
 The current schema rejects unknown top-level/nested fields and encodes status invariants such as:
 
 - `NOT_EVALUATED`: no rules evaluated, no violation events, and no data-quality events
@@ -294,7 +296,7 @@ The current schema rejects unknown top-level/nested fields and encodes status in
 - `rows_analyzed == 0`: at least one row was excluded, engineering-rule violations are empty, and measured extrema are `null`
 - non-empty `data_quality.events`: at least one row was excluded
 
-Some arithmetic relationships require semantic validation beyond Draft 2020-12 JSON Schema. BatteryLog-generated results guarantee `rows_input == rows_analyzed + rows_excluded`, event bounds satisfy `1 <= start_row <= end_row <= rows_input`, and each event's `affected_values` equals its inclusive row span multiplied by its signal count. Consumers of results from independent or untrusted producers should check these relationships in addition to schema validation.
+Some arithmetic relationships require semantic validation beyond Draft 2020-12 JSON Schema. BatteryLog-generated results guarantee `rows_input == rows_analyzed + rows_excluded`, data-quality event bounds satisfy `1 <= start_row <= end_row <= rows_input`, and each data-quality event's `affected_values` equals its inclusive row span multiplied by its signal count. Engineering violation events guarantee `sample_count >= 1`, `duration_s == end_time_s - start_time_s`, and `peak_excursion == abs(measured_value - limit_value)` within the documented 12-decimal evidence rounding. Consumers of results from independent or untrusted producers should check these relationships in addition to schema validation.
 
 Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 5; config schemas 1-4 remain accepted with their historical behavior.
 
@@ -311,6 +313,9 @@ Each event stores:
 - `peak_time_s`: timestamp of the worst value in the event
 - `measured_value`: worst value reached
 - `limit_value`: configured engineering threshold
+- `sample_count`: number of violating analyzed samples represented by the event
+- `duration_s`: elapsed timestamp span from first to last failing sample; a single-sample event or duplicate timestamps may yield `0.0`
+- `peak_excursion`: non-negative absolute threshold distance at the event peak, in the event unit
 - `unit`: engineering unit for the rule
 - `signals`: signal or signals responsible for the worst value
 
