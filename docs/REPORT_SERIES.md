@@ -13,7 +13,7 @@ Each retained point contains the global analyzed-row index and timestamp plus th
 - maximum temperature
 - optional pack current
 
-The report-series contract remains separate from the current `AnalysisResult` schema v6. Plot limits and violation markers must continue to come from `AnalysisResult`, while the report series supplies only time-series geometry. Structured data-quality evidence also comes exclusively from `AnalysisResult`; it is never inferred from decimated plot points.
+The report-series contract remains separate from the current `AnalysisResult` schema v7. Plot limits and violation markers must continue to come from `AnalysisResult`, while the report series supplies only time-series geometry. Structured data-quality evidence also comes exclusively from `AnalysisResult`; it is never inferred from decimated plot points.
 
 ## Deterministic downsampling
 

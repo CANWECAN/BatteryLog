@@ -109,7 +109,7 @@ The v2, v3, v4, and v5 artifacts remain frozen and packaged for existing consume
 
 ### Result schema version 6
 
-Result schema version 6 is the current BatteryLog machine-readable result contract for the 0.9 development line. Its Draft 2020-12 JSON Schema is:
+Result schema version 6 introduced explicit temperature-spread validation evidence for the 0.9 development line. Its frozen Draft 2020-12 JSON Schema is:
 
 ```text
 batterylog/schema/result-v6.json
@@ -122,7 +122,23 @@ Version 6 adds explicit temperature-spread validation evidence:
 - exact measured metric `max_temperature_spread_c`
 - peak sensor evidence containing the hottest and coldest temperature signal(s)
 
-Temperature spread is evaluated per analyzed row as maximum temperature minus minimum temperature. The configured limit and measured maximum are non-negative. The v2, v3, v4, and v5 artifacts remain frozen and packaged for existing consumers.
+Temperature spread is evaluated per analyzed row as maximum temperature minus minimum temperature. The configured limit and measured maximum are non-negative. The v2, v3, v4, v5, and v6 artifacts remain frozen and packaged for existing consumers.
+
+### Result schema version 7
+
+Result schema version 7 is the current BatteryLog machine-readable result contract for the 0.9 development line. Its Draft 2020-12 JSON Schema is:
+
+```text
+batterylog/schema/result-v7.json
+```
+
+Version 7 enriches every engineering violation event with:
+
+- `sample_count`: number of violating analyzed samples represented by the event
+- `duration_s`: elapsed timestamp span from event start to event end; single-sample events and duplicate timestamps may produce zero
+- `peak_excursion`: non-negative absolute threshold distance at the event peak, in the event unit
+
+These fields do not change any threshold, comparison, grouping, first-equal-peak tie-break, or validation-status semantics. Streaming event merges sum `sample_count`, recompute `duration_s` from the merged endpoints, and preserve the `peak_excursion` belonging to the selected worst peak.
 
 ## Versioning policy from v2 onward
 
