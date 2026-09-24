@@ -23,11 +23,7 @@ _TEMPERATURE_CODES = frozenset({"TEMPERATURE_LOW", "TEMPERATURE_HIGH"})
 _TEMPERATURE_SPREAD_CODES = frozenset({"TEMPERATURE_SPREAD_HIGH"})
 _CURRENT_CODES = frozenset({"PACK_CHARGE_OVERCURRENT", "PACK_DISCHARGE_OVERCURRENT"})
 _ALL_PLOT_CODES = (
-    _VOLTAGE_CODES
-    | _DELTA_CODES
-    | _TEMPERATURE_CODES
-    | _TEMPERATURE_SPREAD_CODES
-    | _CURRENT_CODES
+    _VOLTAGE_CODES | _DELTA_CODES | _TEMPERATURE_CODES | _TEMPERATURE_SPREAD_CODES | _CURRENT_CODES
 )
 
 GeometryBuilder = Callable[[tuple[ReportSeriesPoint, ...], float, float, float, float], str]
@@ -383,6 +379,7 @@ def _temperature_spread_geometry(
         y_max=y_max,
         css_class="series-primary",
     )
+
 
 def _current_geometry(
     points: tuple[ReportSeriesPoint, ...],

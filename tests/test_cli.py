@@ -988,6 +988,7 @@ def test_cli_pack_current_limit_without_direction_is_runtime_error(
     assert "pack_current_positive_direction is required" in captured.err
     assert captured.out == ""
 
+
 def test_cli_temperature_spread_limit_and_disable(tmp_path: Path, capsys) -> None:
     source = tmp_path / "temperature_spread.csv"
     source.write_text(

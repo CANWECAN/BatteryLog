@@ -397,6 +397,7 @@ def test_file_backed_report_series_wrapper_uses_loader_factory() -> None:
     assert series.source_rows == 3
     assert [point.timestamp_s for point in series.points] == [0.0, 1.0, 2.0]
 
+
 def test_report_series_temperature_spread_is_derived_without_expanding_point_contract() -> None:
     point = _point(0, temperature_min_c=21.0, temperature_max_c=34.5)
     assert point.temperature_spread_c == pytest.approx(13.5)

@@ -408,12 +408,12 @@ def test_schema_v6_rejects_excluded_rows_in_strict_mode(
     with pytest.raises(ValidationError):
         validator.validate(result)
 
+
 def test_schema_v6_validates_temperature_spread_contract(
     validator: Draft202012Validator,
 ) -> None:
     result = analyze_battery_bytes(
-        b"timestamp_s,temp_1_c,temp_2_c,cell_1_v\n"
-        b"0,20,30,3.8\n1,22,40,3.8\n",
+        b"timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,20,30,3.8\n1,22,40,3.8\n",
         limits=ValidationLimits(temperature_spread_max_c=10.0),
     )
 

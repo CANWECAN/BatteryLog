@@ -119,12 +119,8 @@ def build_temperature_spread_events(
         peak_temperatures = temp_values[peak_pos]
         max_value = float(np.max(peak_temperatures))
         min_value = float(np.min(peak_temperatures))
-        max_signals = [
-            temp_cols[index] for index in np.flatnonzero(peak_temperatures == max_value)
-        ]
-        min_signals = [
-            temp_cols[index] for index in np.flatnonzero(peak_temperatures == min_value)
-        ]
+        max_signals = [temp_cols[index] for index in np.flatnonzero(peak_temperatures == max_value)]
+        min_signals = [temp_cols[index] for index in np.flatnonzero(peak_temperatures == min_value)]
 
         events.append(
             {
@@ -140,6 +136,7 @@ def build_temperature_spread_events(
         )
 
     return events
+
 
 def _build_extreme_events(
     *,

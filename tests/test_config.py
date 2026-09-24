@@ -762,6 +762,7 @@ def test_pack_current_limit_contract_rejects_ambiguous_values(
     with pytest.raises(ValueError, match=message):
         ValidationLimits(**kwargs)  # type: ignore[arg-type]
 
+
 def test_config_schema_v5_parses_temperature_spread_limit(tmp_path: Path) -> None:
     path = _write(
         tmp_path,

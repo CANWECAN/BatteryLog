@@ -347,10 +347,10 @@ def test_pack_current_rules_render_signed_limits_and_event_markers() -> None:
     assert 'data-code="PACK_DISCHARGE_OVERCURRENT"' in html
     assert all(point.pack_current_a is not None for point in series.points)
 
+
 def test_temperature_spread_rule_renders_dedicated_chart_and_exact_event_marker() -> None:
     source = BytesIO(
-        b"timestamp_s,temp_1_c,temp_2_c,cell_1_v\n"
-        b"0,20,30,3.8\n1,22,34,3.8\n2,24,40,3.8\n"
+        b"timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,20,30,3.8\n1,22,34,3.8\n2,24,40,3.8\n"
     )
     result, series = analyze_battery_file_with_report_series(
         source,

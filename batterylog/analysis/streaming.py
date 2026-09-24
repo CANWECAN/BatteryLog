@@ -602,9 +602,7 @@ def _analyze_battery_chunks(
         "max_temperature_c": max_temperature_c,
         "min_temperature_c": min_temperature_c,
         "max_temperature_spread_c": (
-            round(max_temperature_spread_c, 12)
-            if max_temperature_spread_c is not None
-            else None
+            round(max_temperature_spread_c, 12) if max_temperature_spread_c is not None else None
         ),
         "max_pack_current_a": max_pack_current_a,
         "min_pack_current_a": min_pack_current_a,

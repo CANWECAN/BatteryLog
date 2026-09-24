@@ -341,6 +341,7 @@ def test_pack_overcurrent_streaming_matches_whole_frame_across_chunk_boundary() 
 
     assert actual == expected
 
+
 def test_temperature_spread_streaming_matches_whole_frame_across_chunk_boundary() -> None:
     frame = pd.DataFrame(
         {
