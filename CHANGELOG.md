@@ -4,6 +4,8 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+## 0.9.0 - 2026-09-24
+
 ### 0.9 development scope
 
 - Expand BatteryLog from cell-limit checking toward pack-level electrical and thermal validation.
@@ -45,6 +47,7 @@ All notable changes to BatteryLog are documented here.
 - Preserved whole-frame/streaming parity by summing sample counts across chunk merges, recomputing merged duration from event endpoints, and carrying peak excursion with the selected worst peak.
 - Promoted the machine-readable result contract to schema version 7 while retaining result-v6 as a frozen pre-event-evidence artifact.
 - Exposed the enriched evidence in HTML violation tables and added schema, duplicate-timestamp, arithmetic-invariant, and chunk-boundary regression coverage.
+
 ## 0.8.0 - 2026-09-21
 
 ### Structured data quality
