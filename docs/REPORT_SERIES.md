@@ -23,7 +23,7 @@ The default report budget is 2,400 retained points. Inputs at or below the confi
 When the source exceeds the budget, BatteryLog switches to `extrema-preserving-v1` reduction:
 
 1. Analyzed rows remain ordered by their global analyzed-row index. Reduction never uses loader chunk boundaries as bucket boundaries.
-2. Rows are summarized into fixed, globally aligned base blocks. A block retains its first and last row plus the row containing the minimum and maximum of each stored reducer metric. Derived temperature spread remains outside the candidates; optional pack mismatch becomes a candidate to preserve its worst peak without increasing the 14-candidate point-budget contract.
+2. Rows are summarized into fixed, globally aligned base blocks. A block retains its first and last row plus the row containing the minimum and maximum of each stored reducer metric. Derived temperature spread remains outside the candidates; optional pack mismatch becomes a candidate to preserve its worst peak. With both pack current and pack voltage, a bucket can contain up to 16 candidates. Downsampling with a budget below 16 raises a clear `ValueError` if the retained extrema cannot fit; budgets of at least 16 preserve the point limit.
 3. Duplicate candidate rows are collapsed by original row index and retained in source order.
 4. When too many summarized buckets accumulate, adjacent buckets are merged. A merged bucket applies the same first/last plus per-metric min/max rule to the candidates from its children.
 5. Recursive merging is safe because the minimum or maximum of a union must be one of the child minima or maxima. The reducer therefore does not need discarded interior rows to preserve the extrema invariant.

@@ -6,8 +6,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 DEFAULT_REPORT_SERIES_MAX_POINTS = 2400
-_MAX_BUCKET_CANDIDATES = 14
-_MIN_REPORT_SERIES_MAX_POINTS = _MAX_BUCKET_CANDIDATES
+_MAX_BUCKET_CANDIDATES = 16
+_MIN_REPORT_SERIES_MAX_POINTS = 14
 _MIN_BASE_BLOCK_ROWS = 16
 _METRICS = (
     "cell_min_v",
@@ -417,7 +417,12 @@ class ReportSeriesCollector:
                     unique[point.row_index] = point
             points = tuple(unique[index] for index in sorted(unique))
 
-        if len(points) > self._max_points:  # pragma: no cover - invariant guard
+        if len(points) > self._max_points:
+            if self._max_points < _MAX_BUCKET_CANDIDATES:
+                raise ValueError(
+                    "max_points must be at least 16 to preserve all extrema when "
+                    "pack current and pack voltage are both present"
+                )
             raise RuntimeError("Report-series reducer exceeded its max_points contract")
 
         self._finished = ReportSeries(
