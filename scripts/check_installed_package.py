@@ -60,4 +60,28 @@ with TemporaryDirectory() as directory:
     assert html.count('class="timeseries-chart"') == 3
     assert "Cell-voltage envelope" in html
 
-print(f"Installed BatteryLog {expected_version}: CLI, schema, and HTML plots verified")
+    mismatch = Path(directory) / "pack-cell-mismatch.csv"
+    mismatch.write_text(
+        "timestamp_s,cell_1_v,cell_2_v,temp_c,pack_voltage_v\n"
+        "0,3.5,3.5,25,7.0\n"
+        "1,3.5,3.5,25,7.25\n",
+        encoding="utf-8",
+    )
+    mismatch_run = subprocess.run(
+        [
+            str(Path(sys.executable).with_name("batterylog")),
+            str(mismatch),
+            "--pack-cell-sum-max-delta-v",
+            "0.125",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert mismatch_run.returncode == 1
+    mismatch_result = json.loads(mismatch_run.stdout)
+    jsonschema.validate(mismatch_result, schema)
+    assert mismatch_result["rules_evaluated"] == ["PACK_VOLTAGE_CELL_SUM_MISMATCH"]
+    assert mismatch_result["violations"][0]["signed_error_v"] == 0.25
+
+print(f"Installed BatteryLog {expected_version}: CLI, schema, rules, and HTML plots verified")

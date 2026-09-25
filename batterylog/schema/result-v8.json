@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/CANWECAN/BatteryLog/v0.9.1/batterylog/schema/result-v8.json",
   "title": "BatteryLog Analysis Result v8",
-  "description": "BatteryLog result schema version 7 with enriched engineering violation-event evidence.",
+  "description": "BatteryLog result schema version 8 with pack-voltage/cell-sum plausibility evidence and mismatch-rule support.",
   "type": "object",
   "additionalProperties": false,
   "required": [

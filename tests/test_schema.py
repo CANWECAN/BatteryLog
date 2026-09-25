@@ -237,6 +237,10 @@ def test_schema_artifact_matches_runtime_version(
     assert RESULT_SCHEMA_VERSION == 8
     assert SCHEMA_PATH.name == f"result-v{RESULT_SCHEMA_VERSION}.json"
     assert result_schema["title"] == "BatteryLog Analysis Result v8"
+    assert result_schema["description"] == (
+        "BatteryLog result schema version 8 with pack-voltage/cell-sum plausibility evidence "
+        "and mismatch-rule support."
+    )
     assert result_schema["$id"] == (
         "https://raw.githubusercontent.com/CANWECAN/BatteryLog/"
         "v0.9.1/batterylog/schema/result-v8.json"
