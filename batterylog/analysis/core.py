@@ -266,7 +266,14 @@ def _pack_cell_sum_and_delta(
 ) -> tuple[pd.Series | None, pd.Series | None]:
     if pack_voltage_col is None:
         return None, None
-    cell_sum = numeric[cell_cols].sum(axis=1, min_count=len(cell_cols))
+    cell_values = np.ascontiguousarray(
+        numeric[cell_cols].to_numpy(dtype=float, copy=False),
+        dtype=float,
+    )
+    cell_sum = pd.Series(
+        np.sum(cell_values, axis=1, dtype=np.float64),
+        index=numeric.index,
+    )
     delta = (numeric[pack_voltage_col] - cell_sum).abs()
     if (
         not np.isfinite(cell_sum.loc[valid_rows].to_numpy(dtype=float)).all()
