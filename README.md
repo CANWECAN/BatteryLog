@@ -24,6 +24,12 @@ You do **not** need to publish proprietary test data to use BatteryLog. Even a s
 
 If BatteryLog supports research, validation, or engineering work, please cite or link the repository. Citation metadata is available in [`CITATION.cff`](CITATION.cff), and attribution information is recorded in [`NOTICE`](NOTICE).
 
+## Real-data validation
+
+BatteryLog v0.9.1 has been exercised against the public CORA 3P12S experimental battery-pack dataset (DOI `10.34810/data2395`). The full external campaign covered all 410 Parquet cycle files: 30,187,165 unique source rows and 90,561,495 branch-row analyses across 1,230 BatteryLog streaming runs. All 1,230 runs completed without runtime errors and matched a separate harness calculation for pack/cell-sum violation sample counts, excluded-row counts, and peak mismatch evidence.
+
+The campaign is software characterization, not battery certification: the 0.15 V mismatch threshold used to exercise the rule is illustrative only, and the source dataset explicitly uses asynchronous acquisition with zero-order hold. Exact dataset hash, topology mapping, packaged-CLI cross-checks, performance numbers, limitations, and reproduction steps are documented in [`docs/REAL_DATA_VALIDATION.md`](docs/REAL_DATA_VALIDATION.md).
+
 ## Report preview
 
 The preview below is generated from the repository's vendor-style sample CSV and explicit signal-mapping config.
