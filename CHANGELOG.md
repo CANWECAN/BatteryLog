@@ -4,6 +4,23 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+## 0.9.1 - 2026-09-25
+
+### 0.9.1 development scope
+
+- Validate pack-voltage plausibility against the measured cell-voltage sum with reproducible evidence.
+- Fix pack-current type checking and enforce the affected analysis modules in CI.
+- Preserve the existing rule thresholds, grouping, and historical schema artifacts.
+
+### Pack-voltage plausibility
+
+- Added an opt-in pack-voltage versus complete series-cell sum check, with explicit source measurements, signed error, and peak timestamp in result schema v8.
+- Added YAML config schema v6 and CLI override/disable for the positive absolute-delta threshold; legacy config schemas 1-5 and result schemas 2-7 remain frozen.
+- Added synchronized whole-frame/streaming evaluation, fail-closed missing-pack behavior, and a report comparison plot plus mismatch-threshold plot.
+- Sized report-series downsampling for combined pack-current and pack/cell-mismatch extrema; tiny budgets report a clear error if the retained extrema cannot fit.
+- Added a complete 96S synthetic end-to-end regression across whole-frame, multiple streaming chunk sizes, report downsampling, and incomplete-stack mismatch behavior; this is software-path validation, not physical sensor calibration.
+- Made row-wise cell summation chunk-deterministic after the 96S regression exposed platform/chunk-sensitive binary64 reduction order.
+
 ## 0.9.0 - 2026-09-24
 
 ### 0.9 development scope

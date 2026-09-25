@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "batterylog"
-version = "0.9.0"
+version = "0.9.1"
 description = "EV battery test-data analysis and validation toolkit"
 readme = "README.md"
 authors = [{ name = "Berk Ozfiliz" }]
@@ -32,6 +32,7 @@ mf4 = [
 dev = [
   "hypothesis>=6",
   "jsonschema>=4",
+  "mypy>=1.18",
   "pytest>=9",
   "pytest-cov>=7",
   "psutil>=5.9",

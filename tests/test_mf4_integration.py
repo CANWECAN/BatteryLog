@@ -128,6 +128,29 @@ def test_real_mf4_matches_equivalent_csv(tmp_path: Path) -> None:
     assert mf4_result["max_pack_voltage_v"] == 405.0
 
 
+def test_pack_voltage_cell_sum_rule_matches_real_mf4_and_csv(tmp_path: Path) -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0, 2.0, 3.0],
+            "cell_1_v": [3.5] * 4,
+            "cell_2_v": [3.5] * 4,
+            "temp_1_c": [25.0] * 4,
+            "pack_voltage_v": [7.0, 7.25, 7.25, 7.0],
+        }
+    )
+    csv_path = tmp_path / "cell-sum.csv"
+    mf4_path = tmp_path / "cell-sum.mf4"
+    frame.to_csv(csv_path, index=False)
+    _save_mdf(mf4_path, [_canonical_signals(frame)])
+    limits = ValidationLimits(pack_voltage_cell_sum_max_delta_v=0.125)
+
+    expected = analyze_battery_log(csv_path, limits=limits)
+    actual = analyze_battery_log(mf4_path, limits=limits)
+    assert actual == expected
+    assert actual["violations"][0]["sample_count"] == 2
+    assert actual["violations"][0]["signed_error_v"] == 0.25
+
+
 def test_real_mf4_single_group_multichunk_matches_csv(tmp_path: Path) -> None:
     frame = pd.DataFrame(
         {

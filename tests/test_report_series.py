@@ -398,6 +398,47 @@ def test_file_backed_report_series_wrapper_uses_loader_factory() -> None:
     assert [point.timestamp_s for point in series.points] == [0.0, 1.0, 2.0]
 
 
+@pytest.mark.parametrize("max_points", [14, 15, 16, 17, 28, 40])
+def test_report_series_combined_pack_metrics_respect_point_budget(max_points: int) -> None:
+    rng = np.random.default_rng(0)
+    size = 600
+    cell_a = rng.uniform(3.2, 4.2, size)
+    cell_b = rng.uniform(3.2, 4.2, size)
+    temp_a = rng.uniform(10, 60, size)
+    temp_b = rng.uniform(10, 60, size)
+    current = rng.uniform(-200, 200, size)
+    cell_sum = cell_a + cell_b
+    pack_voltage = cell_sum + rng.uniform(-3, 3, size)
+    collector = ReportSeriesCollector(max_points=max_points)
+    collector.consume_chunk(
+        row_offset=0,
+        timestamps=np.arange(size, dtype=float),
+        cell_min=np.minimum(cell_a, cell_b),
+        cell_max=np.maximum(cell_a, cell_b),
+        cell_delta=np.abs(cell_a - cell_b),
+        temperature_min=np.minimum(temp_a, temp_b),
+        temperature_max=np.maximum(temp_a, temp_b),
+        pack_current=current,
+        pack_voltage=pack_voltage,
+        cell_sum=cell_sum,
+    )
+
+    if max_points < 16:
+        with pytest.raises(ValueError, match="max_points must be at least 16"):
+            collector.finish()
+        return
+
+    series = collector.finish()
+    assert len(series.points) <= max_points
+    assert series.points[0].row_index == 0
+    assert series.points[-1].row_index == size - 1
+    assert min(point.pack_current_a for point in series.points) == min(current)
+    assert max(point.pack_current_a for point in series.points) == max(current)
+    assert max(point.pack_cell_delta_v for point in series.points) == pytest.approx(
+        max(np.abs(pack_voltage - cell_sum))
+    )
+
+
 def test_report_series_temperature_spread_is_derived_without_expanding_point_contract() -> None:
     point = _point(0, temperature_min_c=21.0, temperature_max_c=34.5)
     assert point.temperature_spread_c == pytest.approx(13.5)

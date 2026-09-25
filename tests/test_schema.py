@@ -16,7 +16,8 @@ from batterylog import (
 from batterylog.analysis.core import analyze_battery_bytes
 
 ROOT = Path(__file__).parents[1]
-SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v7.json"
+SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v8.json"
+V7_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v7.json"
 V6_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v6.json"
 V5_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v5.json"
 V4_SCHEMA_PATH = ROOT / "batterylog" / "schema" / "result-v4.json"
@@ -233,12 +234,16 @@ def test_schema_v7_requires_violation_event_evidence(
 def test_schema_artifact_matches_runtime_version(
     result_schema: dict[str, object],
 ) -> None:
-    assert RESULT_SCHEMA_VERSION == 7
+    assert RESULT_SCHEMA_VERSION == 8
     assert SCHEMA_PATH.name == f"result-v{RESULT_SCHEMA_VERSION}.json"
-    assert result_schema["title"] == "BatteryLog Analysis Result v7"
+    assert result_schema["title"] == "BatteryLog Analysis Result v8"
+    assert result_schema["description"] == (
+        "BatteryLog result schema version 8 with pack-voltage/cell-sum plausibility evidence "
+        "and mismatch-rule support."
+    )
     assert result_schema["$id"] == (
         "https://raw.githubusercontent.com/CANWECAN/BatteryLog/"
-        "v0.9.0/batterylog/schema/result-v7.json"
+        "v0.9.1/batterylog/schema/result-v8.json"
     )
     assert "/main/" not in str(result_schema["$id"])
     assert "/blob/" not in str(result_schema["$id"])
@@ -248,6 +253,18 @@ def test_schema_artifact_matches_runtime_version(
     schema_version = properties["schema_version"]
     assert isinstance(schema_version, dict)
     assert schema_version["const"] == RESULT_SCHEMA_VERSION
+
+
+def test_result_schema_v7_remains_frozen() -> None:
+    schema = json.loads(V7_SCHEMA_PATH.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+    assert schema["$id"] == (
+        "https://raw.githubusercontent.com/CANWECAN/BatteryLog/"
+        "v0.9.0/batterylog/schema/result-v7.json"
+    )
+    assert schema["properties"]["schema_version"] == {"const": 7}
+    assert "pack_voltage_cell_sum_peak" not in schema["properties"]
+    assert "PACK_VOLTAGE_CELL_SUM_MISMATCH" not in schema["$defs"]["ruleCode"]["enum"]
 
 
 def test_result_schema_v6_remains_frozen() -> None:

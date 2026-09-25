@@ -21,8 +21,10 @@ from batterylog.models import (
     CurrentDirection,
     DataQualityEvent,
     DataQualityInfo,
+    PackVoltageCellSumPeak,
     RuleCode,
     SignalMappingInfo,
+    ValidationStatus,
     ViolationEvent,
 )
 from batterylog.signals import (
@@ -39,6 +41,7 @@ from .rules import (
     build_high_events,
     build_imbalance_events,
     build_low_events,
+    build_pack_voltage_cell_sum_events,
     build_temperature_spread_events,
 )
 
@@ -157,6 +160,7 @@ def _limits_snapshot(limits: ValidationLimits) -> AppliedLimits:
         "pack_charge_max_a": limits.pack_charge_max_a,
         "pack_discharge_max_a": limits.pack_discharge_max_a,
         "pack_current_positive_direction": limits.pack_current_positive_direction,
+        "pack_voltage_cell_sum_max_delta_v": limits.pack_voltage_cell_sum_max_delta_v,
     }
 
 
@@ -211,6 +215,12 @@ def _pack_current_rule_parameters(
     return signed_limit, prefer_lower
 
 
+_PACK_CURRENT_RULES: tuple[tuple[CurrentDirection, RuleCode], ...] = (
+    ("charge", "PACK_CHARGE_OVERCURRENT"),
+    ("discharge", "PACK_DISCHARGE_OVERCURRENT"),
+)
+
+
 def _rule_prefers_lower(code: RuleCode, limits: ValidationLimits) -> bool:
     if code in {"CELL_UNDERVOLTAGE", "TEMPERATURE_LOW"}:
         return True
@@ -243,7 +253,34 @@ def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
         codes.append("PACK_CHARGE_OVERCURRENT")
     if limits.pack_discharge_max_a is not None:
         codes.append("PACK_DISCHARGE_OVERCURRENT")
+    if limits.pack_voltage_cell_sum_max_delta_v is not None:
+        codes.append("PACK_VOLTAGE_CELL_SUM_MISMATCH")
     return codes
+
+
+def _pack_cell_sum_and_delta(
+    numeric: pd.DataFrame,
+    cell_cols: list[str],
+    pack_voltage_col: str | None,
+    valid_rows: pd.Series,
+) -> tuple[pd.Series | None, pd.Series | None]:
+    if pack_voltage_col is None:
+        return None, None
+    cell_values = np.ascontiguousarray(
+        numeric[cell_cols].to_numpy(dtype=float, copy=False),
+        dtype=float,
+    )
+    cell_sum = pd.Series(
+        np.sum(cell_values, axis=1, dtype=np.float64),
+        index=numeric.index,
+    )
+    delta = (numeric[pack_voltage_col] - cell_sum).abs()
+    if (
+        not np.isfinite(cell_sum.loc[valid_rows].to_numpy(dtype=float)).all()
+        or not np.isfinite(delta.loc[valid_rows].to_numpy(dtype=float)).all()
+    ):
+        raise ValueError("Pack-voltage cell-sum calculation overflowed on an analyzed row")
+    return cell_sum, delta
 
 
 def _analyze_battery_frame(
@@ -283,6 +320,8 @@ def _analyze_battery_frame(
     if not temp_cols:
         raise ValueError("No temperature columns found")
     pack_current_col, pack_voltage_col = find_canonical_pack_signal_columns(df.columns)
+    if resolved_limits.pack_voltage_cell_sum_max_delta_v is not None and pack_voltage_col is None:
+        raise ValueError("Pack-voltage cell-sum validation requires column 'pack_voltage_v'")
     if (
         resolved_limits.pack_charge_max_a is not None
         or resolved_limits.pack_discharge_max_a is not None
@@ -323,6 +362,9 @@ def _analyze_battery_frame(
     cell_max = rule_numeric[cell_cols].max(axis=1)
     cell_min = rule_numeric[cell_cols].min(axis=1)
     delta_v = cell_max - cell_min
+    cell_sum, pack_cell_delta = _pack_cell_sum_and_delta(
+        rule_numeric, cell_cols, pack_voltage_col, valid_rows
+    )
     row_max_temp = rule_numeric[temp_cols].max(axis=1)
     row_min_temp = rule_numeric[temp_cols].min(axis=1)
     temperature_spread = row_max_temp - row_min_temp
@@ -405,33 +447,74 @@ def _analyze_battery_frame(
                 max_gap_s=resolved_event_detection.max_gap_s,
             )
         )
+    if (
+        pack_cell_delta is not None
+        and resolved_limits.pack_voltage_cell_sum_max_delta_v is not None
+    ):
+        assert pack_voltage_col is not None
+        assert cell_sum is not None
+        violations.extend(
+            build_pack_voltage_cell_sum_events(
+                timestamps,
+                rule_numeric[pack_voltage_col],
+                cell_sum,
+                pack_cell_delta,
+                cell_cols,
+                resolved_limits.pack_voltage_cell_sum_max_delta_v,
+                max_gap_s=resolved_event_detection.max_gap_s,
+            )
+        )
     if pack_current_col is not None:
         pack_current = rule_numeric[pack_current_col]
-        for direction, code in (
-            ("charge", "PACK_CHARGE_OVERCURRENT"),
-            ("discharge", "PACK_DISCHARGE_OVERCURRENT"),
-        ):
+        for direction, code in _PACK_CURRENT_RULES:
             parameters = _pack_current_rule_parameters(resolved_limits, direction)
             if parameters is None:
                 continue
             signed_limit, prefer_lower = parameters
-            builder = build_low_events if prefer_lower else build_high_events
-            extreme_name = "row_min" if prefer_lower else "row_max"
-            violations.extend(
-                builder(
+            if prefer_lower:
+                events = build_low_events(
                     numeric=rule_numeric,
                     timestamps=timestamps,
                     signal_cols=[pack_current_col],
-                    **{extreme_name: pack_current},
+                    row_min=pack_current,
                     limit=signed_limit,
                     code=code,
                     unit="A",
                     max_gap_s=resolved_event_detection.max_gap_s,
                 )
-            )
+            else:
+                events = build_high_events(
+                    numeric=rule_numeric,
+                    timestamps=timestamps,
+                    signal_cols=[pack_current_col],
+                    row_max=pack_current,
+                    limit=signed_limit,
+                    code=code,
+                    unit="A",
+                    max_gap_s=resolved_event_detection.max_gap_s,
+                )
+            violations.extend(events)
 
     violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
 
+    pack_cell_peak: PackVoltageCellSumPeak | None = None
+    if pack_cell_delta is not None and rows_analyzed:
+        assert pack_voltage_col is not None
+        assert cell_sum is not None
+        # Positional argmax selects the earliest sample on a tie, including duplicate timestamps.
+        peak_position = int(np.argmax(pack_cell_delta.loc[valid_rows].to_numpy(dtype=float)))
+        peak_row = valid_numeric.iloc[peak_position]
+        pack = float(peak_row[pack_voltage_col])
+        summed = float(cell_sum.loc[valid_rows].iloc[peak_position])
+        pack_cell_peak = {
+            "timestamp_s": float(peak_row["timestamp_s"]),
+            "pack_voltage_v": pack,
+            "cell_voltage_sum_v": summed,
+            "signed_error_v": pack - summed,
+            "absolute_delta_v": float(pack_cell_delta.loc[valid_rows].iloc[peak_position]),
+        }
+
+    validation_status: ValidationStatus
     if violations or data_quality_events:
         validation_status = "FAIL"
     elif rules_evaluated:
@@ -485,6 +568,7 @@ def _analyze_battery_frame(
             if rows_analyzed and pack_voltage_col is not None
             else None
         ),
+        "pack_voltage_cell_sum_peak": pack_cell_peak,
         "violations": violations,
     }
 

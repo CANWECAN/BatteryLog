@@ -521,7 +521,7 @@ def test_all_invalid_data_quality_report_uses_null_safe_extrema_and_empty_plots(
     html = render_html_report(result, series=empty_series)
 
     assert result["rows_analyzed"] == 0
-    assert html.count("N/A") == 10
+    assert html.count("N/A") == 11
     assert "Maximum temperature spread" in html
     assert "No plot data available." in html
     assert "Rows excluded</strong><br>2" in html

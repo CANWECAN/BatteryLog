@@ -6,8 +6,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 DEFAULT_REPORT_SERIES_MAX_POINTS = 2400
-_MAX_BUCKET_CANDIDATES = 14
-_MIN_REPORT_SERIES_MAX_POINTS = _MAX_BUCKET_CANDIDATES
+_MAX_BUCKET_CANDIDATES = 16
+_MIN_REPORT_SERIES_MAX_POINTS = 14
 _MIN_BASE_BLOCK_ROWS = 16
 _METRICS = (
     "cell_min_v",
@@ -16,6 +16,7 @@ _METRICS = (
     "temperature_min_c",
     "temperature_max_c",
     "pack_current_a",
+    "pack_cell_delta_v",
 )
 
 
@@ -29,6 +30,14 @@ class ReportSeriesPoint:
     temperature_min_c: float
     temperature_max_c: float
     pack_current_a: float | None = None
+    pack_voltage_v: float | None = None
+    cell_voltage_sum_v: float | None = None
+
+    @property
+    def pack_cell_delta_v(self) -> float | None:
+        if self.pack_voltage_v is None or self.cell_voltage_sum_v is None:
+            return None
+        return abs(self.pack_voltage_v - self.cell_voltage_sum_v)
 
     @property
     def temperature_spread_c(self) -> float:
@@ -96,6 +105,8 @@ def _point_from_arrays(
     temperature_min: NDArray[np.float64],
     temperature_max: NDArray[np.float64],
     pack_current: NDArray[np.float64] | None,
+    pack_voltage: NDArray[np.float64] | None,
+    cell_sum: NDArray[np.float64] | None,
 ) -> ReportSeriesPoint:
     return ReportSeriesPoint(
         row_index=row_offset + local_index,
@@ -106,6 +117,8 @@ def _point_from_arrays(
         temperature_min_c=float(temperature_min[local_index]),
         temperature_max_c=float(temperature_max[local_index]),
         pack_current_a=(float(pack_current[local_index]) if pack_current is not None else None),
+        pack_voltage_v=(float(pack_voltage[local_index]) if pack_voltage is not None else None),
+        cell_voltage_sum_v=(float(cell_sum[local_index]) if cell_sum is not None else None),
     )
 
 
@@ -119,6 +132,8 @@ def _summarize_array_block(
     temperature_min: NDArray[np.float64],
     temperature_max: NDArray[np.float64],
     pack_current: NDArray[np.float64] | None,
+    pack_voltage: NDArray[np.float64] | None,
+    cell_sum: NDArray[np.float64] | None,
 ) -> _SeriesBucket:
     length = len(timestamps)
     if length == 0:  # pragma: no cover - internal invariant guard
@@ -128,6 +143,8 @@ def _summarize_array_block(
     arrays = [cell_min, cell_max, cell_delta, temperature_min, temperature_max]
     if pack_current is not None:
         arrays.append(pack_current)
+    if pack_voltage is not None and cell_sum is not None:
+        arrays.append(np.abs(pack_voltage - cell_sum))
     for values in arrays:
         selected_indexes.add(int(np.argmin(values)))
         selected_indexes.add(int(np.argmax(values)))
@@ -143,6 +160,8 @@ def _summarize_array_block(
             temperature_min=temperature_min,
             temperature_max=temperature_max,
             pack_current=pack_current,
+            pack_voltage=pack_voltage,
+            cell_sum=cell_sum,
         )
         for local_index in sorted(selected_indexes)
     )
@@ -209,14 +228,19 @@ class ReportSeriesCollector:
         temperature_min: NDArray[np.float64],
         temperature_max: NDArray[np.float64],
         pack_current: NDArray[np.float64] | None = None,
+        pack_voltage: NDArray[np.float64] | None = None,
+        cell_sum: NDArray[np.float64] | None = None,
     ) -> None:
         if self._finished is not None:
             raise RuntimeError("Cannot consume report-series data after finish()")
 
         arrays = (timestamps, cell_min, cell_max, cell_delta, temperature_min, temperature_max)
         length = len(timestamps)
-        if any(len(values) != length for values in arrays[1:]) or (
-            pack_current is not None and len(pack_current) != length
+        if (
+            any(len(values) != length for values in arrays[1:])
+            or (pack_current is not None and len(pack_current) != length)
+            or (pack_voltage is not None and len(pack_voltage) != length)
+            or (cell_sum is not None and len(cell_sum) != length)
         ):
             raise ValueError("Report-series chunk arrays must have equal lengths")
         if row_offset != self._source_rows:
@@ -242,6 +266,8 @@ class ReportSeriesCollector:
                         temperature_min=temperature_min,
                         temperature_max=temperature_max,
                         pack_current=pack_current,
+                        pack_voltage=pack_voltage,
+                        cell_sum=cell_sum,
                     )
                 )
             position = keep
@@ -261,6 +287,8 @@ class ReportSeriesCollector:
                 temperature_min=temperature_min[position:],
                 temperature_max=temperature_max[position:],
                 pack_current=(pack_current[position:] if pack_current is not None else None),
+                pack_voltage=(pack_voltage[position:] if pack_voltage is not None else None),
+                cell_sum=(cell_sum[position:] if cell_sum is not None else None),
             )
             self._source_rows += length - position
 
@@ -285,6 +313,8 @@ class ReportSeriesCollector:
         temperature_min: NDArray[np.float64],
         temperature_max: NDArray[np.float64],
         pack_current: NDArray[np.float64] | None,
+        pack_voltage: NDArray[np.float64] | None,
+        cell_sum: NDArray[np.float64] | None,
     ) -> None:
         position = 0
         length = len(timestamps)
@@ -304,6 +334,8 @@ class ReportSeriesCollector:
                         temperature_min=temperature_min,
                         temperature_max=temperature_max,
                         pack_current=pack_current,
+                        pack_voltage=pack_voltage,
+                        cell_sum=cell_sum,
                     )
                 )
             position = take
@@ -325,6 +357,8 @@ class ReportSeriesCollector:
                     temperature_min=temperature_min[position:end],
                     temperature_max=temperature_max[position:end],
                     pack_current=(pack_current[position:end] if pack_current is not None else None),
+                    pack_voltage=(pack_voltage[position:end] if pack_voltage is not None else None),
+                    cell_sum=(cell_sum[position:end] if cell_sum is not None else None),
                 )
             )
             position = end
@@ -341,6 +375,8 @@ class ReportSeriesCollector:
                     temperature_min=temperature_min,
                     temperature_max=temperature_max,
                     pack_current=pack_current,
+                    pack_voltage=pack_voltage,
+                    cell_sum=cell_sum,
                 )
             )
 
@@ -381,7 +417,12 @@ class ReportSeriesCollector:
                     unique[point.row_index] = point
             points = tuple(unique[index] for index in sorted(unique))
 
-        if len(points) > self._max_points:  # pragma: no cover - invariant guard
+        if len(points) > self._max_points:
+            if self._max_points < _MAX_BUCKET_CANDIDATES:
+                raise ValueError(
+                    "max_points must be at least 16 to preserve all extrema when "
+                    "pack current and pack voltage are both present"
+                )
             raise RuntimeError("Report-series reducer exceeded its max_points contract")
 
         self._finished = ReportSeries(

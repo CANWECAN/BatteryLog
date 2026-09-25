@@ -1,4 +1,4 @@
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 RuleCode = Literal[
     "CELL_IMBALANCE_HIGH",
@@ -6,13 +6,14 @@ RuleCode = Literal[
     "CELL_UNDERVOLTAGE",
     "PACK_CHARGE_OVERCURRENT",
     "PACK_DISCHARGE_OVERCURRENT",
+    "PACK_VOLTAGE_CELL_SUM_MISMATCH",
     "TEMPERATURE_HIGH",
     "TEMPERATURE_LOW",
     "TEMPERATURE_SPREAD_HIGH",
 ]
 
-ResultSchemaVersion = Literal[7]
-RESULT_SCHEMA_VERSION: ResultSchemaVersion = 7
+ResultSchemaVersion = Literal[8]
+RESULT_SCHEMA_VERSION: ResultSchemaVersion = 8
 
 CurrentDirection = Literal["charge", "discharge"]
 ValidationStatus = Literal["NOT_EVALUATED", "PASS", "FAIL"]
@@ -42,6 +43,7 @@ class AppliedLimits(TypedDict):
     pack_discharge_max_a: float | None
     pack_current_positive_direction: CurrentDirection | None
     temperature_spread_max_c: float | None
+    pack_voltage_cell_sum_max_delta_v: float | None
 
 
 class AnalysisOptions(TypedDict):
@@ -82,6 +84,17 @@ class ViolationEvent(TypedDict):
     peak_excursion: float
     unit: str
     signals: list[str]
+    pack_voltage_v: NotRequired[float]
+    cell_voltage_sum_v: NotRequired[float]
+    signed_error_v: NotRequired[float]
+
+
+class PackVoltageCellSumPeak(TypedDict):
+    timestamp_s: float
+    pack_voltage_v: float
+    cell_voltage_sum_v: float
+    signed_error_v: float
+    absolute_delta_v: float
 
 
 class AnalysisResult(TypedDict):
@@ -108,4 +121,5 @@ class AnalysisResult(TypedDict):
     min_pack_current_a: float | None
     max_pack_voltage_v: float | None
     min_pack_voltage_v: float | None
+    pack_voltage_cell_sum_peak: PackVoltageCellSumPeak | None
     violations: list[ViolationEvent]

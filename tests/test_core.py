@@ -22,7 +22,7 @@ def test_sample_log_returns_structured_violation_events() -> None:
         ),
     )
 
-    assert result["schema_version"] == 7
+    assert result["schema_version"] == 8
     assert result["validation_status"] == "FAIL"
     assert result["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",
@@ -414,6 +414,7 @@ def test_result_contains_applied_limit_snapshot() -> None:
         "pack_charge_max_a": None,
         "pack_discharge_max_a": None,
         "pack_current_positive_direction": None,
+        "pack_voltage_cell_sum_max_delta_v": None,
     }
 
 

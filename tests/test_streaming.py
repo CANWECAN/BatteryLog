@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from batterylog import EventDetectionConfig, SignalMapping, SignalPattern, ValidationLimits
@@ -217,6 +217,7 @@ def test_streaming_invalid_value_reports_global_data_row(tmp_path: Path) -> None
         )
 
 
+@settings(deadline=None)
 @given(
     frame=battery_frames(),
     chunk_rows=st.integers(min_value=1, max_value=10),

@@ -146,6 +146,51 @@ def build_temperature_spread_events(
     return events
 
 
+def build_pack_voltage_cell_sum_events(
+    timestamps: pd.Series,
+    pack_voltage: pd.Series,
+    cell_sum: pd.Series,
+    absolute_delta: pd.Series,
+    cell_cols: list[str],
+    limit_v: float,
+    *,
+    max_gap_s: float | None = None,
+) -> list[ViolationEvent]:
+    events: list[ViolationEvent] = []
+    times = timestamps.to_numpy(dtype=float, copy=False)
+    pack_values = pack_voltage.to_numpy(dtype=float, copy=False)
+    sum_values = cell_sum.to_numpy(dtype=float, copy=False)
+    deltas = absolute_delta.to_numpy(dtype=float, copy=False)
+    for start, end in contiguous_true_ranges(
+        exceeds_limit(absolute_delta, limit_v),
+        timestamps=timestamps,
+        max_gap_s=max_gap_s,
+    ):
+        peak_pos = start + int(np.argmax(deltas[start : end + 1]))
+        measured = float(deltas[peak_pos])
+        pack = float(pack_values[peak_pos])
+        summed = float(sum_values[peak_pos])
+        events.append(
+            {
+                "code": "PACK_VOLTAGE_CELL_SUM_MISMATCH",
+                "start_time_s": float(times[start]),
+                "end_time_s": float(times[end]),
+                "peak_time_s": float(times[peak_pos]),
+                "measured_value": measured,
+                "limit_value": limit_v,
+                "sample_count": end - start + 1,
+                "duration_s": round(float(times[end] - times[start]), 12),
+                "peak_excursion": round(abs(measured - limit_v), 12),
+                "unit": "V",
+                "signals": ["pack_voltage_v", *cell_cols],
+                "pack_voltage_v": pack,
+                "cell_voltage_sum_v": summed,
+                "signed_error_v": pack - summed,
+            }
+        )
+    return events
+
+
 def _build_extreme_events(
     *,
     numeric: pd.DataFrame,

@@ -22,8 +22,14 @@ _DELTA_CODES = frozenset({"CELL_IMBALANCE_HIGH"})
 _TEMPERATURE_CODES = frozenset({"TEMPERATURE_LOW", "TEMPERATURE_HIGH"})
 _TEMPERATURE_SPREAD_CODES = frozenset({"TEMPERATURE_SPREAD_HIGH"})
 _CURRENT_CODES = frozenset({"PACK_CHARGE_OVERCURRENT", "PACK_DISCHARGE_OVERCURRENT"})
+_PACK_CELL_CODES = frozenset({"PACK_VOLTAGE_CELL_SUM_MISMATCH"})
 _ALL_PLOT_CODES = (
-    _VOLTAGE_CODES | _DELTA_CODES | _TEMPERATURE_CODES | _TEMPERATURE_SPREAD_CODES | _CURRENT_CODES
+    _VOLTAGE_CODES
+    | _DELTA_CODES
+    | _TEMPERATURE_CODES
+    | _TEMPERATURE_SPREAD_CODES
+    | _CURRENT_CODES
+    | _PACK_CELL_CODES
 )
 
 GeometryBuilder = Callable[[tuple[ReportSeriesPoint, ...], float, float, float, float], str]
@@ -403,6 +409,63 @@ def _current_geometry(
     )
 
 
+def _pack_cell_geometry(
+    points: tuple[ReportSeriesPoint, ...],
+    x_start: float,
+    x_end: float,
+    y_min: float,
+    y_max: float,
+) -> str:
+    def pack(point: ReportSeriesPoint) -> float:
+        assert point.pack_voltage_v is not None
+        return point.pack_voltage_v
+
+    def summed(point: ReportSeriesPoint) -> float:
+        assert point.cell_voltage_sum_v is not None
+        return point.cell_voltage_sum_v
+
+    return _polyline(
+        points,
+        pack,
+        x_start=x_start,
+        x_end=x_end,
+        y_min=y_min,
+        y_max=y_max,
+        css_class="series-primary",
+    ) + _polyline(
+        points,
+        summed,
+        x_start=x_start,
+        x_end=x_end,
+        y_min=y_min,
+        y_max=y_max,
+        css_class="series-secondary",
+    )
+
+
+def _pack_cell_delta_geometry(
+    points: tuple[ReportSeriesPoint, ...],
+    x_start: float,
+    x_end: float,
+    y_min: float,
+    y_max: float,
+) -> str:
+    def delta(point: ReportSeriesPoint) -> float:
+        value = point.pack_cell_delta_v
+        assert value is not None
+        return value
+
+    return _polyline(
+        points,
+        delta,
+        x_start=x_start,
+        x_end=x_end,
+        y_min=y_min,
+        y_max=y_max,
+        css_class="series-primary",
+    )
+
+
 def _render_chart(
     *,
     title: str,
@@ -471,8 +534,11 @@ def _validate_report_series(result: AnalysisResult, series: ReportSeries) -> Non
             point.temperature_min_c,
             point.temperature_max_c,
         )
-        if not all(isfinite(value) for value in values) or (
-            point.pack_current_a is not None and not isfinite(point.pack_current_a)
+        if (
+            not all(isfinite(value) for value in values)
+            or (point.pack_current_a is not None and not isfinite(point.pack_current_a))
+            or (point.pack_voltage_v is not None and not isfinite(point.pack_voltage_v))
+            or (point.cell_voltage_sum_v is not None and not isfinite(point.cell_voltage_sum_v))
         ):
             raise ValueError("Report-series plot values must be finite")
         if previous_timestamp is not None and point.timestamp_s < previous_timestamp:
@@ -522,6 +588,15 @@ def _validate_report_series(result: AnalysisResult, series: ReportSeries) -> Non
     )
     if current_present != (len(retained_currents) == len(series.points)):
         raise ValueError("Report-series pack-current presence does not match AnalysisResult")
+    voltage_present = result["signal_mapping"]["pack_voltage_source"] is not None
+    retained_voltage = tuple(p for p in series.points if p.pack_voltage_v is not None)
+    retained_sums = tuple(p for p in series.points if p.cell_voltage_sum_v is not None)
+    if voltage_present != (len(retained_voltage) == len(series.points)) or (
+        voltage_present != (len(retained_sums) == len(series.points))
+    ):
+        raise ValueError(
+            "Report-series pack-voltage/cell-sum presence does not match AnalysisResult"
+        )
 
     extrema: tuple[tuple[str, float], ...] = (
         ("max_cell_voltage_v", max(point.cell_max_v for point in series.points)),
@@ -535,7 +610,23 @@ def _validate_report_series(result: AnalysisResult, series: ReportSeries) -> Non
             ("max_pack_current_a", max(retained_currents)),
             ("min_pack_current_a", min(retained_currents)),
         )
+    if retained_voltage:
+        extrema += (
+            (
+                "pack_voltage_cell_sum_peak",
+                max(
+                    p.pack_cell_delta_v for p in retained_voltage if p.pack_cell_delta_v is not None
+                ),
+            ),
+        )
     for result_key, retained_value in extrema:
+        if result_key == "pack_voltage_cell_sum_peak":
+            peak = result[result_key]
+            if peak is None or not isclose(
+                retained_value, peak["absolute_delta_v"], rel_tol=1e-12, abs_tol=1e-12
+            ):
+                raise ValueError("Report series does not preserve pack/cell-sum mismatch peak")
+            continue
         if not isclose(
             retained_value,
             result[result_key],
@@ -661,6 +752,34 @@ def render_report_plots(result: AnalysisResult, series: ReportSeries) -> str:
             legend='<span class="legend-primary">pack current</span>',
         )
 
+    pack_cell = ""
+    if points[0].pack_voltage_v is not None:
+        pack_cell = _render_chart(
+            title="Pack voltage and cell sum",
+            points=points,
+            result=result,
+            codes=frozenset(),
+            y_values=(
+                v for p in points for v in (p.pack_voltage_v, p.cell_voltage_sum_v) if v is not None
+            ),
+            limits=(),
+            y_unit="V",
+            y_padding_floor=0.01,
+            geometry_builder=_pack_cell_geometry,
+            legend='<span class="legend-primary">pack</span> <span class="legend-secondary">cell sum</span>',
+        ) + _render_chart(
+            title="Absolute pack/cell-sum mismatch",
+            points=points,
+            result=result,
+            codes=_PACK_CELL_CODES,
+            y_values=(p.pack_cell_delta_v for p in points if p.pack_cell_delta_v is not None),
+            limits=(("Mismatch max", limits["pack_voltage_cell_sum_max_delta_v"]),),
+            y_unit="V",
+            y_padding_floor=0.01,
+            geometry_builder=_pack_cell_delta_geometry,
+            legend='<span class="legend-primary">absolute mismatch</span>',
+        )
+
     if series.is_downsampled:
         sampling = (
             f"Rendered {len(points)} retained points from {series.source_rows} source rows using "
@@ -675,5 +794,5 @@ def render_report_plots(result: AnalysisResult, series: ReportSeries) -> str:
     return (
         '<section class="timeseries"><h2>Time-series plots</h2>'
         f'<p class="small plot-note">{sampling}</p>'
-        f"{voltage}{delta}{temperature}{temperature_spread}{current}</section>"
+        f"{voltage}{delta}{temperature}{temperature_spread}{current}{pack_cell}</section>"
     )

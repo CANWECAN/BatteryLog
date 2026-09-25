@@ -1,6 +1,8 @@
 schema_version: 4
 
 # Illustrative engineering limits only.
+# The four selected cell channels are a subset of the ~400 V series stack.
+# Do not enable limits.pack_voltage.cell_sum_max_delta_v on this sample.
 limits:
   cell_voltage:
     min_v: 2.8
