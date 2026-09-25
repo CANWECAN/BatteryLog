@@ -8,6 +8,10 @@ All notable changes to BatteryLog are documented here.
 
 - Added a reproducible CORA dataset validation harness and documented the BatteryLog v0.9.1 campaign across all 410 public Parquet cycle files (30,187,165 unique source rows; 90,561,495 branch-row analyses; 1,230/1,230 direct-comparison parity).
 
+### Documentation
+
+- Streamlined the main README into a project overview and quick-start guide, moved detailed CLI/config/schema/engineering semantics into `docs/REFERENCE.md`, and classified the current project status as pre-1.0 engineering beta.
+
 ## 0.9.1 - 2026-09-25
 
 ### 0.9.1 development scope
