@@ -9,13 +9,13 @@ They do not need to use the same version number.
 
 ## Configuration schema
 
-The current YAML configuration schema is version 3:
+The current YAML configuration schema is version 6:
 
 ```yaml
-schema_version: 3
+schema_version: 6
 ```
 
-Configuration schema 2 adds the optional `data_quality` block and its explicit `strict` / `exclude_invalid_rows` mode. Configuration schema 3 adds optional scalar `signals.pack_current` and `signals.pack_voltage` source names. Configuration schemas 1 and 2 remain accepted with their historical behavior: schema 1 is strict fail-fast and rejects `data_quality`; schema 2 accepts `data_quality` but rejects the new pack-signal mapping keys.
+Configuration schema 2 adds the optional `data_quality` block and its explicit `strict` / `exclude_invalid_rows` mode. Configuration schema 3 adds optional scalar `signals.pack_current` and `signals.pack_voltage` source names. Schema 4 adds pack-current limits and polarity, schema 5 adds the maximum temperature spread, and schema 6 adds the pack-voltage versus cell-sum tolerance. Configuration schemas 1-5 remain accepted with their historical behavior and reject fields introduced in later versions.
 
 This version identifies the structure accepted by the validation-config parser and is independent from the result-schema version.
 
