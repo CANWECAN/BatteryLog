@@ -4,6 +4,8 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+## 0.9.1 - 2026-09-25
+
 ### 0.9.1 development scope
 
 - Validate pack-voltage plausibility against the measured cell-voltage sum with reproducible evidence.
