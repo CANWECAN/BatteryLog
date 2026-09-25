@@ -229,7 +229,7 @@ Exclusion can never turn defective input into a passing result. Any structured d
 
 Result row accounting distinguishes `rows_input`, `rows_analyzed`, and `rows_excluded`. Structured data-quality events use 1-based source data-row numbers and one of `MISSING_REQUIRED_VALUE`, `NON_NUMERIC_REQUIRED_VALUE`, or `NON_FINITE_REQUIRED_VALUE`. Adjacent rows with the same defect code and signal set are grouped into one deterministic event run.
 
-Configuration schemas 1-4 remain accepted with their historical behavior. Schema 1 is equivalent to `data_quality.mode: strict`; schema 2 adds the `data_quality` block; schema 3 adds optional explicit `signals.pack_current` and `signals.pack_voltage` sources. Schema 4 adds explicit pack-current magnitude limits and the required `positive_direction` convention. Schema 5 adds `limits.temperature.max_spread_c` for deterministic temperature-spread validation.
+Configuration schemas 1-5 remain accepted with their historical behavior. Schema 1 is equivalent to `data_quality.mode: strict`; schema 2 adds the `data_quality` block; schema 3 adds optional explicit `signals.pack_current` and `signals.pack_voltage` sources. Schema 4 adds explicit pack-current magnitude limits and the required `positive_direction` convention. Schema 5 adds `limits.temperature.max_spread_c`; schema 6 adds `limits.pack_voltage.cell_sum_max_delta_v`.
 
 ## Numerical comparison semantics
 
@@ -243,7 +243,7 @@ BatteryLog applies a very small binary64 representation guard when deciding whet
 
 This guard is **not** an engineering tolerance, sensor accuracy allowance, hysteresis, or calibration margin. Those belong in the test specification and must be reflected in the configured engineering limits themselves.
 
-The same comparison policy is used for cell overvoltage, cell undervoltage, cell imbalance, charge/discharge overcurrent, high/low temperature, and maximum event-gap boundaries. The effective policy is included in the machine-readable result as `comparison_policy` and rendered in HTML reports.
+The same comparison policy is used for cell overvoltage, cell undervoltage, cell imbalance, charge/discharge overcurrent, high/low temperature, pack-voltage versus cell-sum mismatch, and maximum event-gap boundaries. The effective policy is included in the machine-readable result as `comparison_policy` and rendered in HTML reports.
 
 Cell-delta values may still be rounded for serialized/display output to suppress unreadable subtraction artifacts; that presentation normalization does not participate in the validation decision.
 
