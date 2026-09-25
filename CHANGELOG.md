@@ -4,6 +4,12 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### 0.9.1 development scope
+
+- Validate pack-voltage plausibility against the measured cell-voltage sum with reproducible evidence.
+- Fix pack-current type checking and enforce the affected analysis modules in CI.
+- Preserve the existing rule thresholds, grouping, and historical schema artifacts.
+
 ## 0.9.0 - 2026-09-24
 
 ### 0.9 development scope
