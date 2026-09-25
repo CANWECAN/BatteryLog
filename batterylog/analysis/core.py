@@ -23,6 +23,7 @@ from batterylog.models import (
     DataQualityInfo,
     RuleCode,
     SignalMappingInfo,
+    ValidationStatus,
     ViolationEvent,
 )
 from batterylog.signals import (
@@ -209,6 +210,12 @@ def _pack_current_rule_parameters(
     prefer_lower = limits.pack_current_positive_direction != direction
     signed_limit = -magnitude if prefer_lower else magnitude
     return signed_limit, prefer_lower
+
+
+_PACK_CURRENT_RULES: tuple[tuple[CurrentDirection, RuleCode], ...] = (
+    ("charge", "PACK_CHARGE_OVERCURRENT"),
+    ("discharge", "PACK_DISCHARGE_OVERCURRENT"),
+)
 
 
 def _rule_prefers_lower(code: RuleCode, limits: ValidationLimits) -> bool:
@@ -407,31 +414,38 @@ def _analyze_battery_frame(
         )
     if pack_current_col is not None:
         pack_current = rule_numeric[pack_current_col]
-        for direction, code in (
-            ("charge", "PACK_CHARGE_OVERCURRENT"),
-            ("discharge", "PACK_DISCHARGE_OVERCURRENT"),
-        ):
+        for direction, code in _PACK_CURRENT_RULES:
             parameters = _pack_current_rule_parameters(resolved_limits, direction)
             if parameters is None:
                 continue
             signed_limit, prefer_lower = parameters
-            builder = build_low_events if prefer_lower else build_high_events
-            extreme_name = "row_min" if prefer_lower else "row_max"
-            violations.extend(
-                builder(
+            if prefer_lower:
+                events = build_low_events(
                     numeric=rule_numeric,
                     timestamps=timestamps,
                     signal_cols=[pack_current_col],
-                    **{extreme_name: pack_current},
+                    row_min=pack_current,
                     limit=signed_limit,
                     code=code,
                     unit="A",
                     max_gap_s=resolved_event_detection.max_gap_s,
                 )
-            )
+            else:
+                events = build_high_events(
+                    numeric=rule_numeric,
+                    timestamps=timestamps,
+                    signal_cols=[pack_current_col],
+                    row_max=pack_current,
+                    limit=signed_limit,
+                    code=code,
+                    unit="A",
+                    max_gap_s=resolved_event_detection.max_gap_s,
+                )
+            violations.extend(events)
 
     violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
 
+    validation_status: ValidationStatus
     if violations or data_quality_events:
         validation_status = "FAIL"
     elif rules_evaluated:

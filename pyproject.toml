@@ -32,6 +32,7 @@ mf4 = [
 dev = [
   "hypothesis>=6",
   "jsonschema>=4",
+  "mypy>=1.18",
   "pytest>=9",
   "pytest-cov>=7",
   "psutil>=5.9",

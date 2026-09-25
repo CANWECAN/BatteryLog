@@ -22,6 +22,7 @@ from batterylog.models import (
     AnalysisResult,
     DataQualityEvent,
     RuleCode,
+    ValidationStatus,
     ViolationEvent,
 )
 from batterylog.signals import (
@@ -31,6 +32,7 @@ from batterylog.signals import (
 
 from .comparison import below_limit, exceeds_limit, exceeds_limit_scalar
 from .core import (
+    _PACK_CURRENT_RULES,
     _active_rule_codes,
     _analysis_options_snapshot,
     _comparison_policy_snapshot,
@@ -506,10 +508,7 @@ def _analyze_battery_chunks(
             )
         if pack_current_col is not None:
             pack_current = rule_numeric[pack_current_col]
-            for direction, code in (
-                ("charge", "PACK_CHARGE_OVERCURRENT"),
-                ("discharge", "PACK_DISCHARGE_OVERCURRENT"),
-            ):
+            for direction, code in _PACK_CURRENT_RULES:
                 parameters = _pack_current_rule_parameters(resolved_limits, direction)
                 if parameters is None:
                     continue
@@ -574,6 +573,7 @@ def _analyze_battery_chunks(
     violations = [event for code in rules_evaluated for event in states[code].finish()]
     violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
 
+    validation_status: ValidationStatus
     if violations or data_quality_events:
         validation_status = "FAIL"
     elif rules_evaluated:
