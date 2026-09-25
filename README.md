@@ -66,7 +66,7 @@ Without an explicit signal-mapping block, every input must contain:
 
 Examples are `cell_1_v`, `cell_96_v`, `temp_1_c`, and `temp_24_c`. The legacy single-temperature name `temp_c` is supported only when indexed temperature signals are not present.
 
-The optional scalar electrical channels are `pack_current_a` and `pack_voltage_v`. They may appear independently. When present, they participate in required-numeric data-quality handling and their minimum/maximum values are emitted in the current result schema. Pack voltage remains measurement evidence only. Pack current activates charge/discharge overcurrent rules only when explicit limits and a positive-current direction are configured.
+The optional scalar electrical channels are `pack_current_a` and `pack_voltage_v`. They may appear independently. When present, they participate in required-numeric data-quality handling and their minimum/maximum values are emitted in the current result schema. The pack-voltage cell-sum rule requires an explicit positive tolerance; enable it only after verifying that the selected cells form the complete, synchronized series stack. Pack current activates charge/discharge overcurrent rules only when explicit limits and a positive-current direction are configured.
 
 Aggregate names such as `cell_min_v`, `cell_max_v`, or `temp_max_c` are intentionally not treated as raw sensor channels.
 
@@ -74,11 +74,11 @@ Example:
 
 ```csv
 timestamp_s,pack_current_a,pack_voltage_v,temp_1_c,temp_2_c,cell_1_v,cell_2_v
-0,-25,398,28,27,3.95,3.94
-1,35,405,48,46,3.68,3.58
+0,-25,7.89,28,27,3.95,3.94
+1,35,7.26,48,46,3.68,3.58
 ```
 
-`timestamp_s` must be numeric and non-decreasing.
+The two cells in this illustrative snippet make up the entire series stack, so their sum equals the pack voltage at each sample. `timestamp_s` must be numeric and non-decreasing.
 
 ## Explicit signal mapping
 
@@ -118,7 +118,7 @@ Signal mapping performs **naming/canonicalization only**. It does not convert un
 
 Violation events use canonical names such as `cell_1_v` and `temp_2_c`. The machine-readable result and HTML report record whether canonical or explicit mapping was used, along with the source timestamp, configured patterns, and selected pack-signal sources.
 
-A tested vendor-style example is included:
+A tested vendor-style example is included. It selects four cell channels from a roughly 400 V pack for the existing per-cell checks; those cells are only a subset of the series stack. Do not enable the pack-voltage cell-sum rule with this example because its sum cannot represent the pack measurement:
 
 ```powershell
 .\.venv\Scripts\batterylog.exe examples\vendor_battery_log.csv --config examples\vendor_mapping.example.yaml
