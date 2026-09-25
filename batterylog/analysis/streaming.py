@@ -21,6 +21,7 @@ from batterylog.models import (
     RESULT_SCHEMA_VERSION,
     AnalysisResult,
     DataQualityEvent,
+    PackVoltageCellSumPeak,
     RuleCode,
     ValidationStatus,
     ViolationEvent,
@@ -39,6 +40,7 @@ from .core import (
     _data_quality_snapshot,
     _find_signal_columns,
     _limits_snapshot,
+    _pack_cell_sum_and_delta,
     _pack_current_rule_parameters,
     _raise_invalid_numeric_value,
     _resolve_data_quality,
@@ -58,6 +60,7 @@ from .rules import (
     build_high_events,
     build_imbalance_events,
     build_low_events,
+    build_pack_voltage_cell_sum_events,
     build_temperature_spread_events,
     contiguous_true_ranges,
 )
@@ -86,6 +89,10 @@ def _merge_streaming_events(
         merged["measured_value"] = current_value
         merged["peak_excursion"] = current["peak_excursion"]
         merged["signals"] = current["signals"]
+        if current["code"] == "PACK_VOLTAGE_CELL_SUM_MISMATCH":
+            merged["pack_voltage_v"] = current["pack_voltage_v"]
+            merged["cell_voltage_sum_v"] = current["cell_voltage_sum_v"]
+            merged["signed_error_v"] = current["signed_error_v"]
 
     return merged
 
@@ -220,6 +227,7 @@ def _analyze_battery_chunks(
     min_pack_current_a: float | None = None
     max_pack_voltage_v: float | None = None
     min_pack_voltage_v: float | None = None
+    pack_cell_peak: PackVoltageCellSumPeak | None = None
 
     for frame in chunks:
         if frame.empty:
@@ -235,6 +243,11 @@ def _analyze_battery_chunks(
         if not temp_cols:
             raise ValueError("No temperature columns found")
         pack_current_col, pack_voltage_col = find_canonical_pack_signal_columns(frame.columns)
+        if (
+            resolved_limits.pack_voltage_cell_sum_max_delta_v is not None
+            and pack_voltage_col is None
+        ):
+            raise ValueError("Pack-voltage cell-sum validation requires column 'pack_voltage_v'")
         if (
             resolved_limits.pack_charge_max_a is not None
             or resolved_limits.pack_discharge_max_a is not None
@@ -301,6 +314,9 @@ def _analyze_battery_chunks(
         cell_max = rule_numeric[cell_cols].max(axis=1)
         cell_min = rule_numeric[cell_cols].min(axis=1)
         delta_v = cell_max - cell_min
+        cell_sum, pack_cell_delta = _pack_cell_sum_and_delta(
+            rule_numeric, cell_cols, pack_voltage_col, valid_rows
+        )
         row_max_temp = rule_numeric[temp_cols].max(axis=1)
         row_min_temp = rule_numeric[temp_cols].min(axis=1)
         temperature_spread = row_max_temp - row_min_temp
@@ -324,6 +340,16 @@ def _analyze_battery_chunks(
                 pack_current=(
                     valid_numeric[pack_current_col].to_numpy(dtype=float, copy=False)
                     if pack_current_col is not None
+                    else None
+                ),
+                pack_voltage=(
+                    valid_numeric[pack_voltage_col].to_numpy(dtype=float, copy=False)
+                    if pack_voltage_col is not None
+                    else None
+                ),
+                cell_sum=(
+                    cell_sum.loc[valid_rows].to_numpy(dtype=float, copy=False)
+                    if cell_sum is not None
                     else None
                 ),
             )
@@ -394,8 +420,46 @@ def _analyze_battery_chunks(
                     if min_pack_voltage_v is None
                     else min(min_pack_voltage_v, chunk_min_voltage)
                 )
+                assert pack_cell_delta is not None
+                assert cell_sum is not None
+                valid_delta = pack_cell_delta.loc[valid_rows]
+                peak_position = int(np.argmax(valid_delta.to_numpy(dtype=float)))
+                peak_delta = float(valid_delta.iloc[peak_position])
+                if pack_cell_peak is None or peak_delta > pack_cell_peak["absolute_delta_v"]:
+                    pack = float(valid_numeric[pack_voltage_col].iloc[peak_position])
+                    summed = float(cell_sum.loc[valid_rows].iloc[peak_position])
+                    pack_cell_peak = {
+                        "timestamp_s": float(valid_timestamps.iloc[peak_position]),
+                        "pack_voltage_v": pack,
+                        "cell_voltage_sum_v": summed,
+                        "signed_error_v": pack - summed,
+                        "absolute_delta_v": peak_delta,
+                    }
 
         max_gap_s = resolved_event_detection.max_gap_s
+
+        if (
+            pack_cell_delta is not None
+            and resolved_limits.pack_voltage_cell_sum_max_delta_v is not None
+        ):
+            assert pack_voltage_col is not None
+            assert cell_sum is not None
+            limit = resolved_limits.pack_voltage_cell_sum_max_delta_v
+            _consume_streaming_rule(
+                states["PACK_VOLTAGE_CELL_SUM_MISMATCH"],
+                mask=exceeds_limit(pack_cell_delta, limit),
+                events=build_pack_voltage_cell_sum_events(
+                    timestamps,
+                    rule_numeric[pack_voltage_col],
+                    cell_sum,
+                    pack_cell_delta,
+                    cell_cols,
+                    limit,
+                    max_gap_s=max_gap_s,
+                ),
+                timestamps=timestamps,
+                max_gap_s=max_gap_s,
+            )
 
         if resolved_limits.imbalance_max_v is not None:
             limit = resolved_limits.imbalance_max_v
@@ -611,6 +675,7 @@ def _analyze_battery_chunks(
         "min_pack_current_a": min_pack_current_a,
         "max_pack_voltage_v": max_pack_voltage_v,
         "min_pack_voltage_v": min_pack_voltage_v,
+        "pack_voltage_cell_sum_peak": pack_cell_peak,
         "violations": violations,
     }
 

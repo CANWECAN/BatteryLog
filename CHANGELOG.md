@@ -10,6 +10,12 @@ All notable changes to BatteryLog are documented here.
 - Fix pack-current type checking and enforce the affected analysis modules in CI.
 - Preserve the existing rule thresholds, grouping, and historical schema artifacts.
 
+### Pack-voltage plausibility
+
+- Added an opt-in pack-voltage versus complete series-cell sum check, with explicit source measurements, signed error, and peak timestamp in result schema v8.
+- Added YAML config schema v6 and CLI override/disable for the positive absolute-delta threshold; legacy config schemas 1-5 and result schemas 2-7 remain frozen.
+- Added synchronized whole-frame/streaming evaluation, fail-closed missing-pack behavior, and a report comparison plot plus mismatch-threshold plot.
+
 ## 0.9.0 - 2026-09-24
 
 ### 0.9 development scope

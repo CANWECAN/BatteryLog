@@ -60,6 +60,7 @@ class ValidationLimits:
     pack_discharge_max_a: float | None = None
     pack_current_positive_direction: CurrentDirection | None = None
     temperature_spread_max_c: float | None = field(default=None, kw_only=True)
+    pack_voltage_cell_sum_max_delta_v: float | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -71,6 +72,7 @@ class ValidationLimits:
             ("temperature_spread_max_c", self.temperature_spread_max_c),
             ("pack_charge_max_a", self.pack_charge_max_a),
             ("pack_discharge_max_a", self.pack_discharge_max_a),
+            ("pack_voltage_cell_sum_max_delta_v", self.pack_voltage_cell_sum_max_delta_v),
         ):
             _validate_optional_number(name, value)
 
@@ -78,6 +80,11 @@ class ValidationLimits:
             raise ValueError("imbalance_max_v must be non-negative or null")
         if self.temperature_spread_max_c is not None and self.temperature_spread_max_c < 0:
             raise ValueError("temperature_spread_max_c must be non-negative or null")
+        if (
+            self.pack_voltage_cell_sum_max_delta_v is not None
+            and self.pack_voltage_cell_sum_max_delta_v <= 0
+        ):
+            raise ValueError("pack_voltage_cell_sum_max_delta_v must be positive or null")
         if (
             self.cell_min_v is not None
             and self.cell_max_v is not None
@@ -248,7 +255,7 @@ def _load_config_root_bytes(
     schema_version = root.get("schema_version", 1)
     if isinstance(schema_version, bool) or not isinstance(schema_version, int):
         raise TypeError("schema_version must be an integer")
-    if schema_version not in {1, 2, 3, 4, 5}:
+    if schema_version not in {1, 2, 3, 4, 5, 6}:
         raise ValueError(f"Unsupported schema_version: {schema_version!r}")
 
     allowed = {"schema_version", "limits", "event_detection", "signals"}
@@ -268,6 +275,8 @@ def _parse_limits(
     allowed = {"cell_voltage", "temperature"}
     if schema_version >= 4:
         allowed.add("pack_current")
+    if schema_version >= 6:
+        allowed.add("pack_voltage")
     _reject_unknown_keys("limits", limits_raw, allowed)
 
     cell_raw = _require_mapping(
@@ -299,6 +308,8 @@ def _parse_limits(
         pack_current_raw,
         {"charge_max_a", "discharge_max_a", "positive_direction"},
     )
+    pack_voltage_raw = _require_mapping("limits.pack_voltage", limits_raw.get("pack_voltage", {}))
+    _reject_unknown_keys("limits.pack_voltage", pack_voltage_raw, {"cell_sum_max_delta_v"})
     positive_direction = pack_current_raw.get("positive_direction")
     if positive_direction is not None and not isinstance(positive_direction, str):
         raise TypeError("limits.pack_current.positive_direction must be a string or null")
@@ -337,6 +348,10 @@ def _parse_limits(
         temperature_spread_max_c=_optional_number(
             "limits.temperature.max_spread_c",
             temp_raw.get("max_spread_c", defaults.temperature_spread_max_c),
+        ),
+        pack_voltage_cell_sum_max_delta_v=_optional_number(
+            "limits.pack_voltage.cell_sum_max_delta_v",
+            pack_voltage_raw.get("cell_sum_max_delta_v"),
         ),
     )
 
@@ -459,6 +474,7 @@ def override_validation_limits(
     pack_discharge_max_a: float | None = None,
     pack_current_positive_direction: CurrentDirection | None = None,
     temperature_spread_max_c: float | None = None,
+    pack_voltage_cell_sum_max_delta_v: float | None = None,
 ) -> ValidationLimits:
     updates: dict[str, float | CurrentDirection] = {}
     for name, value in (
@@ -470,6 +486,7 @@ def override_validation_limits(
         ("temperature_spread_max_c", temperature_spread_max_c),
         ("pack_charge_max_a", pack_charge_max_a),
         ("pack_discharge_max_a", pack_discharge_max_a),
+        ("pack_voltage_cell_sum_max_delta_v", pack_voltage_cell_sum_max_delta_v),
     ):
         if value is not None:
             updates[name] = value

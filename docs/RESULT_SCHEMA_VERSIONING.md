@@ -126,7 +126,7 @@ Temperature spread is evaluated per analyzed row as maximum temperature minus mi
 
 ### Result schema version 7
 
-Result schema version 7 is the current BatteryLog machine-readable result contract for the 0.9 development line. Its Draft 2020-12 JSON Schema is:
+Result schema version 7 is the frozen BatteryLog machine-readable result contract for 0.9.0. Its Draft 2020-12 JSON Schema is:
 
 ```text
 batterylog/schema/result-v7.json
@@ -139,6 +139,16 @@ Version 7 enriches every engineering violation event with:
 - `peak_excursion`: non-negative absolute threshold distance at the event peak, in the event unit
 
 These fields do not change any threshold, comparison, grouping, first-equal-peak tie-break, or validation-status semantics. Streaming event merges sum `sample_count`, recompute `duration_s` from the merged endpoints, and preserve the `peak_excursion` belonging to the selected worst peak.
+
+### Result schema version 8
+
+Result schema version 8 adds an opt-in pack-voltage versus cell-voltage-sum plausibility rule. The frozen v7 artifact remains packaged. Its Draft 2020-12 JSON Schema is:
+
+```text
+batterylog/schema/result-v8.json
+```
+
+Version 8 adds `PACK_VOLTAGE_CELL_SUM_MISMATCH`, the nullable `pack_voltage_cell_sum_peak` result with the source values and signed error at the earliest worst sample, and `limits_applied.pack_voltage_cell_sum_max_delta_v`. Mismatch events require their own pack measurement, cell sum and signed error at the event peak. A configured threshold requires a selected pack-voltage signal. The new rule uses the existing binary64 guard, contiguous-row grouping and optional event-gap splitting.
 
 ## Versioning policy from v2 onward
 

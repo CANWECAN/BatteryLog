@@ -159,11 +159,12 @@ BatteryLog currently emits these rule codes:
 | `CELL_UNDERVOLTAGE` | at least one cell is below the configured minimum voltage |
 | `PACK_CHARGE_OVERCURRENT` | signed pack current exceeds the configured charge-current magnitude in the declared charge direction |
 | `PACK_DISCHARGE_OVERCURRENT` | signed pack current exceeds the configured discharge-current magnitude in the declared discharge direction |
+| `PACK_VOLTAGE_CELL_SUM_MISMATCH` | absolute difference between pack voltage and sum of selected series-cell voltages exceeds the configured positive tolerance |
 | `TEMPERATURE_HIGH` | at least one temperature signal is above the configured maximum |
 | `TEMPERATURE_LOW` | at least one temperature signal is below the configured minimum |
 | `TEMPERATURE_SPREAD_HIGH` | row-wise maximum temperature minus minimum temperature exceeds the configured spread limit |
 
-A rule can be disabled by setting its YAML value to `null`. Pack voltage remains a measurement/evidence field and does not activate a rule.
+A rule can be disabled by setting its YAML value to `null`. Pack voltage is an optional measurement; its cell-sum rule activates only with an explicit positive tolerance.
 
 ## YAML configuration
 
@@ -260,9 +261,9 @@ The result also contains `rules_evaluated`, so downstream reports can show exact
 
 ## Result schema
 
-Machine-readable analysis results include their own `schema_version`. The current **result schema is 7**.
+Machine-readable analysis results include their own `schema_version`. The current **result schema is 8**.
 
-The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v7.json`](batterylog/schema/result-v7.json) and is included in the Python distribution package. The frozen v6, v5, v4, v3, and v2 artifacts remain packaged for earlier consumers.
+The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v8.json`](batterylog/schema/result-v8.json) and is included in the Python distribution package. The frozen v7, v6, v5, v4, v3, and v2 artifacts remain packaged for earlier consumers.
 
 Result schema version 2 was BatteryLog's **first formally frozen result contract**. Result schema version 3 extends that contract with structured data-quality evidence and explicit row accounting:
 
@@ -288,6 +289,8 @@ Result schema version 6 adds `TEMPERATURE_SPREAD_HIGH`, `limits_applied.temperat
 
 Result schema version 7 enriches every engineering violation event with `sample_count`, `duration_s`, and `peak_excursion`. The threshold, grouping, first-equal-peak tie-break, and PASS/FAIL semantics are unchanged.
 
+Result schema version 8 adds `PACK_VOLTAGE_CELL_SUM_MISMATCH`, an opt-in absolute difference between `pack_voltage_v` and the sum of selected `cell_*_v` channels. Enable it with YAML schema 6 under `limits.pack_voltage.cell_sum_max_delta_v` or `--pack-cell-sum-max-delta-v`. The tolerance must be positive and the pack-voltage channel is required. The result and event include pack voltage, cell sum, signed error (`pack - sum`), absolute delta, and peak time. This check assumes the selected cells represent the complete series stack on the same time basis as the pack sensor. Omitted or parallel cells, tap offsets, and unsynchronized channels need explicit preparation before interpreting the result. The rule is disabled by default.
+
 The current schema rejects unknown top-level/nested fields and encodes status invariants such as:
 
 - `NOT_EVALUATED`: no rules evaluated, no violation events, and no data-quality events
@@ -298,7 +301,7 @@ The current schema rejects unknown top-level/nested fields and encodes status in
 
 Some arithmetic relationships require semantic validation beyond Draft 2020-12 JSON Schema. BatteryLog-generated results guarantee `rows_input == rows_analyzed + rows_excluded`, data-quality event bounds satisfy `1 <= start_row <= end_row <= rows_input`, and each data-quality event's `affected_values` equals its inclusive row span multiplied by its signal count. Engineering violation events guarantee `sample_count >= 1`, `duration_s == end_time_s - start_time_s`, and `peak_excursion == abs(measured_value - limit_value)` within the documented 12-decimal evidence rounding. Consumers of results from independent or untrusted producers should check these relationships in addition to schema validation.
 
-Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 5; config schemas 1-4 remain accepted with their historical behavior.
+Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 6; config schemas 1-5 remain accepted with their historical behavior.
 
 From result schema v2 onward, adding, removing, renaming, changing the required status/type/meaning of result fields, or otherwise changing the machine-readable wire contract requires a new result-schema version. The full policy and historical rationale are documented in [`docs/RESULT_SCHEMA_VERSIONING.md`](docs/RESULT_SCHEMA_VERSIONING.md).
 

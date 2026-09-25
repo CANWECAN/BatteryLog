@@ -4,7 +4,7 @@ BatteryLog prepares plot data separately from the machine-readable `AnalysisResu
 
 ## Series contract
 
-Each retained point contains the global analyzed-row index and timestamp plus the row-level cell/temperature metrics and optional pack current already computed by the streaming analyzer. Temperature spread is derived from the retained temperature envelope; it is not an additional reducer candidate metric. In `exclude_invalid_rows` mode, excluded source rows are omitted from the report series; their original 1-based source-row positions remain available in `AnalysisResult["data_quality"]["events"]`.
+Each retained point contains the global analyzed-row index and timestamp plus the row-level cell/temperature metrics, optional pack current, and optional pack voltage with its synchronized cell sum. Temperature spread is derived from the retained temperature envelope; it is not an additional reducer candidate metric. In `exclude_invalid_rows` mode, excluded source rows are omitted from the report series; their original 1-based source-row positions remain available in `AnalysisResult["data_quality"]["events"]`.
 
 - minimum cell voltage
 - maximum cell voltage
@@ -12,8 +12,9 @@ Each retained point contains the global analyzed-row index and timestamp plus th
 - minimum temperature
 - maximum temperature
 - optional pack current
+- optional absolute pack-voltage versus cell-sum mismatch
 
-The report-series contract remains separate from the current `AnalysisResult` schema v7. Plot limits and violation markers must continue to come from `AnalysisResult`, while the report series supplies only time-series geometry. Structured data-quality evidence also comes exclusively from `AnalysisResult`; it is never inferred from decimated plot points.
+The report-series contract remains separate from the current `AnalysisResult` schema v8. Plot limits and violation markers must continue to come from `AnalysisResult`, while the report series supplies only time-series geometry. Structured data-quality evidence also comes exclusively from `AnalysisResult`; it is never inferred from decimated plot points.
 
 ## Deterministic downsampling
 
@@ -22,7 +23,7 @@ The default report budget is 2,400 retained points. Inputs at or below the confi
 When the source exceeds the budget, BatteryLog switches to `extrema-preserving-v1` reduction:
 
 1. Analyzed rows remain ordered by their global analyzed-row index. Reduction never uses loader chunk boundaries as bucket boundaries.
-2. Rows are summarized into fixed, globally aligned base blocks. A block retains its first and last row plus the row containing the minimum and maximum of each stored reducer metric. Derived temperature spread is intentionally not an additional candidate metric, so the existing point-budget contract is unchanged.
+2. Rows are summarized into fixed, globally aligned base blocks. A block retains its first and last row plus the row containing the minimum and maximum of each stored reducer metric. Derived temperature spread remains outside the candidates; optional pack mismatch becomes a candidate to preserve its worst peak without increasing the 14-candidate point-budget contract.
 3. Duplicate candidate rows are collapsed by original row index and retained in source order.
 4. When too many summarized buckets accumulate, adjacent buckets are merged. A merged bucket applies the same first/last plus per-metric min/max rule to the candidates from its children.
 5. Recursive merging is safe because the minimum or maximum of a union must be one of the child minima or maxima. The reducer therefore does not need discarded interior rows to preserve the extrema invariant.
@@ -43,6 +44,7 @@ BatteryLog renders the report series directly as three baseline inline SVG plots
 - temperature minimum/maximum envelope versus source timestamp
 - temperature spread versus source timestamp when the spread rule is configured
 - pack current versus source timestamp when pack current is present
+- pack voltage and cell sum, plus their absolute mismatch versus source timestamp, when pack voltage is present
 
 No external JavaScript, image files, fonts, or plotting package is required. SVG coordinates are deterministically derived from the retained `ReportSeries` points.
 

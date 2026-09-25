@@ -83,7 +83,7 @@ limits:
 @pytest.mark.parametrize(
     ("content", "exception_type", "message"),
     [
-        ("schema_version: 6\n", ValueError, "Unsupported schema_version"),
+        ("schema_version: 7\n", ValueError, "Unsupported schema_version"),
         ("limits: []\n", TypeError, "limits must be a mapping"),
         (
             "limits:\n  cell_voltage:\n    typo_v: 4.2\n",

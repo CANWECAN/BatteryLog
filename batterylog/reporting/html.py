@@ -36,6 +36,7 @@ def _limits_rows(result: AnalysisResult) -> str:
         ("Maximum temperature spread", limits["temperature_spread_max_c"], "degC"),
         ("Maximum pack charge current", limits["pack_charge_max_a"], "A"),
         ("Maximum pack discharge current", limits["pack_discharge_max_a"], "A"),
+        ("Maximum pack versus cell-sum delta", limits["pack_voltage_cell_sum_max_delta_v"], "V"),
     ]
     rows: list[str] = []
     for label, value, unit in items:
@@ -171,6 +172,13 @@ def _violation_rows(result: AnalysisResult) -> str:
     rows: list[str] = []
     for event in result["violations"]:
         signals = ", ".join(event["signals"])
+        chain = (
+            f"pack {event['pack_voltage_v']:.12g} V; "
+            f"cell sum {event['cell_voltage_sum_v']:.12g} V; "
+            f"signed error {event['signed_error_v']:.12g} V"
+            if event["code"] == "PACK_VOLTAGE_CELL_SUM_MISMATCH"
+            else "—"
+        )
         rows.append(
             "<tr>"
             f"<td><code>{escape(event['code'])}</code></td>"
@@ -183,6 +191,7 @@ def _violation_rows(result: AnalysisResult) -> str:
             f"<td>{event['duration_s']:.12g}</td>"
             f"<td>{event['peak_excursion']:.12g} {escape(event['unit'])}</td>"
             f"<td>{escape(signals)}</td>"
+            f"<td>{escape(chain)}</td>"
             "</tr>"
         )
     return "".join(rows)
@@ -204,6 +213,7 @@ def _status_message(result: AnalysisResult) -> str:
 
 
 def _measured_metric_rows(result: AnalysisResult) -> str:
+    peak = result["pack_voltage_cell_sum_peak"]
     return "".join(
         [
             _metric_row(
@@ -246,6 +256,24 @@ def _measured_metric_rows(result: AnalysisResult) -> str:
                 "Minimum pack voltage",
                 _fmt_measurement(result["min_pack_voltage_v"], "V"),
             ),
+            _metric_row(
+                "Maximum pack versus cell-sum delta",
+                _fmt_measurement(peak["absolute_delta_v"] if peak else None, "V"),
+            ),
+            *(
+                [
+                    _metric_row("Pack/cell-sum peak time", f"{peak['timestamp_s']:.12g} s"),
+                    _metric_row(
+                        "Pack voltage at mismatch peak", f"{peak['pack_voltage_v']:.12g} V"
+                    ),
+                    _metric_row(
+                        "Cell sum at mismatch peak", f"{peak['cell_voltage_sum_v']:.12g} V"
+                    ),
+                    _metric_row("Signed mismatch at peak", f"{peak['signed_error_v']:.12g} V"),
+                ]
+                if peak
+                else []
+            ),
         ]
     )
 
@@ -270,7 +298,7 @@ def render_html_report(
     violation_section = (
         f"<table><thead><tr><th>Code</th><th>Start (s)</th><th>End (s)</th>"
         f"<th>Worst (s)</th><th>Measured</th><th>Limit</th><th>Samples</th>"
-        f"<th>Duration (s)</th><th>Peak excursion</th><th>Signals</th>"
+        f"<th>Duration (s)</th><th>Peak excursion</th><th>Signals</th><th>Peak measurement chain</th>"
         f"</tr></thead><tbody>{violations}</tbody></table>"
         if violations
         else "<p>No violation events were recorded.</p>"

@@ -150,6 +150,17 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("charge", "discharge"),
         help="Declare which current direction is represented by positive values",
     )
+    pack_cell_sum_group = parser.add_mutually_exclusive_group()
+    pack_cell_sum_group.add_argument(
+        "--pack-cell-sum-max-delta-v",
+        type=float,
+        help="Maximum allowed absolute pack-voltage versus cell-sum mismatch",
+    )
+    pack_cell_sum_group.add_argument(
+        "--no-pack-cell-sum-max-delta-v",
+        action="store_true",
+        help="Disable pack-voltage versus cell-sum validation",
+    )
 
     event_gap_group = parser.add_mutually_exclusive_group()
     event_gap_group.add_argument(
@@ -227,6 +238,11 @@ def _resolve_cli_config(
         ),
         pack_current_positive_direction=(
             args.pack_current_positive_direction or base.limits.pack_current_positive_direction
+        ),
+        pack_voltage_cell_sum_max_delta_v=_resolve_cli_limit(
+            base.limits.pack_voltage_cell_sum_max_delta_v,
+            args.pack_cell_sum_max_delta_v,
+            args.no_pack_cell_sum_max_delta_v,
         ),
     )
     event_detection = (
