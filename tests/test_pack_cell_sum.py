@@ -181,6 +181,53 @@ def test_downsampled_plot_retains_unique_mismatch_peak() -> None:
     assert "Absolute pack/cell-sum mismatch" in render_html_report(result, series=series)
 
 
+def test_synthetic_complete_96s_pack_preserves_mismatch_through_streaming_and_plot() -> None:
+    rows = 129
+    values = {
+        "timestamp_s": range(rows),
+        "temp_c": [25.0] * rows,
+        "pack_current_a": [12.0] * rows,
+    }
+    cell_columns = [f"cell_{index}_v" for index in range(1, 97)]
+    for index, column in enumerate(cell_columns):
+        values[column] = [
+            3.45 + (index % 13) * 0.001 + ((row % 9) - 4) * 0.002 for row in range(rows)
+        ]
+    frame = pd.DataFrame(values)
+    frame["pack_voltage_v"] = [
+        sum(float(frame[column].iat[row]) for column in cell_columns)
+        + (0.01 if row % 2 else -0.01)
+        + (0.35 if 60 <= row <= 62 else 0.0)
+        for row in range(rows)
+    ]
+    limits = ValidationLimits(pack_voltage_cell_sum_max_delta_v=0.15)
+    expected = _analyze_battery_frame(frame, limits=limits)
+
+    for size in (1, 17, 64):
+        chunks = (frame.iloc[start : start + size] for start in range(0, rows, size))
+        assert _analyze_battery_chunks(chunks, limits=limits) == expected
+
+    assert expected["rules_evaluated"] == ["PACK_VOLTAGE_CELL_SUM_MISMATCH"]
+    assert expected["validation_status"] == "FAIL"
+    assert [
+        (event["start_time_s"], event["end_time_s"], event["sample_count"])
+        for event in expected["violations"]
+    ] == [(60.0, 62.0, 3)]
+
+    with BytesIO(frame.to_csv(index=False).encode()) as handle:
+        result, series = analyze_battery_file_with_report_series(
+            handle, limits=limits, max_points=24
+        )
+    assert result["validation_status"] == "FAIL"
+    assert len(series.points) <= 24
+    assert any(point.row_index == 61 for point in series.points)
+    assert "Absolute pack/cell-sum mismatch" in render_html_report(result, series=series)
+
+    incomplete = _analyze_battery_frame(frame.drop(columns=["cell_96_v"]), limits=limits)
+    assert incomplete["validation_status"] == "FAIL"
+    assert incomplete["violations"][0]["sample_count"] == rows
+
+
 def test_event_gap_split_matches_chunked_analysis() -> None:
     frame = pd.DataFrame(
         {
