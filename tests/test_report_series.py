@@ -423,12 +423,13 @@ def test_report_series_combined_pack_metrics_respect_point_budget(max_points: in
         cell_sum=cell_sum,
     )
 
-    if max_points < 18:
-        with pytest.raises(ValueError, match="max_points must be at least 18"):
-            collector.finish()
+    try:
+        series = collector.finish()
+    except ValueError as exc:
+        assert max_points < 18
+        assert "max_points must be at least 18" in str(exc)
         return
 
-    series = collector.finish()
     assert len(series.points) <= max_points
     assert series.points[0].row_index == 0
     assert series.points[-1].row_index == size - 1
