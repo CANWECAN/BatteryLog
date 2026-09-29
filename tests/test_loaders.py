@@ -36,11 +36,7 @@ def test_empty_column_name_is_rejected(tmp_path: Path) -> None:
 
 
 def test_csv_row_with_extra_field_is_rejected_instead_of_shifting_columns() -> None:
-    data = (
-        b"timestamp_s,temp_c,cell_1_v\n"
-        b"0,25,3.8,999\n"
-        b"1,26,3.9,999\n"
-    )
+    data = b"timestamp_s,temp_c,cell_1_v\n0,25,3.8,999\n1,26,3.9,999\n"
 
     with pytest.raises(ValueError):
         analyze_battery_bytes(
