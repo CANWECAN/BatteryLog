@@ -314,9 +314,7 @@ def test_plot_renderer_fails_closed_when_finite_domain_span_overflows() -> None:
 
 
 def test_plot_renderer_fails_closed_when_finite_time_span_overflows() -> None:
-    source = BytesIO(
-        b"timestamp_s,cell_1_v,temp_c\n-1e308,3.8,25\n1e308,3.8,25\n"
-    )
+    source = BytesIO(b"timestamp_s,cell_1_v,temp_c\n-1e308,3.8,25\n1e308,3.8,25\n")
     result, series = analyze_battery_file_with_report_series(
         source,
         source_name="extreme-time.csv",
