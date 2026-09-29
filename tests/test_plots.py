@@ -302,11 +302,7 @@ def test_single_timestamp_and_constant_values_render_without_non_finite_geometry
 
 
 def test_plot_renderer_fails_closed_when_finite_domain_span_overflows() -> None:
-    source = BytesIO(
-        b"timestamp_s,cell_1_v,temp_c\n"
-        b"0,-1e308,25\n"
-        b"1,1e308,25\n"
-    )
+    source = BytesIO(b"timestamp_s,cell_1_v,temp_c\n0,-1e308,25\n1,1e308,25\n")
     result, series = analyze_battery_file_with_report_series(
         source,
         source_name="extreme.csv",
