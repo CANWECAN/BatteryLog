@@ -161,6 +161,54 @@ def test_streaming_preserves_first_equal_peak_across_chunk_boundary(tmp_path: Pa
     ]
 
 
+def test_streaming_uses_unrounded_imbalance_peak_across_chunk_boundary() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0],
+            "temp_c": [25.0, 25.0],
+            "cell_1_v": [3.8000000000004, 3.75],
+            "cell_2_v": [3.7, 3.7],
+            "cell_3_v": [3.75, 3.80000000000049],
+        }
+    )
+    limits = ValidationLimits(imbalance_max_v=0.09)
+
+    expected = _analyze_battery_frame(frame.copy(), limits=limits)
+    actual = _analyze_battery_chunks(
+        [frame.iloc[:1].copy(), frame.iloc[1:].copy()],
+        limits=limits,
+    )
+
+    assert actual == expected
+    assert actual["violations"][0]["measured_value"] == 0.1
+    assert actual["violations"][0]["peak_time_s"] == 1.0
+    assert actual["violations"][0]["signals"] == ["cell_3_v", "cell_2_v"]
+
+
+def test_streaming_uses_unrounded_temperature_spread_peak_across_chunk_boundary() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0],
+            "temp_1_c": [30.0000000000004, 25.0],
+            "temp_2_c": [20.0, 20.0],
+            "temp_3_c": [25.0, 30.00000000000049],
+            "cell_1_v": [3.8, 3.8],
+        }
+    )
+    limits = ValidationLimits(temperature_spread_max_c=9.0)
+
+    expected = _analyze_battery_frame(frame.copy(), limits=limits)
+    actual = _analyze_battery_chunks(
+        [frame.iloc[:1].copy(), frame.iloc[1:].copy()],
+        limits=limits,
+    )
+
+    assert actual == expected
+    assert actual["violations"][0]["measured_value"] == 10.0
+    assert actual["violations"][0]["peak_time_s"] == 1.0
+    assert actual["violations"][0]["signals"] == ["temp_3_c", "temp_2_c"]
+
+
 def test_streaming_max_gap_s_splits_event_across_chunk_boundary(tmp_path: Path) -> None:
     path = tmp_path / "gap.csv"
     path.write_text(
