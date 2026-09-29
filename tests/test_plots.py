@@ -301,6 +301,22 @@ def test_single_timestamp_and_constant_values_render_without_non_finite_geometry
     assert html.count('class="series-sample ') == 5
 
 
+def test_plot_renderer_fails_closed_when_finite_domain_span_overflows() -> None:
+    source = BytesIO(
+        b"timestamp_s,cell_1_v,temp_c\n"
+        b"0,-1e308,25\n"
+        b"1,1e308,25\n"
+    )
+    result, series = analyze_battery_file_with_report_series(
+        source,
+        source_name="extreme.csv",
+        max_points=14,
+    )
+
+    with pytest.raises(ValueError, match="Plot value domain"):
+        render_report_plots(result, series)
+
+
 def test_instantaneous_violation_uses_vertical_marker_without_fake_duration() -> None:
     result, series = _result_and_series()
     html = render_report_plots(result, series)
