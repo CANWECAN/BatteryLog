@@ -123,6 +123,21 @@ def test_schema_enforces_validation_status_invariants(
         validator.validate(result)
 
 
+def test_schema_rejects_negative_imbalance_limit(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(
+        analyze_battery_log(
+            SAMPLE,
+            limits=ValidationLimits(imbalance_max_v=0.08),
+        )
+    )
+    result["limits_applied"]["imbalance_max_v"] = -0.01
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
 def test_schema_rejects_invalid_canonical_mapping_provenance(
     validator: Draft202012Validator,
 ) -> None:
