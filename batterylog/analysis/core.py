@@ -258,6 +258,21 @@ def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
     return codes
 
 
+def _finite_derived_difference(
+    high: pd.Series,
+    low: pd.Series,
+    valid_rows: pd.Series,
+    *,
+    metric: str,
+) -> pd.Series:
+    with np.errstate(over="ignore", invalid="ignore"):
+        difference = high - low
+    values = difference.loc[valid_rows].to_numpy(dtype=float, copy=False)
+    if not np.isfinite(values).all():
+        raise ValueError(f"{metric} calculation overflowed on an analyzed row")
+    return difference
+
+
 def _pack_cell_sum_and_delta(
     numeric: pd.DataFrame,
     cell_cols: list[str],
@@ -361,13 +376,23 @@ def _analyze_battery_frame(
     timestamps = rule_numeric["timestamp_s"]
     cell_max = rule_numeric[cell_cols].max(axis=1)
     cell_min = rule_numeric[cell_cols].min(axis=1)
-    delta_v = cell_max - cell_min
+    delta_v = _finite_derived_difference(
+        cell_max,
+        cell_min,
+        valid_rows,
+        metric="Cell-voltage delta",
+    )
     cell_sum, pack_cell_delta = _pack_cell_sum_and_delta(
         rule_numeric, cell_cols, pack_voltage_col, valid_rows
     )
     row_max_temp = rule_numeric[temp_cols].max(axis=1)
     row_min_temp = rule_numeric[temp_cols].min(axis=1)
-    temperature_spread = row_max_temp - row_min_temp
+    temperature_spread = _finite_derived_difference(
+        row_max_temp,
+        row_min_temp,
+        valid_rows,
+        metric="Temperature spread",
+    )
 
     rules_evaluated = _active_rule_codes(resolved_limits)
     violations: list[ViolationEvent] = []
