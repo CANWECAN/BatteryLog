@@ -258,6 +258,28 @@ def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
     return codes
 
 
+def _ensure_finite_derived_metric(
+    values: pd.Series,
+    valid_rows: pd.Series,
+    *,
+    metric_name: str,
+    row_offset: int = 0,
+) -> None:
+    valid_mask = valid_rows.to_numpy(dtype=bool)
+    selected = values.to_numpy(dtype=float)[valid_mask]
+    non_finite = ~np.isfinite(selected)
+    if not non_finite.any():
+        return
+
+    valid_position = int(np.flatnonzero(non_finite)[0])
+    row_pos = int(np.flatnonzero(valid_mask)[valid_position])
+    row_index = values.index[row_pos]
+    raise ValueError(
+        f"{metric_name} calculation overflowed at "
+        f"data row {row_offset + row_pos + 1} (index {row_index!r})"
+    )
+
+
 def _pack_cell_sum_and_delta(
     numeric: pd.DataFrame,
     cell_cols: list[str],
@@ -361,13 +383,24 @@ def _analyze_battery_frame(
     timestamps = rule_numeric["timestamp_s"]
     cell_max = rule_numeric[cell_cols].max(axis=1)
     cell_min = rule_numeric[cell_cols].min(axis=1)
-    delta_v = cell_max - cell_min
+    row_max_temp = rule_numeric[temp_cols].max(axis=1)
+    row_min_temp = rule_numeric[temp_cols].min(axis=1)
+    with np.errstate(over="ignore", invalid="ignore"):
+        delta_v = cell_max - cell_min
+        temperature_spread = row_max_temp - row_min_temp
+    _ensure_finite_derived_metric(
+        delta_v,
+        valid_rows,
+        metric_name="Cell-voltage delta",
+    )
+    _ensure_finite_derived_metric(
+        temperature_spread,
+        valid_rows,
+        metric_name="Temperature spread",
+    )
     cell_sum, pack_cell_delta = _pack_cell_sum_and_delta(
         rule_numeric, cell_cols, pack_voltage_col, valid_rows
     )
-    row_max_temp = rule_numeric[temp_cols].max(axis=1)
-    row_min_temp = rule_numeric[temp_cols].min(axis=1)
-    temperature_spread = row_max_temp - row_min_temp
 
     rules_evaluated = _active_rule_codes(resolved_limits)
     violations: list[ViolationEvent] = []
