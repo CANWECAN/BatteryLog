@@ -20,7 +20,6 @@ from batterylog.loaders import (
 from batterylog.models import (
     AnalysisResult,
     DataQualityEvent,
-    PackVoltageCellSumPeak,
     RuleCode,
     ViolationEvent,
 )
@@ -47,8 +46,14 @@ from .report_series import (
     ReportSeries,
     ReportSeriesCollector,
 )
-from .result_assembly import AnalysisMetrics, build_analysis_result
+from .result_assembly import build_analysis_result
 from .rules import contiguous_true_ranges
+from .summary import (
+    MeasurementSummary,
+    analysis_metrics_from_summary,
+    merge_measurement_summaries,
+    summarize_prepared_measurements,
+)
 
 
 def _merge_streaming_events(
@@ -243,17 +248,7 @@ def _analyze_battery_chunks(
     expected_layout: SignalLayout | None = None
     previous_timestamp: float | None = None
 
-    max_cell_voltage_v: float | None = None
-    min_cell_voltage_v: float | None = None
-    max_delta_v: float | None = None
-    max_temperature_c: float | None = None
-    min_temperature_c: float | None = None
-    max_temperature_spread_c: float | None = None
-    max_pack_current_a: float | None = None
-    min_pack_current_a: float | None = None
-    max_pack_voltage_v: float | None = None
-    min_pack_voltage_v: float | None = None
-    pack_cell_peak: PackVoltageCellSumPeak | None = None
+    measurement_summary = MeasurementSummary()
 
     for frame in chunks:
         if frame.empty:
@@ -319,9 +314,7 @@ def _analyze_battery_chunks(
         delta_v = rule_inputs.delta_v
         row_max_temp = rule_inputs.temperature_max
         row_min_temp = rule_inputs.temperature_min
-        temperature_spread = rule_inputs.temperature_spread
         cell_sum = rule_inputs.cell_sum
-        pack_cell_delta = rule_inputs.pack_cell_delta
         valid_timestamps = valid_numeric["timestamp_s"]
 
         valid_cell_max = cell_max.loc[valid_rows]
@@ -329,7 +322,6 @@ def _analyze_battery_chunks(
         valid_delta_v = delta_v.loc[valid_rows]
         valid_row_max_temp = row_max_temp.loc[valid_rows]
         valid_row_min_temp = row_min_temp.loc[valid_rows]
-        valid_temperature_spread = temperature_spread.loc[valid_rows]
 
         if report_series_collector is not None and len(valid_numeric):
             report_series_collector.consume_chunk(
@@ -357,87 +349,10 @@ def _analyze_battery_chunks(
                 ),
             )
 
-        if len(valid_numeric):
-            chunk_max_cell = float(valid_cell_max.max())
-            chunk_min_cell = float(valid_cell_min.min())
-            chunk_max_delta = float(valid_delta_v.max())
-            chunk_max_temp = float(valid_row_max_temp.max())
-            chunk_min_temp = float(valid_row_min_temp.min())
-            chunk_max_temperature_spread = float(valid_temperature_spread.max())
-
-            max_cell_voltage_v = (
-                chunk_max_cell
-                if max_cell_voltage_v is None
-                else max(max_cell_voltage_v, chunk_max_cell)
-            )
-            min_cell_voltage_v = (
-                chunk_min_cell
-                if min_cell_voltage_v is None
-                else min(min_cell_voltage_v, chunk_min_cell)
-            )
-            max_delta_v = (
-                chunk_max_delta if max_delta_v is None else max(max_delta_v, chunk_max_delta)
-            )
-            max_temperature_c = (
-                chunk_max_temp
-                if max_temperature_c is None
-                else max(max_temperature_c, chunk_max_temp)
-            )
-            min_temperature_c = (
-                chunk_min_temp
-                if min_temperature_c is None
-                else min(min_temperature_c, chunk_min_temp)
-            )
-            max_temperature_spread_c = (
-                chunk_max_temperature_spread
-                if max_temperature_spread_c is None
-                else max(max_temperature_spread_c, chunk_max_temperature_spread)
-            )
-
-            if pack_current_col is not None:
-                valid_pack_current = valid_numeric[pack_current_col]
-                chunk_max_current = float(valid_pack_current.max())
-                chunk_min_current = float(valid_pack_current.min())
-                max_pack_current_a = (
-                    chunk_max_current
-                    if max_pack_current_a is None
-                    else max(max_pack_current_a, chunk_max_current)
-                )
-                min_pack_current_a = (
-                    chunk_min_current
-                    if min_pack_current_a is None
-                    else min(min_pack_current_a, chunk_min_current)
-                )
-
-            if pack_voltage_col is not None:
-                valid_pack_voltage = valid_numeric[pack_voltage_col]
-                chunk_max_voltage = float(valid_pack_voltage.max())
-                chunk_min_voltage = float(valid_pack_voltage.min())
-                max_pack_voltage_v = (
-                    chunk_max_voltage
-                    if max_pack_voltage_v is None
-                    else max(max_pack_voltage_v, chunk_max_voltage)
-                )
-                min_pack_voltage_v = (
-                    chunk_min_voltage
-                    if min_pack_voltage_v is None
-                    else min(min_pack_voltage_v, chunk_min_voltage)
-                )
-                assert pack_cell_delta is not None
-                assert cell_sum is not None
-                valid_delta = pack_cell_delta.loc[valid_rows]
-                peak_position = int(np.argmax(valid_delta.to_numpy(dtype=float)))
-                peak_delta = float(valid_delta.iloc[peak_position])
-                if pack_cell_peak is None or peak_delta > pack_cell_peak["absolute_delta_v"]:
-                    pack = float(valid_numeric[pack_voltage_col].iloc[peak_position])
-                    summed = float(cell_sum.loc[valid_rows].iloc[peak_position])
-                    pack_cell_peak = {
-                        "timestamp_s": float(valid_timestamps.iloc[peak_position]),
-                        "pack_voltage_v": pack,
-                        "cell_voltage_sum_v": summed,
-                        "signed_error_v": pack - summed,
-                        "absolute_delta_v": peak_delta,
-                    }
+        measurement_summary = merge_measurement_summaries(
+            measurement_summary,
+            summarize_prepared_measurements(prepared),
+        )
 
         max_gap_s = resolved_event_detection.max_gap_s
         for evaluation in evaluate_rules(
@@ -460,19 +375,6 @@ def _analyze_battery_chunks(
         raise ValueError("Battery log contains no data rows")
 
     assert expected_layout is not None
-    if rows_analyzed:
-        assert max_cell_voltage_v is not None
-        assert min_cell_voltage_v is not None
-        assert max_delta_v is not None
-        assert max_temperature_c is not None
-        assert min_temperature_c is not None
-        assert max_temperature_spread_c is not None
-        if expected_layout.pack_current_col is not None:
-            assert max_pack_current_a is not None
-            assert min_pack_current_a is not None
-        if expected_layout.pack_voltage_col is not None:
-            assert max_pack_voltage_v is not None
-            assert min_pack_voltage_v is not None
 
     data_quality_events: list[DataQualityEvent] = (
         data_quality_collector.finish() if data_quality_collector is not None else []
@@ -495,23 +397,7 @@ def _analyze_battery_chunks(
         temperature_sensors_detected=len(expected_layout.temp_cols),
         pack_current_detected=expected_layout.pack_current_col is not None,
         pack_voltage_detected=expected_layout.pack_voltage_col is not None,
-        metrics=AnalysisMetrics(
-            max_cell_voltage_v=max_cell_voltage_v,
-            min_cell_voltage_v=min_cell_voltage_v,
-            max_delta_v=round(max_delta_v, 12) if max_delta_v is not None else None,
-            max_temperature_c=max_temperature_c,
-            min_temperature_c=min_temperature_c,
-            max_temperature_spread_c=(
-                round(max_temperature_spread_c, 12)
-                if max_temperature_spread_c is not None
-                else None
-            ),
-            max_pack_current_a=max_pack_current_a,
-            min_pack_current_a=min_pack_current_a,
-            max_pack_voltage_v=max_pack_voltage_v,
-            min_pack_voltage_v=min_pack_voltage_v,
-            pack_voltage_cell_sum_peak=pack_cell_peak,
-        ),
+        metrics=analysis_metrics_from_summary(measurement_summary),
     )
 
 

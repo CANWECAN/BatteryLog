@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 from batterylog.config import (
     DataQualityConfig,
     EventDetectionConfig,
@@ -14,7 +12,6 @@ from batterylog.models import (
     ComparisonPolicyInfo,
     DataQualityEvent,
     DataQualityInfo,
-    PackVoltageCellSumPeak,
     RuleCode,
     SignalMappingInfo,
     ValidationStatus,
@@ -23,21 +20,7 @@ from batterylog.models import (
 from batterylog.signals import CANONICAL_PACK_CURRENT, CANONICAL_PACK_VOLTAGE
 
 from .comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
-
-
-@dataclass(frozen=True)
-class AnalysisMetrics:
-    max_cell_voltage_v: float | None
-    min_cell_voltage_v: float | None
-    max_delta_v: float | None
-    max_temperature_c: float | None
-    min_temperature_c: float | None
-    max_temperature_spread_c: float | None
-    max_pack_current_a: float | None
-    min_pack_current_a: float | None
-    max_pack_voltage_v: float | None
-    min_pack_voltage_v: float | None
-    pack_voltage_cell_sum_peak: PackVoltageCellSumPeak | None
+from .summary import AnalysisMetrics
 
 
 def _limits_snapshot(limits: ValidationLimits) -> AppliedLimits:
