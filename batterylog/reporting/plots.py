@@ -49,6 +49,8 @@ def _time_domain(points: tuple[ReportSeriesPoint, ...]) -> tuple[float, float]:
     end = points[-1].timestamp_s
     if start == end:
         return start - 0.5, end + 0.5
+    if not isfinite(end - start):
+        raise ValueError("Plot time domain calculation overflowed")
     return start, end
 
 
@@ -60,14 +62,24 @@ def _value_domain(
     collected = tuple(values)
     if not collected:
         raise ValueError("Plot value domain requires at least one value")
+    if not all(isfinite(value) for value in collected):
+        raise ValueError("Plot value domain requires finite values")
 
     minimum = min(collected)
     maximum = max(collected)
     if minimum == maximum:
         padding = max(abs(minimum) * 0.05, minimum_padding)
     else:
-        padding = max((maximum - minimum) * 0.08, minimum_padding)
-    return minimum - padding, maximum + padding
+        span = maximum - minimum
+        if not isfinite(span):
+            raise ValueError("Plot value domain calculation overflowed")
+        padding = max(span * 0.08, minimum_padding)
+
+    lower = minimum - padding
+    upper = maximum + padding
+    if not isfinite(lower) or not isfinite(upper):
+        raise ValueError("Plot value domain calculation overflowed")
+    return lower, upper
 
 
 def _scale(
@@ -75,8 +87,17 @@ def _scale(
 ) -> float:
     if source_min == source_max:  # pragma: no cover - domains expand equal ranges
         return (target_min + target_max) / 2.0
-    ratio = (value - source_min) / (source_max - source_min)
-    return target_min + ratio * (target_max - target_min)
+
+    source_span = source_max - source_min
+    offset = value - source_min
+    if not isfinite(source_span) or not isfinite(offset):
+        raise ValueError("Plot coordinate scaling overflowed")
+
+    ratio = offset / source_span
+    scaled = target_min + ratio * (target_max - target_min)
+    if not isfinite(ratio) or not isfinite(scaled):
+        raise ValueError("Plot coordinate scaling produced a non-finite value")
+    return scaled
 
 
 def _x(value: float, start: float, end: float) -> float:
@@ -612,6 +633,8 @@ def _validate_report_series(result: AnalysisResult, series: ReportSeries) -> Non
         )
     if retained_voltage:
         extrema += (
+            ("max_pack_voltage_v", max(p.pack_voltage_v for p in retained_voltage)),
+            ("min_pack_voltage_v", min(p.pack_voltage_v for p in retained_voltage)),
             (
                 "pack_voltage_cell_sum_peak",
                 max(
