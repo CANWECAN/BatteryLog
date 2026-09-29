@@ -112,6 +112,18 @@ def test_invalid_configs_are_rejected(
         load_validation_limits(_write(tmp_path, content))
 
 
+def test_extreme_integer_limit_is_rejected_as_non_finite() -> None:
+    with pytest.raises(ValueError, match="must be finite"):
+        ValidationLimits(cell_max_v=10**1000)
+
+
+def test_extreme_integer_yaml_limit_is_rejected_as_non_finite(tmp_path: Path) -> None:
+    content = f"limits:\n  cell_voltage:\n    max_v: {10**1000}\n"
+
+    with pytest.raises(ValueError, match="must be finite"):
+        load_validation_limits(_write(tmp_path, content))
+
+
 def test_inconsistent_ranges_are_rejected() -> None:
     with pytest.raises(ValueError, match="cell_min_v must be lower"):
         ValidationLimits(cell_min_v=4.2, cell_max_v=4.2)

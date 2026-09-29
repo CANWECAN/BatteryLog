@@ -159,6 +159,46 @@ def test_strict_mode_rejects_typed_boolean_required_value() -> None:
         _analyze_battery_frame(frame)
 
 
+def test_blank_csv_row_cannot_disappear_from_data_quality() -> None:
+    data = b"timestamp_s,cell_1_v,temp_c\n0,3.8,25\n\n2,3.8,25\n"
+    config = DataQualityConfig(mode="exclude_invalid_rows")
+
+    result = analyze_battery_bytes(
+        data,
+        limits=ValidationLimits(cell_max_v=4.2),
+        data_quality=config,
+    )
+
+    assert result["validation_status"] == "FAIL"
+    assert result["rows_input"] == 3
+    assert result["rows_analyzed"] == 2
+    assert result["rows_excluded"] == 1
+    assert result["data_quality"]["events"] == [
+        {
+            "code": "MISSING_REQUIRED_VALUE",
+            "start_row": 2,
+            "end_row": 2,
+            "signals": ["timestamp_s", "cell_1_v", "temp_c"],
+            "affected_values": 3,
+        }
+    ]
+
+    for chunk_rows in (1, 2, 3):
+        streaming = analyze_measurement_loader(
+            CsvFileLoader(BytesIO(data), chunk_rows=chunk_rows),
+            limits=ValidationLimits(cell_max_v=4.2),
+            data_quality=config,
+        )
+        assert streaming == result
+
+
+def test_strict_mode_rejects_blank_csv_row() -> None:
+    data = b"timestamp_s,cell_1_v,temp_c\n0,3.8,25\n\n2,3.8,25\n"
+
+    with pytest.raises(ValueError, match="Required numeric value is missing"):
+        analyze_battery_bytes(data)
+
+
 def test_csv_boolean_inference_is_chunk_boundary_independent() -> None:
     data = b"timestamp_s,cell_1_v,temp_c\n0,3.8,True\n1,3.8,bad\n"
     config = DataQualityConfig(mode="exclude_invalid_rows")
@@ -182,6 +222,91 @@ def test_csv_boolean_inference_is_chunk_boundary_independent() -> None:
             "affected_values": 2,
         }
     ]
+
+
+def test_csv_numeric_token_classification_is_chunk_boundary_independent() -> None:
+    tokens = [
+        "25",
+        " 25 ",
+        "+25",
+        "2.5e1",
+        "2.5E+1",
+        "025",
+        ".5",
+        "5.",
+        "-0",
+        "1e400",
+        "-1e400",
+        "inf",
+        "-inf",
+        "Infinity",
+        "-Infinity",
+        "NaN",
+        "nan",
+        "NA",
+        "N/A",
+        "NULL",
+        "null",
+        "None",
+        "True",
+        "False",
+        "TRUE",
+        "FALSE",
+        "bad",
+        "",
+        '""',
+        '"25"',
+        '" True "',
+        '"1,000"',
+        "1_000",
+        "0x10",
+        "２５",
+        "٢٥",
+        "−25",
+        "1e-324",
+        "5e-324",
+        "1e309",
+    ]
+    rows = [f"{index},3.8,{token}" for index, token in enumerate(tokens)]
+    data = ("timestamp_s,cell_1_v,temp_c\n" + "\n".join(rows) + "\n").encode()
+    config = DataQualityConfig(mode="exclude_invalid_rows")
+    expected = analyze_battery_bytes(data, data_quality=config)
+
+    for chunk_rows in (1, 2, 3, 7, len(tokens)):
+        actual = analyze_measurement_loader(
+            CsvFileLoader(BytesIO(data), chunk_rows=chunk_rows),
+            data_quality=config,
+        )
+        assert actual == expected
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        "1e3",
+        '"3.80"',
+        " 3.80 ",
+        "NaN",
+        "nan",
+        "INF",
+        "-INF",
+        "1e400",
+        "",
+        "True",
+        "False",
+    ],
+)
+def test_csv_lexical_numeric_classification_is_chunk_boundary_independent(token: str) -> None:
+    data = (f"timestamp_s,cell_1_v,temp_c\n0,{token},25\n1,bad,25\n").encode()
+    config = DataQualityConfig(mode="exclude_invalid_rows")
+
+    whole = analyze_battery_bytes(data, data_quality=config)
+    for chunk_rows in (1, 2):
+        streaming = analyze_measurement_loader(
+            CsvFileLoader(BytesIO(data), chunk_rows=chunk_rows),
+            data_quality=config,
+        )
+        assert streaming == whole
 
 
 def test_strict_mode_preserves_fail_fast_invalid_numeric_behavior() -> None:
@@ -336,6 +461,23 @@ def test_streaming_and_whole_frame_data_quality_results_match_across_chunk_bound
             "affected_values": 2,
         }
     ]
+
+
+def test_excluded_row_cannot_hide_timestamp_regression() -> None:
+    data = b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,4.30,3.80,25\n-1,bad,3.80,25\n1,4.40,3.80,25\n"
+    limits = ValidationLimits(cell_max_v=4.2)
+    config = DataQualityConfig(mode="exclude_invalid_rows")
+
+    with pytest.raises(ValueError, match="timestamp_s must be non-decreasing"):
+        analyze_battery_bytes(data, limits=limits, data_quality=config)
+
+    for chunk_rows in (1, 2, 3):
+        with pytest.raises(ValueError, match="timestamp_s must be non-decreasing"):
+            analyze_measurement_loader(
+                CsvFileLoader(BytesIO(data), chunk_rows=chunk_rows),
+                limits=limits,
+                data_quality=config,
+            )
 
 
 def test_invalid_timestamp_is_excluded_and_breaks_violation_continuity() -> None:

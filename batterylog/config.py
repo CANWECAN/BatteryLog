@@ -45,7 +45,11 @@ def _validate_optional_number(name: str, value: float | None) -> None:
         return
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(f"{name} must be a number or null")
-    if not isfinite(value):
+    try:
+        finite = isfinite(value)
+    except OverflowError:
+        finite = False
+    if not finite:
         raise ValueError(f"{name} must be finite or null")
 
 
@@ -229,7 +233,10 @@ def _optional_number(name: str, value: Any) -> float | None:
         return None
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(f"{name} must be a number or null")
-    number = float(value)
+    try:
+        number = float(value)
+    except OverflowError as exc:
+        raise ValueError(f"{name} must be finite or null") from exc
     if not isfinite(number):
         raise ValueError(f"{name} must be finite or null")
     return number

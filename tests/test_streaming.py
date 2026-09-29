@@ -6,7 +6,13 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from batterylog import EventDetectionConfig, SignalMapping, SignalPattern, ValidationLimits
+from batterylog import (
+    DataQualityConfig,
+    EventDetectionConfig,
+    SignalMapping,
+    SignalPattern,
+    ValidationLimits,
+)
 from batterylog.analysis.core import _analyze_battery_frame
 from batterylog.analysis.streaming import _analyze_battery_chunks, analyze_measurement_loader
 from batterylog.loaders import iter_battery_csv, load_battery_csv
@@ -71,6 +77,89 @@ def battery_frames(draw) -> pd.DataFrame:
             "cell_3_v": draw(st.lists(CELL_VALUE, min_size=row_count, max_size=row_count)),
         }
     )
+
+
+PACK_CURRENT_VALUE = st.one_of(
+    st.sampled_from([-100.0, -50.0, -49.9, 0.0, 49.9, 50.0, 100.0, 100.1]),
+    st.floats(
+        min_value=-150.0,
+        max_value=150.0,
+        allow_nan=False,
+        allow_infinity=False,
+        width=32,
+    ),
+)
+PACK_CELL_ERROR = st.one_of(
+    st.sampled_from([-0.25, -0.125, -0.124, 0.0, 0.124, 0.125, 0.25]),
+    st.floats(
+        min_value=-0.3,
+        max_value=0.3,
+        allow_nan=False,
+        allow_infinity=False,
+        width=64,
+    ),
+)
+
+V091_LIMITS = ValidationLimits(
+    cell_min_v=2.8,
+    cell_max_v=4.2,
+    imbalance_max_v=0.08,
+    temperature_min_c=-20.0,
+    temperature_max_c=55.0,
+    temperature_spread_max_c=10.0,
+    pack_charge_max_a=50.0,
+    pack_discharge_max_a=100.0,
+    pack_current_positive_direction="discharge",
+    pack_voltage_cell_sum_max_delta_v=0.125,
+)
+
+
+@st.composite
+def battery_v091_frames(draw) -> pd.DataFrame:
+    row_count = draw(st.integers(min_value=1, max_value=24))
+    gaps = draw(
+        st.lists(
+            st.sampled_from([0.0, 0.5, 1.0, 2.0, 5.0]),
+            min_size=row_count,
+            max_size=row_count,
+        )
+    )
+    cell_1 = draw(st.lists(CELL_VALUE, min_size=row_count, max_size=row_count))
+    cell_2 = draw(st.lists(CELL_VALUE, min_size=row_count, max_size=row_count))
+    temp_1 = draw(st.lists(TEMP_VALUE, min_size=row_count, max_size=row_count))
+    temp_2 = draw(st.lists(TEMP_VALUE, min_size=row_count, max_size=row_count))
+    current = draw(st.lists(PACK_CURRENT_VALUE, min_size=row_count, max_size=row_count))
+    pack_error = draw(st.lists(PACK_CELL_ERROR, min_size=row_count, max_size=row_count))
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": list(accumulate(gaps)),
+            "pack_current_a": current,
+            "pack_voltage_v": [
+                float(first + second + error)
+                for first, second, error in zip(cell_1, cell_2, pack_error, strict=True)
+            ],
+            "temp_1_c": temp_1,
+            "temp_2_c": temp_2,
+            "cell_1_v": cell_1,
+            "cell_2_v": cell_2,
+        }
+    )
+
+    if draw(st.booleans()):
+        row = draw(st.integers(min_value=0, max_value=row_count - 1))
+        column = draw(
+            st.sampled_from(
+                [
+                    "pack_current_a",
+                    "pack_voltage_v",
+                    "temp_1_c",
+                    "cell_1_v",
+                ]
+            )
+        )
+        frame.loc[row, column] = float("nan")
+
+    return frame
 
 
 def _write_boundary_fixture(path: Path) -> None:
@@ -161,6 +250,54 @@ def test_streaming_preserves_first_equal_peak_across_chunk_boundary(tmp_path: Pa
     ]
 
 
+def test_streaming_uses_unrounded_imbalance_peak_across_chunk_boundary() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0],
+            "temp_c": [25.0, 25.0],
+            "cell_1_v": [3.8000000000004, 3.75],
+            "cell_2_v": [3.7, 3.7],
+            "cell_3_v": [3.75, 3.80000000000049],
+        }
+    )
+    limits = ValidationLimits(imbalance_max_v=0.09)
+
+    expected = _analyze_battery_frame(frame.copy(), limits=limits)
+    actual = _analyze_battery_chunks(
+        [frame.iloc[:1].copy(), frame.iloc[1:].copy()],
+        limits=limits,
+    )
+
+    assert actual == expected
+    assert actual["violations"][0]["measured_value"] == 0.1
+    assert actual["violations"][0]["peak_time_s"] == 1.0
+    assert actual["violations"][0]["signals"] == ["cell_3_v", "cell_2_v"]
+
+
+def test_streaming_uses_unrounded_temperature_spread_peak_across_chunk_boundary() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0],
+            "temp_1_c": [30.0000000000004, 25.0],
+            "temp_2_c": [20.0, 20.0],
+            "temp_3_c": [25.0, 30.00000000000049],
+            "cell_1_v": [3.8, 3.8],
+        }
+    )
+    limits = ValidationLimits(temperature_spread_max_c=9.0)
+
+    expected = _analyze_battery_frame(frame.copy(), limits=limits)
+    actual = _analyze_battery_chunks(
+        [frame.iloc[:1].copy(), frame.iloc[1:].copy()],
+        limits=limits,
+    )
+
+    assert actual == expected
+    assert actual["violations"][0]["measured_value"] == 10.0
+    assert actual["violations"][0]["peak_time_s"] == 1.0
+    assert actual["violations"][0]["signals"] == ["temp_3_c", "temp_2_c"]
+
+
 def test_streaming_max_gap_s_splits_event_across_chunk_boundary(tmp_path: Path) -> None:
     path = tmp_path / "gap.csv"
     path.write_text(
@@ -244,6 +381,41 @@ def test_streaming_is_differentially_equivalent_to_whole_frame(
         chunks,
         limits=LIMITS,
         event_detection=event_detection,
+    )
+
+    assert actual == expected
+
+
+@settings(deadline=None, max_examples=200)
+@given(
+    frame=battery_v091_frames(),
+    chunk_rows=st.integers(min_value=1, max_value=12),
+    max_gap_s=st.one_of(
+        st.none(),
+        st.sampled_from([0.0, 0.5, 1.0, 2.0, 5.0]),
+    ),
+)
+def test_v091_streaming_is_differentially_equivalent_with_pack_and_data_quality(
+    frame: pd.DataFrame,
+    chunk_rows: int,
+    max_gap_s: float | None,
+) -> None:
+    event_detection = EventDetectionConfig(max_gap_s=max_gap_s)
+    data_quality = DataQualityConfig(mode="exclude_invalid_rows")
+    expected = _analyze_battery_frame(
+        frame.copy(),
+        limits=V091_LIMITS,
+        event_detection=event_detection,
+        data_quality=data_quality,
+    )
+    chunks = [
+        frame.iloc[start : start + chunk_rows].copy() for start in range(0, len(frame), chunk_rows)
+    ]
+    actual = _analyze_battery_chunks(
+        chunks,
+        limits=V091_LIMITS,
+        event_detection=event_detection,
+        data_quality=data_quality,
     )
 
     assert actual == expected

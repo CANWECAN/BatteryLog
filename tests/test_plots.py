@@ -109,6 +109,28 @@ def test_delta_rounding_residue_does_not_trip_extrema_guard() -> None:
     assert "Cell-voltage delta" in render_report_plots(result, series)
 
 
+def test_plot_renderer_preserves_pack_voltage_extremum() -> None:
+    rows = ["timestamp_s,pack_voltage_v,cell_1_v,cell_2_v,cell_3_v,temp_c"]
+    for index in range(40):
+        cell_2_v = 3.9 if index == 20 else 3.5
+        pack_voltage_v = 10.9 if index == 20 else 10.5
+        rows.append(f"{index},{pack_voltage_v},3.0,{cell_2_v},4.0,25")
+    source = BytesIO(("\n".join(rows) + "\n").encode())
+
+    result, series = analyze_battery_file_with_report_series(
+        source,
+        source_name="pack_voltage_peak.csv",
+        max_points=18,
+    )
+
+    retained_max = max(
+        point.pack_voltage_v for point in series.points if point.pack_voltage_v is not None
+    )
+    assert result["max_pack_voltage_v"] == pytest.approx(10.9)
+    assert retained_max == pytest.approx(10.9)
+    assert "<section" in render_report_plots(result, series)
+
+
 def test_plot_rendering_is_deterministic() -> None:
     result, series = _result_and_series()
 
@@ -299,6 +321,42 @@ def test_single_timestamp_and_constant_values_render_without_non_finite_geometry
     assert ">0.005 V</text>" in html
     assert ">-0.005 V</text>" in html
     assert html.count('class="series-sample ') == 5
+
+
+def test_plot_renderer_fails_closed_when_finite_domain_span_overflows() -> None:
+    source = BytesIO(b"timestamp_s,cell_1_v,temp_c\n0,-1e308,25\n1,1e308,25\n")
+    result, series = analyze_battery_file_with_report_series(
+        source,
+        source_name="extreme.csv",
+        max_points=14,
+    )
+
+    with pytest.raises(ValueError, match="Plot value domain"):
+        render_report_plots(result, series)
+
+
+def test_plot_renderer_fails_closed_when_finite_time_span_overflows() -> None:
+    source = BytesIO(b"timestamp_s,cell_1_v,temp_c\n-1e308,3.8,25\n1e308,3.8,25\n")
+    result, series = analyze_battery_file_with_report_series(
+        source,
+        source_name="extreme-time.csv",
+        max_points=14,
+    )
+
+    with pytest.raises(ValueError, match="Plot time domain"):
+        render_report_plots(result, series)
+
+
+def test_plot_renderer_fails_closed_when_constant_domain_padding_overflows() -> None:
+    source = BytesIO(b"timestamp_s,cell_1_v,temp_c\n0,1.79e308,25\n")
+    result, series = analyze_battery_file_with_report_series(
+        source,
+        source_name="extreme-constant.csv",
+        max_points=14,
+    )
+
+    with pytest.raises(ValueError, match="Plot value domain"):
+        render_report_plots(result, series)
 
 
 def test_instantaneous_violation_uses_vertical_marker_without_fake_duration() -> None:
