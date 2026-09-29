@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 DEFAULT_REPORT_SERIES_MAX_POINTS = 2400
-_MAX_BUCKET_CANDIDATES = 16
+_MAX_BUCKET_CANDIDATES = 18
 _MIN_REPORT_SERIES_MAX_POINTS = 14
 _MIN_BASE_BLOCK_ROWS = 16
 _METRICS = (
@@ -16,6 +16,7 @@ _METRICS = (
     "temperature_min_c",
     "temperature_max_c",
     "pack_current_a",
+    "pack_voltage_v",
     "pack_cell_delta_v",
 )
 
@@ -143,6 +144,8 @@ def _summarize_array_block(
     arrays = [cell_min, cell_max, cell_delta, temperature_min, temperature_max]
     if pack_current is not None:
         arrays.append(pack_current)
+    if pack_voltage is not None:
+        arrays.append(pack_voltage)
     if pack_voltage is not None and cell_sum is not None:
         arrays.append(np.abs(pack_voltage - cell_sum))
     for values in arrays:
@@ -420,8 +423,8 @@ class ReportSeriesCollector:
         if len(points) > self._max_points:
             if self._max_points < _MAX_BUCKET_CANDIDATES:
                 raise ValueError(
-                    "max_points must be at least 16 to preserve all extrema when "
-                    "pack current and pack voltage are both present"
+                    f"max_points must be at least {_MAX_BUCKET_CANDIDATES} to preserve all "
+                    "extrema when pack current and pack voltage are both present"
                 )
             raise RuntimeError("Report-series reducer exceeded its max_points contract")
 
