@@ -58,11 +58,11 @@ from .report_series import (
     ReportSeriesCollector,
 )
 from .rules import (
+    _event_duration_s,
     build_high_events,
     build_imbalance_events,
     build_low_events,
     build_pack_voltage_cell_sum_events,
-    _event_duration_s,
     build_temperature_spread_events,
     contiguous_true_ranges,
 )
