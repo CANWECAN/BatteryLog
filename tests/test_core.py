@@ -10,39 +10,38 @@ from batterylog import (
     analyze_battery_log,
 )
 from batterylog.analysis.core import analyze_battery_bytes
-from batterylog.reporting.json import render_json_result
 
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
 
-def test_finite_cell_values_do_not_produce_non_finite_json_evidence() -> None:
-    result = analyze_battery_bytes(b"timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,1e308,-1e308\n")
-
-    render_json_result(result)
-
-
-def test_finite_temperature_values_do_not_produce_non_finite_json_evidence() -> None:
-    result = analyze_battery_bytes(b"timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,1e308,-1e308,3.8\n")
-
-    render_json_result(result)
+def test_finite_cell_values_fail_closed_on_delta_overflow() -> None:
+    with pytest.raises(ValueError, match="Cell-voltage delta calculation overflowed"):
+        analyze_battery_bytes(
+            b"timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,1e308,-1e308\n"
+        )
 
 
-def test_finite_timestamps_do_not_produce_non_finite_event_duration() -> None:
-    result = analyze_battery_bytes(
-        b"timestamp_s,temp_c,cell_1_v\n-1e308,25,4.3\n1e308,25,4.3\n",
-        limits=ValidationLimits(cell_max_v=4.2),
-    )
-
-    render_json_result(result)
+def test_finite_temperature_values_fail_closed_on_spread_overflow() -> None:
+    with pytest.raises(ValueError, match="Temperature spread calculation overflowed"):
+        analyze_battery_bytes(
+            b"timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,1e308,-1e308,3.8\n"
+        )
 
 
-def test_finite_values_do_not_produce_non_finite_peak_excursion() -> None:
-    result = analyze_battery_bytes(
-        b"timestamp_s,temp_c,cell_1_v\n0,25,1e308\n",
-        limits=ValidationLimits(cell_max_v=-1e308),
-    )
+def test_finite_timestamps_fail_closed_on_event_duration_overflow() -> None:
+    with pytest.raises(ValueError, match="Violation event duration calculation overflowed"):
+        analyze_battery_bytes(
+            b"timestamp_s,temp_c,cell_1_v\n-1e308,25,4.3\n1e308,25,4.3\n",
+            limits=ValidationLimits(cell_max_v=4.2),
+        )
 
-    render_json_result(result)
+
+def test_finite_values_fail_closed_on_peak_excursion_overflow() -> None:
+    with pytest.raises(ValueError, match="Violation peak-excursion calculation overflowed"):
+        analyze_battery_bytes(
+            b"timestamp_s,temp_c,cell_1_v\n0,25,1e308\n",
+            limits=ValidationLimits(cell_max_v=-1e308),
+        )
 
 
 def test_sample_log_returns_structured_violation_events() -> None:
