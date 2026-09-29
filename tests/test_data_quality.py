@@ -184,6 +184,62 @@ def test_csv_boolean_inference_is_chunk_boundary_independent() -> None:
     ]
 
 
+def test_csv_numeric_token_classification_is_chunk_boundary_independent() -> None:
+    tokens = [
+        "25",
+        " 25 ",
+        "+25",
+        "2.5e1",
+        "2.5E+1",
+        "025",
+        ".5",
+        "5.",
+        "-0",
+        "1e400",
+        "-1e400",
+        "inf",
+        "-inf",
+        "Infinity",
+        "-Infinity",
+        "NaN",
+        "nan",
+        "NA",
+        "N/A",
+        "NULL",
+        "null",
+        "None",
+        "True",
+        "False",
+        "TRUE",
+        "FALSE",
+        "bad",
+        "",
+        '""',
+        '"25"',
+        '" True "',
+        '"1,000"',
+        "1_000",
+        "0x10",
+        "２５",
+        "٢٥",
+        "−25",
+        "1e-324",
+        "5e-324",
+        "1e309",
+    ]
+    rows = [f"{index},3.8,{token}" for index, token in enumerate(tokens)]
+    data = ("timestamp_s,cell_1_v,temp_c\n" + "\n".join(rows) + "\n").encode()
+    config = DataQualityConfig(mode="exclude_invalid_rows")
+    expected = analyze_battery_bytes(data, data_quality=config)
+
+    for chunk_rows in (1, 2, 3, 7, len(tokens)):
+        actual = analyze_measurement_loader(
+            CsvFileLoader(BytesIO(data), chunk_rows=chunk_rows),
+            data_quality=config,
+        )
+        assert actual == expected
+
+
 def test_strict_mode_preserves_fail_fast_invalid_numeric_behavior() -> None:
     data = b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,3.8,3.79,25\n1,bad,3.79,25\n"
 
