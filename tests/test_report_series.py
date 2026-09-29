@@ -398,7 +398,7 @@ def test_file_backed_report_series_wrapper_uses_loader_factory() -> None:
     assert [point.timestamp_s for point in series.points] == [0.0, 1.0, 2.0]
 
 
-@pytest.mark.parametrize("max_points", [14, 15, 16, 17, 28, 40])
+@pytest.mark.parametrize("max_points", [14, 15, 16, 17, 18, 19, 28, 40])
 def test_report_series_combined_pack_metrics_respect_point_budget(max_points: int) -> None:
     rng = np.random.default_rng(0)
     size = 600
@@ -423,8 +423,8 @@ def test_report_series_combined_pack_metrics_respect_point_budget(max_points: in
         cell_sum=cell_sum,
     )
 
-    if max_points < 16:
-        with pytest.raises(ValueError, match="max_points must be at least 16"):
+    if max_points < 18:
+        with pytest.raises(ValueError, match="max_points must be at least 18"):
             collector.finish()
         return
 
@@ -434,6 +434,8 @@ def test_report_series_combined_pack_metrics_respect_point_budget(max_points: in
     assert series.points[-1].row_index == size - 1
     assert min(point.pack_current_a for point in series.points) == min(current)
     assert max(point.pack_current_a for point in series.points) == max(current)
+    assert min(point.pack_voltage_v for point in series.points) == min(pack_voltage)
+    assert max(point.pack_voltage_v for point in series.points) == max(pack_voltage)
     assert max(point.pack_cell_delta_v for point in series.points) == pytest.approx(
         max(np.abs(pack_voltage - cell_sum))
     )
