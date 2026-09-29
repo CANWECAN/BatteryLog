@@ -71,11 +71,19 @@ def _merge_streaming_events(
     current: ViolationEvent,
     *,
     prefer_lower: bool,
-) -> ViolationEvent:
-    previous_value = previous["measured_value"]
-    current_value = current["measured_value"]
+    previous_peak_value: float | None = None,
+    current_peak_value: float | None = None,
+) -> tuple[ViolationEvent, float]:
+    previous_comparison_value = (
+        previous["measured_value"] if previous_peak_value is None else previous_peak_value
+    )
+    current_comparison_value = (
+        current["measured_value"] if current_peak_value is None else current_peak_value
+    )
     current_is_more_severe = (
-        current_value < previous_value if prefer_lower else current_value > previous_value
+        current_comparison_value < previous_comparison_value
+        if prefer_lower
+        else current_comparison_value > previous_comparison_value
     )
 
     merged: ViolationEvent = {
@@ -86,7 +94,7 @@ def _merge_streaming_events(
     }
     if current_is_more_severe:
         merged["peak_time_s"] = current["peak_time_s"]
-        merged["measured_value"] = current_value
+        merged["measured_value"] = current["measured_value"]
         merged["peak_excursion"] = current["peak_excursion"]
         merged["signals"] = current["signals"]
         if current["code"] == "PACK_VOLTAGE_CELL_SUM_MISMATCH":
@@ -94,7 +102,10 @@ def _merge_streaming_events(
             merged["cell_voltage_sum_v"] = current["cell_voltage_sum_v"]
             merged["signed_error_v"] = current["signed_error_v"]
 
-    return merged
+    merged_peak_value = (
+        current_comparison_value if current_is_more_severe else previous_comparison_value
+    )
+    return merged, merged_peak_value
 
 
 @dataclass
@@ -102,6 +113,7 @@ class _StreamingRuleState:
     prefer_lower: bool
     completed: list[ViolationEvent] = field(default_factory=list)
     pending: ViolationEvent | None = None
+    pending_peak_value: float | None = None
     last_active_time_s: float | None = None
 
     def consume(
@@ -111,14 +123,29 @@ class _StreamingRuleState:
         events: list[ViolationEvent],
         timestamps: pd.Series,
         max_gap_s: float | None,
+        peak_values: pd.Series | None = None,
     ) -> None:
         if len(ranges) != len(events):
             raise RuntimeError("Streaming event/range count mismatch")
+        if peak_values is not None and len(peak_values) != len(timestamps):
+            raise RuntimeError("Streaming peak/timestamp count mismatch")
         if len(timestamps) == 0:
             return
 
         timestamp_values = timestamps.to_numpy(dtype=float, copy=False)
         chunk_events = list(events)
+        if peak_values is None:
+            chunk_peak_values = [event["measured_value"] for event in events]
+        else:
+            raw_peak_values = peak_values.to_numpy(dtype=float, copy=False)
+            chunk_peak_values = [
+                float(
+                    np.min(raw_peak_values[start : end + 1])
+                    if self.prefer_lower
+                    else np.max(raw_peak_values[start : end + 1])
+                )
+                for start, end in ranges
+            ]
 
         if self.pending is not None:
             joins_previous = bool(ranges and ranges[0][0] == 0)
@@ -127,21 +154,35 @@ class _StreamingRuleState:
                 joins_previous = not exceeds_limit_scalar(gap_s, max_gap_s)
 
             if joins_previous:
-                chunk_events[0] = _merge_streaming_events(
+                previous_peak_value = (
+                    self.pending["measured_value"]
+                    if self.pending_peak_value is None
+                    else self.pending_peak_value
+                )
+                chunk_events[0], chunk_peak_values[0] = _merge_streaming_events(
                     self.pending,
                     chunk_events[0],
                     prefer_lower=self.prefer_lower,
+                    previous_peak_value=previous_peak_value,
+                    current_peak_value=chunk_peak_values[0],
                 )
             else:
                 self.completed.append(self.pending)
 
             self.pending = None
+            self.pending_peak_value = None
             self.last_active_time_s = None
 
         last_position = len(timestamps) - 1
-        for (_, end), event in zip(ranges, chunk_events, strict=True):
+        for (_, end), event, peak_value in zip(
+            ranges,
+            chunk_events,
+            chunk_peak_values,
+            strict=True,
+        ):
             if end == last_position:
                 self.pending = event
+                self.pending_peak_value = peak_value
                 self.last_active_time_s = float(timestamp_values[end])
             else:
                 self.completed.append(event)
@@ -150,6 +191,7 @@ class _StreamingRuleState:
         if self.pending is not None:
             self.completed.append(self.pending)
             self.pending = None
+            self.pending_peak_value = None
             self.last_active_time_s = None
         return self.completed
 
@@ -161,6 +203,7 @@ def _consume_streaming_rule(
     events: list[ViolationEvent],
     timestamps: pd.Series,
     max_gap_s: float | None,
+    peak_values: pd.Series | None = None,
 ) -> None:
     ranges = contiguous_true_ranges(
         mask,
@@ -172,6 +215,7 @@ def _consume_streaming_rule(
         events=events,
         timestamps=timestamps,
         max_gap_s=max_gap_s,
+        peak_values=peak_values,
     )
 
 
@@ -476,6 +520,7 @@ def _analyze_battery_chunks(
                 ),
                 timestamps=timestamps,
                 max_gap_s=max_gap_s,
+                peak_values=delta_v,
             )
 
         if resolved_limits.cell_max_v is not None:
@@ -569,6 +614,7 @@ def _analyze_battery_chunks(
                 ),
                 timestamps=timestamps,
                 max_gap_s=max_gap_s,
+                peak_values=temperature_spread,
             )
         if pack_current_col is not None:
             pack_current = rule_numeric[pack_current_col]
