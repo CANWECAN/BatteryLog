@@ -9,7 +9,7 @@ from batterylog.loaders import CsvFileLoader
 
 TOKENS = (
     "",
-    "\"\"",
+    '""',
     "NA",
     "N/A",
     "NaN",
@@ -33,10 +33,10 @@ TOKENS = (
     "-1e309",
     "1e400",
     "-1e400",
-    "\"3.8\"",
-    "\"True\"",
-    "\"nan\"",
-    "\"1e400\"",
+    '"3.8"',
+    '"True"',
+    '"nan"',
+    '"1e400"',
     "0x10",
     "1_000",
     ".5",
