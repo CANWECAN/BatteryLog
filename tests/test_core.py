@@ -16,7 +16,6 @@ from batterylog.reporting.json import render_json_result
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
 
-
 def test_finite_cell_values_do_not_produce_non_finite_json_evidence() -> None:
     result = analyze_battery_bytes(b"timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,1e308,-1e308\n")
 
