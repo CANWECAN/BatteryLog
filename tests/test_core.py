@@ -681,11 +681,17 @@ def test_non_finite_error_identifies_first_row_column_and_value(
     ],
 )
 def test_violation_event_evidence_overflow_fails_closed(
+    tmp_path: Path,
     data: bytes,
     limits: ValidationLimits,
 ) -> None:
     with pytest.raises(ValueError, match="calculation overflowed"):
         analyze_battery_bytes(data, limits=limits)
+
+    path = tmp_path / "event_evidence_overflow.csv"
+    path.write_bytes(data)
+    with pytest.raises(ValueError, match="calculation overflowed"):
+        analyze_battery_log(path, limits=limits)
 
 
 def test_result_records_explicit_comparison_policy() -> None:
