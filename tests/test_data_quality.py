@@ -340,13 +340,19 @@ def test_streaming_and_whole_frame_data_quality_results_match_across_chunk_bound
 
 def test_excluded_row_cannot_hide_timestamp_regression() -> None:
     data = b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,4.30,3.80,25\n-1,bad,3.80,25\n1,4.40,3.80,25\n"
+    limits = ValidationLimits(cell_max_v=4.2)
+    config = DataQualityConfig(mode="exclude_invalid_rows")
 
     with pytest.raises(ValueError, match="timestamp_s must be non-decreasing"):
-        analyze_battery_bytes(
-            data,
-            limits=ValidationLimits(cell_max_v=4.2),
-            data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
-        )
+        analyze_battery_bytes(data, limits=limits, data_quality=config)
+
+    for chunk_rows in (1, 2, 3):
+        with pytest.raises(ValueError, match="timestamp_s must be non-decreasing"):
+            analyze_measurement_loader(
+                CsvFileLoader(BytesIO(data), chunk_rows=chunk_rows),
+                limits=limits,
+                data_quality=config,
+            )
 
 
 def test_invalid_timestamp_is_excluded_and_breaks_violation_continuity() -> None:
