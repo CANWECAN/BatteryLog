@@ -27,40 +27,32 @@ def _validate_header(header: list[str]) -> list[str]:
     return header
 
 
-def _validate_data_row_widths(
-    reader: Iterator[list[str]],
-    *,
-    expected_fields: int,
-) -> None:
-    data_row = 0
+def _validate_data_row_widths(handle: BinaryIO) -> None:
+    handle.seek(0)
+    reader = None
     try:
-        for row in reader:
-            if not row:
-                continue
-            data_row += 1
-            if len(row) > expected_fields:
-                raise ValueError(
-                    f"CSV data row {data_row} has {len(row)} fields; expected {expected_fields}"
-                )
-    except csv.Error as exc:
+        reader = pd.read_csv(
+            handle,
+            encoding="utf-8-sig",
+            header=None,
+            dtype=str,
+            keep_default_na=False,
+            na_filter=False,
+            chunksize=DEFAULT_CSV_CHUNK_ROWS,
+        )
+        for _ in reader:
+            pass
+    except pd.errors.ParserError as exc:
         raise ValueError(f"Invalid CSV structure: {exc}") from exc
+    finally:
+        if reader is not None:
+            reader.close()
+        handle.seek(0)
 
 
 def _read_header_from_bytes(data: bytes) -> list[str]:
-    with io.TextIOWrapper(
-        io.BytesIO(data),
-        encoding="utf-8-sig",
-        newline="",
-    ) as handle:
-        reader = csv.reader(handle)
-        try:
-            header = next(reader)
-        except StopIteration as exc:
-            raise ValueError("Battery log is empty") from exc
-        header = _validate_header(header)
-        _validate_data_row_widths(reader, expected_fields=len(header))
-
-    return header
+    with io.BytesIO(data) as handle:
+        return _read_header_from_binary_file(handle)
 
 
 def _read_header_from_binary_file(handle: BinaryIO) -> list[str]:
@@ -73,11 +65,11 @@ def _read_header_from_binary_file(handle: BinaryIO) -> list[str]:
         except StopIteration as exc:
             raise ValueError("Battery log is empty") from exc
         header = _validate_header(header)
-        _validate_data_row_widths(reader, expected_fields=len(header))
     finally:
         text.detach()
         handle.seek(0)
 
+    _validate_data_row_widths(handle)
     return header
 
 
