@@ -313,6 +313,32 @@ def test_plot_renderer_fails_closed_when_finite_domain_span_overflows() -> None:
         render_report_plots(result, series)
 
 
+def test_plot_renderer_fails_closed_when_finite_time_span_overflows() -> None:
+    source = BytesIO(
+        b"timestamp_s,cell_1_v,temp_c\n-1e308,3.8,25\n1e308,3.8,25\n"
+    )
+    result, series = analyze_battery_file_with_report_series(
+        source,
+        source_name="extreme-time.csv",
+        max_points=14,
+    )
+
+    with pytest.raises(ValueError, match="Plot time domain"):
+        render_report_plots(result, series)
+
+
+def test_plot_renderer_fails_closed_when_constant_domain_padding_overflows() -> None:
+    source = BytesIO(b"timestamp_s,cell_1_v,temp_c\n0,1.79e308,25\n")
+    result, series = analyze_battery_file_with_report_series(
+        source,
+        source_name="extreme-constant.csv",
+        max_points=14,
+    )
+
+    with pytest.raises(ValueError, match="Plot value domain"):
+        render_report_plots(result, series)
+
+
 def test_instantaneous_violation_uses_vertical_marker_without_fake_duration() -> None:
     result, series = _result_and_series()
     html = render_report_plots(result, series)
