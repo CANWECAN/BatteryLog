@@ -12,30 +12,17 @@ from batterylog.config import (
     override_validation_limits,
 )
 from batterylog.loaders import load_battery_csv_bytes
-from batterylog.models import (
-    RESULT_SCHEMA_VERSION,
-    AnalysisOptions,
-    AnalysisResult,
-    AppliedLimits,
-    ComparisonPolicyInfo,
-    DataQualityEvent,
-    DataQualityInfo,
-    PackVoltageCellSumPeak,
-    SignalMappingInfo,
-    ValidationStatus,
-)
+from batterylog.models import AnalysisResult, DataQualityEvent, PackVoltageCellSumPeak
 from batterylog.signals import (
-    CANONICAL_PACK_CURRENT,
-    CANONICAL_PACK_VOLTAGE,
     canonicalize_battery_signals,
     find_canonical_pack_signal_columns,
     find_canonical_signal_columns,
 )
 
-from .comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
 from .data_quality import DataQualityCollector, _required_boolean_mask
 from .evaluation import active_rule_codes, evaluate_rules
 from .preparation import prepare_measurements
+from .result_assembly import AnalysisMetrics, build_analysis_result
 
 
 def _find_signal_columns(columns: pd.Index) -> tuple[list[str], list[str]]:
@@ -145,66 +132,6 @@ def _resolve_data_quality(data_quality: DataQualityConfig | None) -> DataQuality
     if data_quality is not None and not isinstance(data_quality, DataQualityConfig):
         raise TypeError("data_quality must be a DataQualityConfig instance or null")
     return data_quality if data_quality is not None else DataQualityConfig()
-
-
-def _data_quality_snapshot(
-    config: DataQualityConfig,
-    events: list[DataQualityEvent],
-) -> DataQualityInfo:
-    return {"mode": config.mode, "events": events}
-
-
-def _limits_snapshot(limits: ValidationLimits) -> AppliedLimits:
-    return {
-        "cell_min_v": limits.cell_min_v,
-        "cell_max_v": limits.cell_max_v,
-        "imbalance_max_v": limits.imbalance_max_v,
-        "temperature_min_c": limits.temperature_min_c,
-        "temperature_max_c": limits.temperature_max_c,
-        "temperature_spread_max_c": limits.temperature_spread_max_c,
-        "pack_charge_max_a": limits.pack_charge_max_a,
-        "pack_discharge_max_a": limits.pack_discharge_max_a,
-        "pack_current_positive_direction": limits.pack_current_positive_direction,
-        "pack_voltage_cell_sum_max_delta_v": limits.pack_voltage_cell_sum_max_delta_v,
-    }
-
-
-def _analysis_options_snapshot(config: EventDetectionConfig) -> AnalysisOptions:
-    return {"max_event_gap_s": config.max_gap_s}
-
-
-def _comparison_policy_snapshot() -> ComparisonPolicyInfo:
-    return {
-        "mode": "strict_with_binary64_guard",
-        "relative_tolerance": BINARY64_REL_TOL,
-        "absolute_tolerance": BINARY64_ABS_TOL,
-    }
-
-
-def _signal_mapping_snapshot(
-    mapping: SignalMapping | None,
-    *,
-    pack_current_detected: bool,
-    pack_voltage_detected: bool,
-) -> SignalMappingInfo:
-    if mapping is None:
-        return {
-            "mode": "canonical",
-            "timestamp_source": "timestamp_s",
-            "cell_voltage_pattern": None,
-            "temperature_pattern": None,
-            "pack_current_source": (CANONICAL_PACK_CURRENT if pack_current_detected else None),
-            "pack_voltage_source": (CANONICAL_PACK_VOLTAGE if pack_voltage_detected else None),
-        }
-
-    return {
-        "mode": "explicit",
-        "timestamp_source": mapping.timestamp,
-        "cell_voltage_pattern": mapping.cell_voltage.pattern,
-        "temperature_pattern": mapping.temperature.pattern,
-        "pack_current_source": mapping.pack_current,
-        "pack_voltage_source": mapping.pack_voltage,
-    }
 
 
 def _analyze_battery_frame(
@@ -325,63 +252,55 @@ def _analyze_battery_frame(
             "absolute_delta_v": float(pack_cell_delta.loc[valid_rows].iloc[peak_position]),
         }
 
-    validation_status: ValidationStatus
-    if violations or data_quality_events:
-        validation_status = "FAIL"
-    elif rules_evaluated:
-        validation_status = "PASS"
-    else:
-        validation_status = "NOT_EVALUATED"
-
-    return {
-        "schema_version": RESULT_SCHEMA_VERSION,
-        "validation_status": validation_status,
-        "rules_evaluated": rules_evaluated,
-        "limits_applied": _limits_snapshot(resolved_limits),
-        "analysis_options": _analysis_options_snapshot(resolved_event_detection),
-        "comparison_policy": _comparison_policy_snapshot(),
-        "signal_mapping": _signal_mapping_snapshot(
-            signal_mapping,
-            pack_current_detected=pack_current_col is not None,
-            pack_voltage_detected=pack_voltage_col is not None,
+    return build_analysis_result(
+        limits=resolved_limits,
+        event_detection=resolved_event_detection,
+        data_quality=resolved_data_quality,
+        signal_mapping=signal_mapping,
+        rules_evaluated=rules_evaluated,
+        data_quality_events=data_quality_events,
+        violations=violations,
+        rows_input=rows_input,
+        rows_analyzed=rows_analyzed,
+        rows_excluded=rows_excluded,
+        cells_detected=len(cell_cols),
+        temperature_sensors_detected=len(temp_cols),
+        pack_current_detected=pack_current_col is not None,
+        pack_voltage_detected=pack_voltage_col is not None,
+        metrics=AnalysisMetrics(
+            max_cell_voltage_v=float(cell_max.loc[valid_rows].max()) if rows_analyzed else None,
+            min_cell_voltage_v=float(cell_min.loc[valid_rows].min()) if rows_analyzed else None,
+            max_delta_v=round(float(delta_v.loc[valid_rows].max()), 12) if rows_analyzed else None,
+            max_temperature_c=float(row_max_temp.loc[valid_rows].max()) if rows_analyzed else None,
+            min_temperature_c=float(row_min_temp.loc[valid_rows].min()) if rows_analyzed else None,
+            max_temperature_spread_c=(
+                round(float(temperature_spread.loc[valid_rows].max()), 12)
+                if rows_analyzed
+                else None
+            ),
+            max_pack_current_a=(
+                float(rule_numeric.loc[valid_rows, pack_current_col].max())
+                if rows_analyzed and pack_current_col is not None
+                else None
+            ),
+            min_pack_current_a=(
+                float(rule_numeric.loc[valid_rows, pack_current_col].min())
+                if rows_analyzed and pack_current_col is not None
+                else None
+            ),
+            max_pack_voltage_v=(
+                float(rule_numeric.loc[valid_rows, pack_voltage_col].max())
+                if rows_analyzed and pack_voltage_col is not None
+                else None
+            ),
+            min_pack_voltage_v=(
+                float(rule_numeric.loc[valid_rows, pack_voltage_col].min())
+                if rows_analyzed and pack_voltage_col is not None
+                else None
+            ),
+            pack_voltage_cell_sum_peak=pack_cell_peak,
         ),
-        "data_quality": _data_quality_snapshot(resolved_data_quality, data_quality_events),
-        "rows_input": rows_input,
-        "rows_analyzed": rows_analyzed,
-        "rows_excluded": rows_excluded,
-        "cells_detected": len(cell_cols),
-        "temperature_sensors_detected": len(temp_cols),
-        "max_cell_voltage_v": float(cell_max.loc[valid_rows].max()) if rows_analyzed else None,
-        "min_cell_voltage_v": float(cell_min.loc[valid_rows].min()) if rows_analyzed else None,
-        "max_delta_v": round(float(delta_v.loc[valid_rows].max()), 12) if rows_analyzed else None,
-        "max_temperature_c": (float(row_max_temp.loc[valid_rows].max()) if rows_analyzed else None),
-        "min_temperature_c": (float(row_min_temp.loc[valid_rows].min()) if rows_analyzed else None),
-        "max_temperature_spread_c": (
-            round(float(temperature_spread.loc[valid_rows].max()), 12) if rows_analyzed else None
-        ),
-        "max_pack_current_a": (
-            float(rule_numeric.loc[valid_rows, pack_current_col].max())
-            if rows_analyzed and pack_current_col is not None
-            else None
-        ),
-        "min_pack_current_a": (
-            float(rule_numeric.loc[valid_rows, pack_current_col].min())
-            if rows_analyzed and pack_current_col is not None
-            else None
-        ),
-        "max_pack_voltage_v": (
-            float(rule_numeric.loc[valid_rows, pack_voltage_col].max())
-            if rows_analyzed and pack_voltage_col is not None
-            else None
-        ),
-        "min_pack_voltage_v": (
-            float(rule_numeric.loc[valid_rows, pack_voltage_col].min())
-            if rows_analyzed and pack_voltage_col is not None
-            else None
-        ),
-        "pack_voltage_cell_sum_peak": pack_cell_peak,
-        "violations": violations,
-    }
+    )
 
 
 def analyze_battery_log(

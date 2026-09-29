@@ -18,12 +18,10 @@ from batterylog.loaders import (
     measurement_loader_for_path,
 )
 from batterylog.models import (
-    RESULT_SCHEMA_VERSION,
     AnalysisResult,
     DataQualityEvent,
     PackVoltageCellSumPeak,
     RuleCode,
-    ValidationStatus,
     ViolationEvent,
 )
 from batterylog.signals import (
@@ -33,16 +31,11 @@ from batterylog.signals import (
 
 from .comparison import exceeds_limit_scalar
 from .core import (
-    _analysis_options_snapshot,
-    _comparison_policy_snapshot,
-    _data_quality_snapshot,
     _find_signal_columns,
-    _limits_snapshot,
     _raise_invalid_numeric_value,
     _resolve_data_quality,
     _resolve_event_detection,
     _resolve_limits,
-    _signal_mapping_snapshot,
     _valid_timestamp_values,
     _warn_legacy_threshold_arguments,
 )
@@ -54,6 +47,7 @@ from .report_series import (
     ReportSeries,
     ReportSeriesCollector,
 )
+from .result_assembly import AnalysisMetrics, build_analysis_result
 from .rules import contiguous_true_ranges
 
 
@@ -515,47 +509,39 @@ def _analyze_battery_chunks(
     violations = [event for code in rules_evaluated for event in states[code].finish()]
     violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
 
-    validation_status: ValidationStatus
-    if violations or data_quality_events:
-        validation_status = "FAIL"
-    elif rules_evaluated:
-        validation_status = "PASS"
-    else:
-        validation_status = "NOT_EVALUATED"
-
-    return {
-        "schema_version": RESULT_SCHEMA_VERSION,
-        "validation_status": validation_status,
-        "rules_evaluated": rules_evaluated,
-        "limits_applied": _limits_snapshot(resolved_limits),
-        "analysis_options": _analysis_options_snapshot(resolved_event_detection),
-        "comparison_policy": _comparison_policy_snapshot(),
-        "signal_mapping": _signal_mapping_snapshot(
-            signal_mapping,
-            pack_current_detected=expected_pack_cols[0] is not None,
-            pack_voltage_detected=expected_pack_cols[1] is not None,
+    return build_analysis_result(
+        limits=resolved_limits,
+        event_detection=resolved_event_detection,
+        data_quality=resolved_data_quality,
+        signal_mapping=signal_mapping,
+        rules_evaluated=rules_evaluated,
+        data_quality_events=data_quality_events,
+        violations=violations,
+        rows_input=rows_input,
+        rows_analyzed=rows_analyzed,
+        rows_excluded=rows_excluded,
+        cells_detected=len(expected_cell_cols),
+        temperature_sensors_detected=len(expected_temp_cols),
+        pack_current_detected=expected_pack_cols[0] is not None,
+        pack_voltage_detected=expected_pack_cols[1] is not None,
+        metrics=AnalysisMetrics(
+            max_cell_voltage_v=max_cell_voltage_v,
+            min_cell_voltage_v=min_cell_voltage_v,
+            max_delta_v=round(max_delta_v, 12) if max_delta_v is not None else None,
+            max_temperature_c=max_temperature_c,
+            min_temperature_c=min_temperature_c,
+            max_temperature_spread_c=(
+                round(max_temperature_spread_c, 12)
+                if max_temperature_spread_c is not None
+                else None
+            ),
+            max_pack_current_a=max_pack_current_a,
+            min_pack_current_a=min_pack_current_a,
+            max_pack_voltage_v=max_pack_voltage_v,
+            min_pack_voltage_v=min_pack_voltage_v,
+            pack_voltage_cell_sum_peak=pack_cell_peak,
         ),
-        "data_quality": _data_quality_snapshot(resolved_data_quality, data_quality_events),
-        "rows_input": rows_input,
-        "rows_analyzed": rows_analyzed,
-        "rows_excluded": rows_excluded,
-        "cells_detected": len(expected_cell_cols),
-        "temperature_sensors_detected": len(expected_temp_cols),
-        "max_cell_voltage_v": max_cell_voltage_v,
-        "min_cell_voltage_v": min_cell_voltage_v,
-        "max_delta_v": round(max_delta_v, 12) if max_delta_v is not None else None,
-        "max_temperature_c": max_temperature_c,
-        "min_temperature_c": min_temperature_c,
-        "max_temperature_spread_c": (
-            round(max_temperature_spread_c, 12) if max_temperature_spread_c is not None else None
-        ),
-        "max_pack_current_a": max_pack_current_a,
-        "min_pack_current_a": min_pack_current_a,
-        "max_pack_voltage_v": max_pack_voltage_v,
-        "min_pack_voltage_v": min_pack_voltage_v,
-        "pack_voltage_cell_sum_peak": pack_cell_peak,
-        "violations": violations,
-    }
+    )
 
 
 def analyze_measurement_loader(
