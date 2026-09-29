@@ -666,6 +666,31 @@ def test_non_finite_error_identifies_first_row_column_and_value(
     assert "inf" in message
 
 
+@pytest.mark.parametrize(
+    ("name", "body"),
+    [
+        (
+            "cell_delta.csv",
+            "timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,1e308,-1e308\n",
+        ),
+        (
+            "temperature_spread.csv",
+            "timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,1e308,-1e308,3.8\n",
+        ),
+    ],
+)
+def test_derived_metric_overflow_fails_closed(
+    tmp_path: Path,
+    name: str,
+    body: str,
+) -> None:
+    path = tmp_path / name
+    path.write_text(body, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="calculation overflowed"):
+        analyze_battery_log(path)
+
+
 def test_result_records_explicit_comparison_policy() -> None:
     from batterylog.analysis.comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
 
