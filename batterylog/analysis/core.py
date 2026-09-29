@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from batterylog.config import (
@@ -10,7 +9,7 @@ from batterylog.config import (
     ValidationLimits,
 )
 from batterylog.loaders import load_battery_csv_bytes
-from batterylog.models import AnalysisResult, DataQualityEvent, PackVoltageCellSumPeak
+from batterylog.models import AnalysisResult, DataQualityEvent
 
 from .configuration import (
     resolve_data_quality,
@@ -27,7 +26,8 @@ from .input_validation import (
     valid_timestamp_values,
 )
 from .preparation import prepare_measurements
-from .result_assembly import AnalysisMetrics, build_analysis_result
+from .result_assembly import build_analysis_result
+from .summary import analysis_metrics_from_summary, summarize_prepared_measurements
 
 
 def _analyze_battery_frame(
@@ -90,19 +90,9 @@ def _analyze_battery_frame(
         pack_current_col=pack_current_col,
         pack_voltage_col=pack_voltage_col,
     )
-    valid_rows = prepared.valid_rows
-    valid_numeric = prepared.valid_numeric
     rule_inputs = prepared.rule_inputs
-    rule_numeric = rule_inputs.numeric
-    cell_max = rule_inputs.cell_max
-    cell_min = rule_inputs.cell_min
-    delta_v = rule_inputs.delta_v
-    row_max_temp = rule_inputs.temperature_max
-    row_min_temp = rule_inputs.temperature_min
-    temperature_spread = rule_inputs.temperature_spread
-    cell_sum = rule_inputs.cell_sum
-    pack_cell_delta = rule_inputs.pack_cell_delta
-    rows_analyzed = int(valid_rows.sum())
+    rows_analyzed = len(prepared.valid_numeric)
+    summary = summarize_prepared_measurements(prepared)
 
     rules_evaluated = active_rule_codes(resolved_limits)
     violations = [
@@ -116,23 +106,6 @@ def _analyze_battery_frame(
     ]
 
     violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
-
-    pack_cell_peak: PackVoltageCellSumPeak | None = None
-    if pack_cell_delta is not None and rows_analyzed:
-        assert pack_voltage_col is not None
-        assert cell_sum is not None
-        # Positional argmax selects the earliest sample on a tie, including duplicate timestamps.
-        peak_position = int(np.argmax(pack_cell_delta.loc[valid_rows].to_numpy(dtype=float)))
-        peak_row = valid_numeric.iloc[peak_position]
-        pack = float(peak_row[pack_voltage_col])
-        summed = float(cell_sum.loc[valid_rows].iloc[peak_position])
-        pack_cell_peak = {
-            "timestamp_s": float(peak_row["timestamp_s"]),
-            "pack_voltage_v": pack,
-            "cell_voltage_sum_v": summed,
-            "signed_error_v": pack - summed,
-            "absolute_delta_v": float(pack_cell_delta.loc[valid_rows].iloc[peak_position]),
-        }
 
     return build_analysis_result(
         limits=resolved_limits,
@@ -149,39 +122,7 @@ def _analyze_battery_frame(
         temperature_sensors_detected=len(temp_cols),
         pack_current_detected=pack_current_col is not None,
         pack_voltage_detected=pack_voltage_col is not None,
-        metrics=AnalysisMetrics(
-            max_cell_voltage_v=float(cell_max.loc[valid_rows].max()) if rows_analyzed else None,
-            min_cell_voltage_v=float(cell_min.loc[valid_rows].min()) if rows_analyzed else None,
-            max_delta_v=round(float(delta_v.loc[valid_rows].max()), 12) if rows_analyzed else None,
-            max_temperature_c=float(row_max_temp.loc[valid_rows].max()) if rows_analyzed else None,
-            min_temperature_c=float(row_min_temp.loc[valid_rows].min()) if rows_analyzed else None,
-            max_temperature_spread_c=(
-                round(float(temperature_spread.loc[valid_rows].max()), 12)
-                if rows_analyzed
-                else None
-            ),
-            max_pack_current_a=(
-                float(rule_numeric.loc[valid_rows, pack_current_col].max())
-                if rows_analyzed and pack_current_col is not None
-                else None
-            ),
-            min_pack_current_a=(
-                float(rule_numeric.loc[valid_rows, pack_current_col].min())
-                if rows_analyzed and pack_current_col is not None
-                else None
-            ),
-            max_pack_voltage_v=(
-                float(rule_numeric.loc[valid_rows, pack_voltage_col].max())
-                if rows_analyzed and pack_voltage_col is not None
-                else None
-            ),
-            min_pack_voltage_v=(
-                float(rule_numeric.loc[valid_rows, pack_voltage_col].min())
-                if rows_analyzed and pack_voltage_col is not None
-                else None
-            ),
-            pack_voltage_cell_sum_peak=pack_cell_peak,
-        ),
+        metrics=analysis_metrics_from_summary(summary),
     )
 
 

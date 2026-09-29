@@ -1,4 +1,5 @@
-from batterylog.analysis.result_assembly import AnalysisMetrics, build_analysis_result
+from batterylog.analysis.result_assembly import build_analysis_result
+from batterylog.analysis.summary import AnalysisMetrics
 from batterylog.config import DataQualityConfig, EventDetectionConfig, ValidationLimits
 from batterylog.models import DataQualityEvent, RuleCode
 
