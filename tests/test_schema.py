@@ -138,6 +138,38 @@ def test_schema_rejects_negative_imbalance_limit(
         validator.validate(result)
 
 
+def test_schema_rejects_rule_without_matching_applied_limit(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(
+        analyze_battery_log(
+            SAMPLE,
+            limits=ValidationLimits(imbalance_max_v=0.11),
+        )
+    )
+    assert result["validation_status"] == "PASS"
+    result["rules_evaluated"] = ["CELL_OVERVOLTAGE"]
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
+def test_schema_rejects_violation_for_rule_not_evaluated(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(
+        analyze_battery_log(
+            SAMPLE,
+            limits=ValidationLimits(imbalance_max_v=0.08),
+        )
+    )
+    assert result["validation_status"] == "FAIL"
+    result["rules_evaluated"] = ["CELL_OVERVOLTAGE"]
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
 def test_schema_rejects_invalid_canonical_mapping_provenance(
     validator: Draft202012Validator,
 ) -> None:
