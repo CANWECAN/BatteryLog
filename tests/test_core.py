@@ -9,7 +9,6 @@ from batterylog import (
     ValidationLimits,
     analyze_battery_log,
 )
-
 from batterylog.analysis.core import analyze_battery_bytes
 from batterylog.reporting.json import render_json_result
 
