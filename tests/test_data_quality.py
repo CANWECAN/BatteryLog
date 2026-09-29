@@ -184,6 +184,40 @@ def test_csv_boolean_inference_is_chunk_boundary_independent() -> None:
     ]
 
 
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        "1e3",
+        '"3.80"',
+        " 3.80 ",
+        "NaN",
+        "nan",
+        "INF",
+        "-INF",
+        "1e400",
+        "",
+        "True",
+        "False",
+    ],
+)
+def test_csv_lexical_numeric_classification_is_chunk_boundary_independent(token: str) -> None:
+    data = (
+        "timestamp_s,cell_1_v,temp_c\n"
+        f"0,{token},25\n"
+        "1,bad,25\n"
+    ).encode()
+    config = DataQualityConfig(mode="exclude_invalid_rows")
+
+    whole = analyze_battery_bytes(data, data_quality=config)
+    for chunk_rows in (1, 2):
+        streaming = analyze_measurement_loader(
+            CsvFileLoader(BytesIO(data), chunk_rows=chunk_rows),
+            data_quality=config,
+        )
+        assert streaming == whole
+
+
 def test_strict_mode_preserves_fail_fast_invalid_numeric_behavior() -> None:
     data = b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,3.8,3.79,25\n1,bad,3.79,25\n"
 
