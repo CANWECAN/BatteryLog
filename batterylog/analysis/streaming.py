@@ -36,10 +36,8 @@ from .core import (
     _analysis_options_snapshot,
     _comparison_policy_snapshot,
     _data_quality_snapshot,
-    _ensure_finite_derived_metric,
     _find_signal_columns,
     _limits_snapshot,
-    _pack_cell_sum_and_delta,
     _raise_invalid_numeric_value,
     _resolve_data_quality,
     _resolve_event_detection,
@@ -49,7 +47,8 @@ from .core import (
     _warn_legacy_threshold_arguments,
 )
 from .data_quality import DataQualityCollector
-from .evaluation import RuleInputs, active_rule_codes, evaluate_rules, rule_prefers_lower
+from .evaluation import active_rule_codes, evaluate_rules, rule_prefers_lower
+from .preparation import prepare_measurements
 from .report_series import (
     DEFAULT_REPORT_SERIES_MAX_POINTS,
     ReportSeries,
@@ -334,43 +333,29 @@ def _analyze_battery_chunks(
         rows_input += len(frame)
         chunk_rows_excluded = int(invalid_rows.sum())
         rows_excluded += chunk_rows_excluded
-        valid_rows = ~invalid_rows
-        valid_numeric = numeric.loc[valid_rows]
+        prepared = prepare_measurements(
+            numeric,
+            invalid_rows,
+            pack_cols=pack_cols,
+            cell_cols=cell_cols,
+            temp_cols=temp_cols,
+            pack_current_col=pack_current_col,
+            pack_voltage_col=pack_voltage_col,
+            row_offset=chunk_row_offset,
+        )
+        valid_rows = prepared.valid_rows
+        valid_numeric = prepared.valid_numeric
+        rule_inputs = prepared.rule_inputs
+        timestamps = rule_inputs.timestamps
+        cell_max = rule_inputs.cell_max
+        cell_min = rule_inputs.cell_min
+        delta_v = rule_inputs.delta_v
+        row_max_temp = rule_inputs.temperature_max
+        row_min_temp = rule_inputs.temperature_min
+        temperature_spread = rule_inputs.temperature_spread
+        cell_sum = rule_inputs.cell_sum
+        pack_cell_delta = rule_inputs.pack_cell_delta
         valid_timestamps = valid_numeric["timestamp_s"]
-
-        rule_numeric = pd.DataFrame(
-            numeric.to_numpy(dtype=float, na_value=np.nan),
-            index=numeric.index,
-            columns=numeric.columns,
-        )
-        if chunk_rows_excluded:
-            rule_numeric.loc[
-                invalid_rows,
-                [*pack_cols, *cell_cols, *temp_cols],
-            ] = float("nan")
-        timestamps = rule_numeric["timestamp_s"]
-        cell_max = rule_numeric[cell_cols].max(axis=1)
-        cell_min = rule_numeric[cell_cols].min(axis=1)
-        row_max_temp = rule_numeric[temp_cols].max(axis=1)
-        row_min_temp = rule_numeric[temp_cols].min(axis=1)
-        with np.errstate(over="ignore", invalid="ignore"):
-            delta_v = cell_max - cell_min
-            temperature_spread = row_max_temp - row_min_temp
-        _ensure_finite_derived_metric(
-            delta_v,
-            valid_rows,
-            metric_name="Cell-voltage delta",
-            row_offset=chunk_row_offset,
-        )
-        _ensure_finite_derived_metric(
-            temperature_spread,
-            valid_rows,
-            metric_name="Temperature spread",
-            row_offset=chunk_row_offset,
-        )
-        cell_sum, pack_cell_delta = _pack_cell_sum_and_delta(
-            rule_numeric, cell_cols, pack_voltage_col, valid_rows
-        )
 
         valid_cell_max = cell_max.loc[valid_rows]
         valid_cell_min = cell_min.loc[valid_rows]
@@ -488,22 +473,6 @@ def _analyze_battery_chunks(
                     }
 
         max_gap_s = resolved_event_detection.max_gap_s
-        rule_inputs = RuleInputs(
-            numeric=rule_numeric,
-            timestamps=timestamps,
-            cell_cols=cell_cols,
-            temp_cols=temp_cols,
-            pack_current_col=pack_current_col,
-            pack_voltage_col=pack_voltage_col,
-            cell_max=cell_max,
-            cell_min=cell_min,
-            delta_v=delta_v,
-            temperature_max=row_max_temp,
-            temperature_min=row_min_temp,
-            temperature_spread=temperature_spread,
-            cell_sum=cell_sum,
-            pack_cell_delta=pack_cell_delta,
-        )
         for evaluation in evaluate_rules(
             rule_inputs,
             resolved_limits,
