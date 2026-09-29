@@ -38,6 +38,7 @@ from .core import (
     _analysis_options_snapshot,
     _comparison_policy_snapshot,
     _data_quality_snapshot,
+    _ensure_finite_derived_metric,
     _find_signal_columns,
     _limits_snapshot,
     _pack_cell_sum_and_delta,
@@ -313,13 +314,26 @@ def _analyze_battery_chunks(
         timestamps = rule_numeric["timestamp_s"]
         cell_max = rule_numeric[cell_cols].max(axis=1)
         cell_min = rule_numeric[cell_cols].min(axis=1)
-        delta_v = cell_max - cell_min
+        row_max_temp = rule_numeric[temp_cols].max(axis=1)
+        row_min_temp = rule_numeric[temp_cols].min(axis=1)
+        with np.errstate(over="ignore", invalid="ignore"):
+            delta_v = cell_max - cell_min
+            temperature_spread = row_max_temp - row_min_temp
+        _ensure_finite_derived_metric(
+            delta_v,
+            valid_rows,
+            metric_name="Cell-voltage delta",
+            row_offset=rows_input,
+        )
+        _ensure_finite_derived_metric(
+            temperature_spread,
+            valid_rows,
+            metric_name="Temperature spread",
+            row_offset=rows_input,
+        )
         cell_sum, pack_cell_delta = _pack_cell_sum_and_delta(
             rule_numeric, cell_cols, pack_voltage_col, valid_rows
         )
-        row_max_temp = rule_numeric[temp_cols].max(axis=1)
-        row_min_temp = rule_numeric[temp_cols].min(axis=1)
-        temperature_spread = row_max_temp - row_min_temp
 
         valid_cell_max = cell_max.loc[valid_rows]
         valid_cell_min = cell_min.loc[valid_rows]
