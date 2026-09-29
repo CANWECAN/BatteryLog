@@ -54,7 +54,6 @@ def test_data_quality_collector_classifies_required_numeric_defects() -> None:
         },
     ]
 
-
 @pytest.mark.parametrize(
     ("column", "value"),
     [
@@ -202,11 +201,7 @@ def test_csv_boolean_inference_is_chunk_boundary_independent() -> None:
     ],
 )
 def test_csv_lexical_numeric_classification_is_chunk_boundary_independent(token: str) -> None:
-    data = (
-        "timestamp_s,cell_1_v,temp_c\n"
-        f"0,{token},25\n"
-        "1,bad,25\n"
-    ).encode()
+    data = (f"timestamp_s,cell_1_v,temp_c\n0,{token},25\n1,bad,25\n").encode()
     config = DataQualityConfig(mode="exclude_invalid_rows")
 
     whole = analyze_battery_bytes(data, data_quality=config)
