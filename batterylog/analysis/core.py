@@ -18,14 +18,11 @@ from batterylog.models import (
     AnalysisResult,
     AppliedLimits,
     ComparisonPolicyInfo,
-    CurrentDirection,
     DataQualityEvent,
     DataQualityInfo,
     PackVoltageCellSumPeak,
-    RuleCode,
     SignalMappingInfo,
     ValidationStatus,
-    ViolationEvent,
 )
 from batterylog.signals import (
     CANONICAL_PACK_CURRENT,
@@ -37,13 +34,7 @@ from batterylog.signals import (
 
 from .comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
 from .data_quality import DataQualityCollector, _required_boolean_mask
-from .rules import (
-    build_high_events,
-    build_imbalance_events,
-    build_low_events,
-    build_pack_voltage_cell_sum_events,
-    build_temperature_spread_events,
-)
+from .evaluation import RuleInputs, active_rule_codes, evaluate_rules
 
 
 def _find_signal_columns(columns: pd.Index) -> tuple[list[str], list[str]]:
@@ -215,62 +206,6 @@ def _signal_mapping_snapshot(
     }
 
 
-def _pack_current_rule_parameters(
-    limits: ValidationLimits,
-    direction: CurrentDirection,
-) -> tuple[float, bool] | None:
-    magnitude = limits.pack_charge_max_a if direction == "charge" else limits.pack_discharge_max_a
-    if magnitude is None:
-        return None
-    assert limits.pack_current_positive_direction is not None
-    prefer_lower = limits.pack_current_positive_direction != direction
-    signed_limit = -magnitude if prefer_lower else magnitude
-    return signed_limit, prefer_lower
-
-
-_PACK_CURRENT_RULES: tuple[tuple[CurrentDirection, RuleCode], ...] = (
-    ("charge", "PACK_CHARGE_OVERCURRENT"),
-    ("discharge", "PACK_DISCHARGE_OVERCURRENT"),
-)
-
-
-def _rule_prefers_lower(code: RuleCode, limits: ValidationLimits) -> bool:
-    if code in {"CELL_UNDERVOLTAGE", "TEMPERATURE_LOW"}:
-        return True
-    if code == "PACK_CHARGE_OVERCURRENT":
-        parameters = _pack_current_rule_parameters(limits, "charge")
-        assert parameters is not None
-        return parameters[1]
-    if code == "PACK_DISCHARGE_OVERCURRENT":
-        parameters = _pack_current_rule_parameters(limits, "discharge")
-        assert parameters is not None
-        return parameters[1]
-    return False
-
-
-def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
-    codes: list[RuleCode] = []
-    if limits.imbalance_max_v is not None:
-        codes.append("CELL_IMBALANCE_HIGH")
-    if limits.cell_max_v is not None:
-        codes.append("CELL_OVERVOLTAGE")
-    if limits.cell_min_v is not None:
-        codes.append("CELL_UNDERVOLTAGE")
-    if limits.temperature_max_c is not None:
-        codes.append("TEMPERATURE_HIGH")
-    if limits.temperature_min_c is not None:
-        codes.append("TEMPERATURE_LOW")
-    if limits.temperature_spread_max_c is not None:
-        codes.append("TEMPERATURE_SPREAD_HIGH")
-    if limits.pack_charge_max_a is not None:
-        codes.append("PACK_CHARGE_OVERCURRENT")
-    if limits.pack_discharge_max_a is not None:
-        codes.append("PACK_DISCHARGE_OVERCURRENT")
-    if limits.pack_voltage_cell_sum_max_delta_v is not None:
-        codes.append("PACK_VOLTAGE_CELL_SUM_MISMATCH")
-    return codes
-
-
 def _ensure_finite_derived_metric(
     values: pd.Series,
     valid_rows: pd.Series,
@@ -416,131 +351,32 @@ def _analyze_battery_frame(
         rule_numeric, cell_cols, pack_voltage_col, valid_rows
     )
 
-    rules_evaluated = _active_rule_codes(resolved_limits)
-    violations: list[ViolationEvent] = []
-
-    if resolved_limits.imbalance_max_v is not None:
-        violations.extend(
-            build_imbalance_events(
-                rule_numeric,
-                timestamps,
-                cell_cols,
-                delta_v,
-                resolved_limits.imbalance_max_v,
-                max_gap_s=resolved_event_detection.max_gap_s,
-            )
+    rules_evaluated = active_rule_codes(resolved_limits)
+    rule_inputs = RuleInputs(
+        numeric=rule_numeric,
+        timestamps=timestamps,
+        cell_cols=cell_cols,
+        temp_cols=temp_cols,
+        pack_current_col=pack_current_col,
+        pack_voltage_col=pack_voltage_col,
+        cell_max=cell_max,
+        cell_min=cell_min,
+        delta_v=delta_v,
+        temperature_max=row_max_temp,
+        temperature_min=row_min_temp,
+        temperature_spread=temperature_spread,
+        cell_sum=cell_sum,
+        pack_cell_delta=pack_cell_delta,
+    )
+    violations = [
+        event
+        for evaluation in evaluate_rules(
+            rule_inputs,
+            resolved_limits,
+            max_gap_s=resolved_event_detection.max_gap_s,
         )
-    if resolved_limits.cell_max_v is not None:
-        violations.extend(
-            build_high_events(
-                numeric=rule_numeric,
-                timestamps=timestamps,
-                signal_cols=cell_cols,
-                row_max=cell_max,
-                limit=resolved_limits.cell_max_v,
-                code="CELL_OVERVOLTAGE",
-                unit="V",
-                max_gap_s=resolved_event_detection.max_gap_s,
-            )
-        )
-    if resolved_limits.cell_min_v is not None:
-        violations.extend(
-            build_low_events(
-                numeric=rule_numeric,
-                timestamps=timestamps,
-                signal_cols=cell_cols,
-                row_min=cell_min,
-                limit=resolved_limits.cell_min_v,
-                code="CELL_UNDERVOLTAGE",
-                unit="V",
-                max_gap_s=resolved_event_detection.max_gap_s,
-            )
-        )
-    if resolved_limits.temperature_max_c is not None:
-        violations.extend(
-            build_high_events(
-                numeric=rule_numeric,
-                timestamps=timestamps,
-                signal_cols=temp_cols,
-                row_max=row_max_temp,
-                limit=resolved_limits.temperature_max_c,
-                code="TEMPERATURE_HIGH",
-                unit="degC",
-                max_gap_s=resolved_event_detection.max_gap_s,
-            )
-        )
-    if resolved_limits.temperature_min_c is not None:
-        violations.extend(
-            build_low_events(
-                numeric=rule_numeric,
-                timestamps=timestamps,
-                signal_cols=temp_cols,
-                row_min=row_min_temp,
-                limit=resolved_limits.temperature_min_c,
-                code="TEMPERATURE_LOW",
-                unit="degC",
-                max_gap_s=resolved_event_detection.max_gap_s,
-            )
-        )
-
-    if resolved_limits.temperature_spread_max_c is not None:
-        violations.extend(
-            build_temperature_spread_events(
-                rule_numeric,
-                timestamps,
-                temp_cols,
-                temperature_spread,
-                resolved_limits.temperature_spread_max_c,
-                max_gap_s=resolved_event_detection.max_gap_s,
-            )
-        )
-    if (
-        pack_cell_delta is not None
-        and resolved_limits.pack_voltage_cell_sum_max_delta_v is not None
-    ):
-        assert pack_voltage_col is not None
-        assert cell_sum is not None
-        violations.extend(
-            build_pack_voltage_cell_sum_events(
-                timestamps,
-                rule_numeric[pack_voltage_col],
-                cell_sum,
-                pack_cell_delta,
-                cell_cols,
-                resolved_limits.pack_voltage_cell_sum_max_delta_v,
-                max_gap_s=resolved_event_detection.max_gap_s,
-            )
-        )
-    if pack_current_col is not None:
-        pack_current = rule_numeric[pack_current_col]
-        for direction, code in _PACK_CURRENT_RULES:
-            parameters = _pack_current_rule_parameters(resolved_limits, direction)
-            if parameters is None:
-                continue
-            signed_limit, prefer_lower = parameters
-            if prefer_lower:
-                events = build_low_events(
-                    numeric=rule_numeric,
-                    timestamps=timestamps,
-                    signal_cols=[pack_current_col],
-                    row_min=pack_current,
-                    limit=signed_limit,
-                    code=code,
-                    unit="A",
-                    max_gap_s=resolved_event_detection.max_gap_s,
-                )
-            else:
-                events = build_high_events(
-                    numeric=rule_numeric,
-                    timestamps=timestamps,
-                    signal_cols=[pack_current_col],
-                    row_max=pack_current,
-                    limit=signed_limit,
-                    code=code,
-                    unit="A",
-                    max_gap_s=resolved_event_detection.max_gap_s,
-                )
-            violations.extend(events)
+        for event in evaluation.events
+    ]
 
     violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
 

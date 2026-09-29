@@ -31,10 +31,8 @@ from batterylog.signals import (
     find_canonical_pack_signal_columns,
 )
 
-from .comparison import below_limit, exceeds_limit, exceeds_limit_scalar
+from .comparison import exceeds_limit_scalar
 from .core import (
-    _PACK_CURRENT_RULES,
-    _active_rule_codes,
     _analysis_options_snapshot,
     _comparison_policy_snapshot,
     _data_quality_snapshot,
@@ -42,30 +40,22 @@ from .core import (
     _find_signal_columns,
     _limits_snapshot,
     _pack_cell_sum_and_delta,
-    _pack_current_rule_parameters,
     _raise_invalid_numeric_value,
     _resolve_data_quality,
     _resolve_event_detection,
     _resolve_limits,
-    _rule_prefers_lower,
     _signal_mapping_snapshot,
     _valid_timestamp_values,
     _warn_legacy_threshold_arguments,
 )
 from .data_quality import DataQualityCollector
+from .evaluation import RuleInputs, active_rule_codes, evaluate_rules, rule_prefers_lower
 from .report_series import (
     DEFAULT_REPORT_SERIES_MAX_POINTS,
     ReportSeries,
     ReportSeriesCollector,
 )
-from .rules import (
-    build_high_events,
-    build_imbalance_events,
-    build_low_events,
-    build_pack_voltage_cell_sum_events,
-    build_temperature_spread_events,
-    contiguous_true_ranges,
-)
+from .rules import contiguous_true_ranges
 
 
 def _merge_streaming_events(
@@ -246,9 +236,9 @@ def _analyze_battery_chunks(
     if signal_mapping is not None and not isinstance(signal_mapping, SignalMapping):
         raise TypeError("signal_mapping must be a SignalMapping instance or null")
 
-    rules_evaluated = _active_rule_codes(resolved_limits)
+    rules_evaluated = active_rule_codes(resolved_limits)
     states: dict[RuleCode, _StreamingRuleState] = {
-        code: _StreamingRuleState(prefer_lower=_rule_prefers_lower(code, resolved_limits))
+        code: _StreamingRuleState(prefer_lower=rule_prefers_lower(code, resolved_limits))
         for code in rules_evaluated
     }
 
@@ -497,179 +487,35 @@ def _analyze_battery_chunks(
                     }
 
         max_gap_s = resolved_event_detection.max_gap_s
-
-        if (
-            pack_cell_delta is not None
-            and resolved_limits.pack_voltage_cell_sum_max_delta_v is not None
+        rule_inputs = RuleInputs(
+            numeric=rule_numeric,
+            timestamps=timestamps,
+            cell_cols=cell_cols,
+            temp_cols=temp_cols,
+            pack_current_col=pack_current_col,
+            pack_voltage_col=pack_voltage_col,
+            cell_max=cell_max,
+            cell_min=cell_min,
+            delta_v=delta_v,
+            temperature_max=row_max_temp,
+            temperature_min=row_min_temp,
+            temperature_spread=temperature_spread,
+            cell_sum=cell_sum,
+            pack_cell_delta=pack_cell_delta,
+        )
+        for evaluation in evaluate_rules(
+            rule_inputs,
+            resolved_limits,
+            max_gap_s=max_gap_s,
         ):
-            assert pack_voltage_col is not None
-            assert cell_sum is not None
-            limit = resolved_limits.pack_voltage_cell_sum_max_delta_v
             _consume_streaming_rule(
-                states["PACK_VOLTAGE_CELL_SUM_MISMATCH"],
-                mask=exceeds_limit(pack_cell_delta, limit),
-                events=build_pack_voltage_cell_sum_events(
-                    timestamps,
-                    rule_numeric[pack_voltage_col],
-                    cell_sum,
-                    pack_cell_delta,
-                    cell_cols,
-                    limit,
-                    max_gap_s=max_gap_s,
-                ),
+                states[evaluation.code],
+                mask=evaluation.mask,
+                events=evaluation.events,
                 timestamps=timestamps,
                 max_gap_s=max_gap_s,
+                peak_values=evaluation.peak_values,
             )
-
-        if resolved_limits.imbalance_max_v is not None:
-            limit = resolved_limits.imbalance_max_v
-            _consume_streaming_rule(
-                states["CELL_IMBALANCE_HIGH"],
-                mask=exceeds_limit(delta_v, limit),
-                events=build_imbalance_events(
-                    rule_numeric,
-                    timestamps,
-                    cell_cols,
-                    delta_v,
-                    limit,
-                    max_gap_s=max_gap_s,
-                ),
-                timestamps=timestamps,
-                max_gap_s=max_gap_s,
-                peak_values=delta_v,
-            )
-
-        if resolved_limits.cell_max_v is not None:
-            limit = resolved_limits.cell_max_v
-            _consume_streaming_rule(
-                states["CELL_OVERVOLTAGE"],
-                mask=exceeds_limit(cell_max, limit),
-                events=build_high_events(
-                    numeric=rule_numeric,
-                    timestamps=timestamps,
-                    signal_cols=cell_cols,
-                    row_max=cell_max,
-                    limit=limit,
-                    code="CELL_OVERVOLTAGE",
-                    unit="V",
-                    max_gap_s=max_gap_s,
-                ),
-                timestamps=timestamps,
-                max_gap_s=max_gap_s,
-            )
-
-        if resolved_limits.cell_min_v is not None:
-            limit = resolved_limits.cell_min_v
-            _consume_streaming_rule(
-                states["CELL_UNDERVOLTAGE"],
-                mask=below_limit(cell_min, limit),
-                events=build_low_events(
-                    numeric=rule_numeric,
-                    timestamps=timestamps,
-                    signal_cols=cell_cols,
-                    row_min=cell_min,
-                    limit=limit,
-                    code="CELL_UNDERVOLTAGE",
-                    unit="V",
-                    max_gap_s=max_gap_s,
-                ),
-                timestamps=timestamps,
-                max_gap_s=max_gap_s,
-            )
-
-        if resolved_limits.temperature_max_c is not None:
-            limit = resolved_limits.temperature_max_c
-            _consume_streaming_rule(
-                states["TEMPERATURE_HIGH"],
-                mask=exceeds_limit(row_max_temp, limit),
-                events=build_high_events(
-                    numeric=rule_numeric,
-                    timestamps=timestamps,
-                    signal_cols=temp_cols,
-                    row_max=row_max_temp,
-                    limit=limit,
-                    code="TEMPERATURE_HIGH",
-                    unit="degC",
-                    max_gap_s=max_gap_s,
-                ),
-                timestamps=timestamps,
-                max_gap_s=max_gap_s,
-            )
-
-        if resolved_limits.temperature_min_c is not None:
-            limit = resolved_limits.temperature_min_c
-            _consume_streaming_rule(
-                states["TEMPERATURE_LOW"],
-                mask=below_limit(row_min_temp, limit),
-                events=build_low_events(
-                    numeric=rule_numeric,
-                    timestamps=timestamps,
-                    signal_cols=temp_cols,
-                    row_min=row_min_temp,
-                    limit=limit,
-                    code="TEMPERATURE_LOW",
-                    unit="degC",
-                    max_gap_s=max_gap_s,
-                ),
-                timestamps=timestamps,
-                max_gap_s=max_gap_s,
-            )
-
-        if resolved_limits.temperature_spread_max_c is not None:
-            limit = resolved_limits.temperature_spread_max_c
-            _consume_streaming_rule(
-                states["TEMPERATURE_SPREAD_HIGH"],
-                mask=exceeds_limit(temperature_spread, limit),
-                events=build_temperature_spread_events(
-                    rule_numeric,
-                    timestamps,
-                    temp_cols,
-                    temperature_spread,
-                    limit,
-                    max_gap_s=max_gap_s,
-                ),
-                timestamps=timestamps,
-                max_gap_s=max_gap_s,
-                peak_values=temperature_spread,
-            )
-        if pack_current_col is not None:
-            pack_current = rule_numeric[pack_current_col]
-            for direction, code in _PACK_CURRENT_RULES:
-                parameters = _pack_current_rule_parameters(resolved_limits, direction)
-                if parameters is None:
-                    continue
-                signed_limit, prefer_lower = parameters
-                if prefer_lower:
-                    mask = below_limit(pack_current, signed_limit)
-                    events = build_low_events(
-                        numeric=rule_numeric,
-                        timestamps=timestamps,
-                        signal_cols=[pack_current_col],
-                        row_min=pack_current,
-                        limit=signed_limit,
-                        code=code,
-                        unit="A",
-                        max_gap_s=max_gap_s,
-                    )
-                else:
-                    mask = exceeds_limit(pack_current, signed_limit)
-                    events = build_high_events(
-                        numeric=rule_numeric,
-                        timestamps=timestamps,
-                        signal_cols=[pack_current_col],
-                        row_max=pack_current,
-                        limit=signed_limit,
-                        code=code,
-                        unit="A",
-                        max_gap_s=max_gap_s,
-                    )
-                _consume_streaming_rule(
-                    states[code],
-                    mask=mask,
-                    events=events,
-                    timestamps=timestamps,
-                    max_gap_s=max_gap_s,
-                )
 
         rows_analyzed += len(valid_numeric)
 
