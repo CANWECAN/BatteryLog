@@ -24,23 +24,23 @@ from batterylog.models import (
     RuleCode,
     ViolationEvent,
 )
-from batterylog.signals import (
-    canonicalize_battery_signals,
-    find_canonical_pack_signal_columns,
-)
 
 from .comparison import exceeds_limit_scalar
-from .core import (
-    _find_signal_columns,
-    _raise_invalid_numeric_value,
-    _resolve_data_quality,
-    _resolve_event_detection,
-    _resolve_limits,
-    _valid_timestamp_values,
-    _warn_legacy_threshold_arguments,
+from .configuration import (
+    resolve_data_quality,
+    resolve_event_detection,
+    resolve_limits,
+    validate_signal_mapping,
+    warn_legacy_threshold_arguments,
 )
 from .data_quality import DataQualityCollector
 from .evaluation import active_rule_codes, evaluate_rules, rule_prefers_lower
+from .input_validation import (
+    SignalLayout,
+    canonicalize_analysis_frame,
+    raise_invalid_numeric_value,
+    valid_timestamp_values,
+)
 from .preparation import prepare_measurements
 from .report_series import (
     DEFAULT_REPORT_SERIES_MAX_POINTS,
@@ -215,19 +215,18 @@ def _analyze_battery_chunks(
     signal_mapping: SignalMapping | None = None,
     report_series_collector: ReportSeriesCollector | None = None,
 ) -> AnalysisResult:
-    _warn_legacy_threshold_arguments(
+    warn_legacy_threshold_arguments(
         imbalance_limit_v,
         temp_warning_c,
     )
-    resolved_limits = _resolve_limits(
+    resolved_limits = resolve_limits(
         limits,
         imbalance_limit_v,
         temp_warning_c,
     )
-    resolved_event_detection = _resolve_event_detection(event_detection)
-    resolved_data_quality = _resolve_data_quality(data_quality)
-    if signal_mapping is not None and not isinstance(signal_mapping, SignalMapping):
-        raise TypeError("signal_mapping must be a SignalMapping instance or null")
+    resolved_event_detection = resolve_event_detection(event_detection)
+    resolved_data_quality = resolve_data_quality(data_quality)
+    validate_signal_mapping(signal_mapping)
 
     rules_evaluated = active_rule_codes(resolved_limits)
     states: dict[RuleCode, _StreamingRuleState] = {
@@ -241,9 +240,7 @@ def _analyze_battery_chunks(
     data_quality_collector = (
         DataQualityCollector() if resolved_data_quality.mode == "exclude_invalid_rows" else None
     )
-    expected_cell_cols: list[str] | None = None
-    expected_temp_cols: list[str] | None = None
-    expected_pack_cols: tuple[str | None, str | None] | None = None
+    expected_layout: SignalLayout | None = None
     previous_timestamp: float | None = None
 
     max_cell_voltage_v: float | None = None
@@ -262,46 +259,22 @@ def _analyze_battery_chunks(
         if frame.empty:
             continue
 
-        frame = canonicalize_battery_signals(frame, signal_mapping)
-        if "timestamp_s" not in frame.columns:
-            raise ValueError("Required column 'timestamp_s' is missing")
+        frame, layout = canonicalize_analysis_frame(frame, signal_mapping, resolved_limits)
+        cell_cols = layout.cell_cols
+        temp_cols = layout.temp_cols
+        pack_current_col = layout.pack_current_col
+        pack_voltage_col = layout.pack_voltage_col
+        pack_cols = layout.pack_cols
 
-        cell_cols, temp_cols = _find_signal_columns(frame.columns)
-        if not cell_cols:
-            raise ValueError("No cell voltage columns found")
-        if not temp_cols:
-            raise ValueError("No temperature columns found")
-        pack_current_col, pack_voltage_col = find_canonical_pack_signal_columns(frame.columns)
-        if (
-            resolved_limits.pack_voltage_cell_sum_max_delta_v is not None
-            and pack_voltage_col is None
-        ):
-            raise ValueError("Pack-voltage cell-sum validation requires column 'pack_voltage_v'")
-        if (
-            resolved_limits.pack_charge_max_a is not None
-            or resolved_limits.pack_discharge_max_a is not None
-        ) and pack_current_col is None:
-            raise ValueError("Pack-current validation requires column 'pack_current_a'")
-        pack_cols = [
-            column for column in (pack_current_col, pack_voltage_col) if column is not None
-        ]
-
-        if expected_cell_cols is None:
-            expected_cell_cols = cell_cols
-            expected_temp_cols = temp_cols
-            expected_pack_cols = (pack_current_col, pack_voltage_col)
-        elif (
-            cell_cols != expected_cell_cols
-            or temp_cols != expected_temp_cols
-            or (pack_current_col, pack_voltage_col) != expected_pack_cols
-        ):
+        if expected_layout is None:
+            expected_layout = layout
+        elif layout != expected_layout:
             raise ValueError("Canonical signal columns changed between measurement chunks")
 
         chunk_row_offset = rows_input
-        numeric_cols = ["timestamp_s", *pack_cols, *cell_cols, *temp_cols]
-        numeric = frame[numeric_cols].apply(pd.to_numeric, errors="coerce")
+        numeric = frame[layout.numeric_cols].apply(pd.to_numeric, errors="coerce")
         if data_quality_collector is None:
-            _raise_invalid_numeric_value(
+            raise_invalid_numeric_value(
                 frame,
                 numeric,
                 row_offset=chunk_row_offset,
@@ -315,7 +288,7 @@ def _analyze_battery_chunks(
             )
             invalid_rows = pd.Series(invalid_values, index=numeric.index, dtype=bool)
 
-        ordering_timestamps = _valid_timestamp_values(frame, numeric)
+        ordering_timestamps = valid_timestamp_values(frame, numeric)
         if not ordering_timestamps.is_monotonic_increasing:
             raise ValueError("timestamp_s must be non-decreasing")
         if len(ordering_timestamps):
@@ -486,9 +459,7 @@ def _analyze_battery_chunks(
     if rows_input == 0:
         raise ValueError("Battery log contains no data rows")
 
-    assert expected_cell_cols is not None
-    assert expected_temp_cols is not None
-    assert expected_pack_cols is not None
+    assert expected_layout is not None
     if rows_analyzed:
         assert max_cell_voltage_v is not None
         assert min_cell_voltage_v is not None
@@ -496,10 +467,10 @@ def _analyze_battery_chunks(
         assert max_temperature_c is not None
         assert min_temperature_c is not None
         assert max_temperature_spread_c is not None
-        if expected_pack_cols[0] is not None:
+        if expected_layout.pack_current_col is not None:
             assert max_pack_current_a is not None
             assert min_pack_current_a is not None
-        if expected_pack_cols[1] is not None:
+        if expected_layout.pack_voltage_col is not None:
             assert max_pack_voltage_v is not None
             assert min_pack_voltage_v is not None
 
@@ -520,10 +491,10 @@ def _analyze_battery_chunks(
         rows_input=rows_input,
         rows_analyzed=rows_analyzed,
         rows_excluded=rows_excluded,
-        cells_detected=len(expected_cell_cols),
-        temperature_sensors_detected=len(expected_temp_cols),
-        pack_current_detected=expected_pack_cols[0] is not None,
-        pack_voltage_detected=expected_pack_cols[1] is not None,
+        cells_detected=len(expected_layout.cell_cols),
+        temperature_sensors_detected=len(expected_layout.temp_cols),
+        pack_current_detected=expected_layout.pack_current_col is not None,
+        pack_voltage_detected=expected_layout.pack_voltage_col is not None,
         metrics=AnalysisMetrics(
             max_cell_voltage_v=max_cell_voltage_v,
             min_cell_voltage_v=min_cell_voltage_v,
