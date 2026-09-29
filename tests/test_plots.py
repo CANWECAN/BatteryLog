@@ -109,7 +109,7 @@ def test_delta_rounding_residue_does_not_trip_extrema_guard() -> None:
     assert "Cell-voltage delta" in render_report_plots(result, series)
 
 
-def test_plot_renderer_rejects_dropped_pack_voltage_extremum() -> None:
+def test_plot_renderer_preserves_pack_voltage_extremum() -> None:
     rows = ["timestamp_s,pack_voltage_v,cell_1_v,cell_2_v,cell_3_v,temp_c"]
     for index in range(40):
         cell_2_v = 3.9 if index == 20 else 3.5
@@ -120,17 +120,15 @@ def test_plot_renderer_rejects_dropped_pack_voltage_extremum() -> None:
     result, series = analyze_battery_file_with_report_series(
         source,
         source_name="pack_voltage_peak.csv",
-        max_points=16,
+        max_points=18,
     )
 
     retained_max = max(
         point.pack_voltage_v for point in series.points if point.pack_voltage_v is not None
     )
     assert result["max_pack_voltage_v"] == pytest.approx(10.9)
-    assert retained_max == pytest.approx(10.5)
-
-    with pytest.raises(ValueError, match="pack voltage"):
-        render_report_plots(result, series)
+    assert retained_max == pytest.approx(10.9)
+    assert "Pack voltage vs cell-voltage sum" in render_report_plots(result, series)
 
 
 def test_plot_rendering_is_deterministic() -> None:
