@@ -612,6 +612,8 @@ def _validate_report_series(result: AnalysisResult, series: ReportSeries) -> Non
         )
     if retained_voltage:
         extrema += (
+            ("max_pack_voltage_v", max(p.pack_voltage_v for p in retained_voltage)),
+            ("min_pack_voltage_v", min(p.pack_voltage_v for p in retained_voltage)),
             (
                 "pack_voltage_cell_sum_peak",
                 max(
