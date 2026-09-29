@@ -123,10 +123,10 @@ def test_schema_enforces_validation_status_invariants(
         validator.validate(result)
 
 
-def test_schema_rejects_rule_limit_and_violation_provenance_mismatch(
+def test_schema_rejects_configured_limit_missing_from_rules_evaluated(
     validator: Draft202012Validator,
 ) -> None:
-    passed = copy.deepcopy(
+    result = copy.deepcopy(
         analyze_battery_log(
             SAMPLE,
             limits=ValidationLimits(
@@ -135,17 +135,21 @@ def test_schema_rejects_rule_limit_and_violation_provenance_mismatch(
             ),
         )
     )
-    assert passed["validation_status"] == "PASS"
-    assert passed["rules_evaluated"] == [
+    assert result["validation_status"] == "PASS"
+    assert result["rules_evaluated"] == [
         "CELL_IMBALANCE_HIGH",
         "TEMPERATURE_HIGH",
     ]
-    passed["rules_evaluated"].remove("CELL_IMBALANCE_HIGH")
+    result["rules_evaluated"].remove("CELL_IMBALANCE_HIGH")
 
     with pytest.raises(ValidationError):
-        validator.validate(passed)
+        validator.validate(result)
 
-    failed = copy.deepcopy(
+
+def test_schema_rejects_violation_missing_from_rules_evaluated(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(
         analyze_battery_log(
             SAMPLE,
             limits=ValidationLimits(
@@ -154,12 +158,12 @@ def test_schema_rejects_rule_limit_and_violation_provenance_mismatch(
             ),
         )
     )
-    assert failed["validation_status"] == "FAIL"
-    assert any(event["code"] == "CELL_IMBALANCE_HIGH" for event in failed["violations"])
-    failed["rules_evaluated"].remove("CELL_IMBALANCE_HIGH")
+    assert result["validation_status"] == "FAIL"
+    assert any(event["code"] == "CELL_IMBALANCE_HIGH" for event in result["violations"])
+    result["rules_evaluated"].remove("CELL_IMBALANCE_HIGH")
 
     with pytest.raises(ValidationError):
-        validator.validate(failed)
+        validator.validate(result)
 
 
 def test_schema_rejects_invalid_canonical_mapping_provenance(
