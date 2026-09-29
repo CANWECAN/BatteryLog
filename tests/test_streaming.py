@@ -96,7 +96,7 @@ PACK_CELL_ERROR = st.one_of(
         max_value=0.3,
         allow_nan=False,
         allow_infinity=False,
-        width=32,
+        width=64,
     ),
 )
 
