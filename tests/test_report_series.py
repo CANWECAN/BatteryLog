@@ -439,7 +439,6 @@ def test_report_series_combined_pack_metrics_respect_point_budget(max_points: in
     )
 
 
-
 def test_report_series_downsampling_preserves_peak_temperature_spread() -> None:
     collector = ReportSeriesCollector(max_points=16)
     points = [_point(index) for index in range(17)]
