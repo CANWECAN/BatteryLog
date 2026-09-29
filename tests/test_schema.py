@@ -166,6 +166,16 @@ def test_schema_rejects_violation_missing_from_rules_evaluated(
         validator.validate(result)
 
 
+def test_schema_rejects_misrepresented_comparison_policy(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(analyze_battery_log(SAMPLE))
+    result["comparison_policy"]["relative_tolerance"] = 0.5
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
 def test_schema_rejects_invalid_canonical_mapping_provenance(
     validator: Draft202012Validator,
 ) -> None:
