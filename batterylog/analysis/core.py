@@ -34,7 +34,8 @@ from batterylog.signals import (
 
 from .comparison import BINARY64_ABS_TOL, BINARY64_REL_TOL
 from .data_quality import DataQualityCollector, _required_boolean_mask
-from .evaluation import RuleInputs, active_rule_codes, evaluate_rules
+from .evaluation import active_rule_codes, evaluate_rules
+from .preparation import prepare_measurements
 
 
 def _find_signal_columns(columns: pd.Index) -> tuple[list[str], list[str]]:
@@ -206,53 +207,6 @@ def _signal_mapping_snapshot(
     }
 
 
-def _ensure_finite_derived_metric(
-    values: pd.Series,
-    valid_rows: pd.Series,
-    *,
-    metric_name: str,
-    row_offset: int = 0,
-) -> None:
-    valid_mask = valid_rows.to_numpy(dtype=bool)
-    selected = values.to_numpy(dtype=float)[valid_mask]
-    non_finite = ~np.isfinite(selected)
-    if not non_finite.any():
-        return
-
-    valid_position = int(np.flatnonzero(non_finite)[0])
-    row_pos = int(np.flatnonzero(valid_mask)[valid_position])
-    row_index = values.index[row_pos]
-    raise ValueError(
-        f"{metric_name} calculation overflowed at "
-        f"data row {row_offset + row_pos + 1} (index {row_index!r})"
-    )
-
-
-def _pack_cell_sum_and_delta(
-    numeric: pd.DataFrame,
-    cell_cols: list[str],
-    pack_voltage_col: str | None,
-    valid_rows: pd.Series,
-) -> tuple[pd.Series | None, pd.Series | None]:
-    if pack_voltage_col is None:
-        return None, None
-    cell_values = np.ascontiguousarray(
-        numeric[cell_cols].to_numpy(dtype=float, copy=False),
-        dtype=float,
-    )
-    cell_sum = pd.Series(
-        np.sum(cell_values, axis=1, dtype=np.float64),
-        index=numeric.index,
-    )
-    delta = (numeric[pack_voltage_col] - cell_sum).abs()
-    if (
-        not np.isfinite(cell_sum.loc[valid_rows].to_numpy(dtype=float)).all()
-        or not np.isfinite(delta.loc[valid_rows].to_numpy(dtype=float)).all()
-    ):
-        raise ValueError("Pack-voltage cell-sum calculation overflowed on an analyzed row")
-    return cell_sum, delta
-
-
 def _analyze_battery_frame(
     df: pd.DataFrame,
     imbalance_limit_v: float | None = None,
@@ -317,57 +271,31 @@ def _analyze_battery_frame(
     if not ordering_timestamps.is_monotonic_increasing:
         raise ValueError("timestamp_s must be non-decreasing")
 
-    valid_rows = ~invalid_rows
     rows_excluded = int(invalid_rows.sum())
-    rows_analyzed = int(valid_rows.sum())
-    valid_numeric = numeric.loc[valid_rows]
-
-    rule_numeric = pd.DataFrame(
-        numeric.to_numpy(dtype=float, na_value=np.nan),
-        index=numeric.index,
-        columns=numeric.columns,
-    )
-    if rows_excluded:
-        rule_numeric.loc[invalid_rows, [*pack_cols, *cell_cols, *temp_cols]] = np.nan
-    timestamps = rule_numeric["timestamp_s"]
-    cell_max = rule_numeric[cell_cols].max(axis=1)
-    cell_min = rule_numeric[cell_cols].min(axis=1)
-    row_max_temp = rule_numeric[temp_cols].max(axis=1)
-    row_min_temp = rule_numeric[temp_cols].min(axis=1)
-    with np.errstate(over="ignore", invalid="ignore"):
-        delta_v = cell_max - cell_min
-        temperature_spread = row_max_temp - row_min_temp
-    _ensure_finite_derived_metric(
-        delta_v,
-        valid_rows,
-        metric_name="Cell-voltage delta",
-    )
-    _ensure_finite_derived_metric(
-        temperature_spread,
-        valid_rows,
-        metric_name="Temperature spread",
-    )
-    cell_sum, pack_cell_delta = _pack_cell_sum_and_delta(
-        rule_numeric, cell_cols, pack_voltage_col, valid_rows
-    )
-
-    rules_evaluated = active_rule_codes(resolved_limits)
-    rule_inputs = RuleInputs(
-        numeric=rule_numeric,
-        timestamps=timestamps,
+    prepared = prepare_measurements(
+        numeric,
+        invalid_rows,
+        pack_cols=pack_cols,
         cell_cols=cell_cols,
         temp_cols=temp_cols,
         pack_current_col=pack_current_col,
         pack_voltage_col=pack_voltage_col,
-        cell_max=cell_max,
-        cell_min=cell_min,
-        delta_v=delta_v,
-        temperature_max=row_max_temp,
-        temperature_min=row_min_temp,
-        temperature_spread=temperature_spread,
-        cell_sum=cell_sum,
-        pack_cell_delta=pack_cell_delta,
     )
+    valid_rows = prepared.valid_rows
+    valid_numeric = prepared.valid_numeric
+    rule_inputs = prepared.rule_inputs
+    rule_numeric = rule_inputs.numeric
+    cell_max = rule_inputs.cell_max
+    cell_min = rule_inputs.cell_min
+    delta_v = rule_inputs.delta_v
+    row_max_temp = rule_inputs.temperature_max
+    row_min_temp = rule_inputs.temperature_min
+    temperature_spread = rule_inputs.temperature_spread
+    cell_sum = rule_inputs.cell_sum
+    pack_cell_delta = rule_inputs.pack_cell_delta
+    rows_analyzed = int(valid_rows.sum())
+
+    rules_evaluated = active_rule_codes(resolved_limits)
     violations = [
         event
         for evaluation in evaluate_rules(
