@@ -4,6 +4,21 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+## 0.9.2 - 2026-09-29
+
+### Reliability and evidence hardening
+
+- Preserved timestamp ordering checks across rows excluded for other required-signal defects, so exclusion cannot hide a valid timestamp regression.
+- Made strict invalid-value diagnostics deterministic by reporting the earliest row/column across missing, non-numeric, boolean, and non-finite defect classes.
+- Rejected malformed over-wide CSV rows before pandas can reinterpret them through an implicit index, and preserved fully blank physical CSV rows so row accounting and structured data-quality evidence cannot silently lose source rows.
+- Added fail-closed guards for finite-input arithmetic overflow in cell-voltage delta, temperature spread, violation duration, and peak-excursion evidence.
+- Normalized extreme integer configuration failures into the existing finite-number validation contract instead of leaking Python `OverflowError`.
+- Preserved chunk-independent peak evidence for cell-imbalance and temperature-spread events by retaining unrounded binary64 severity internally while keeping the existing rounded public result contract unchanged.
+- Preserved pack-voltage minima/maxima through report-series downsampling and extended renderer consistency checks to verify retained pack-voltage extrema.
+- Added fail-closed plot-domain and coordinate-scaling guards for finite inputs whose derived SVG arithmetic would overflow.
+- Expanded whole-frame/streaming differential coverage for CSV lexical classes, numeric-token parsing, pack/current-voltage paths, data-quality exclusions, event gaps, and sub-rounding peak ties.
+- Result schema v8 and config schema v6 remain unchanged; this patch release does not alter engineering thresholds, event grouping, comparison policy, or PASS/FAIL semantics.
+
 ### External validation evidence
 
 - Added a reproducible CORA dataset validation harness and documented the BatteryLog v0.9.1 campaign across all 410 public Parquet cycle files (30,187,165 unique source rows; 90,561,495 branch-row analyses; 1,230/1,230 direct-comparison parity).
