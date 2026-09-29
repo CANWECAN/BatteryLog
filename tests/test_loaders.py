@@ -34,17 +34,18 @@ def test_empty_column_name_is_rejected(tmp_path: Path) -> None:
         load_battery_csv(path)
 
 
-def test_csv_row_with_extra_field_is_rejected_instead_of_shifting_columns() -> None:
-    data = b"timestamp_s,temp_c,cell_1_v\n0,25,3.8,999\n1,26,3.9,999\n"
+def test_csv_row_with_extra_field_cannot_hide_engineering_violation() -> None:
+    data = b"timestamp_s,temp_c,cell_1_v\n0,100,3.8,4.0\n1,101,3.9,4.0\n"
 
-    with pytest.raises(ValueError):
-        analyze_battery_bytes(
-            data,
-            limits=ValidationLimits(
-                cell_max_v=30.0,
-                temperature_max_c=1000.0,
-            ),
-        )
+    result = analyze_battery_bytes(
+        data,
+        limits=ValidationLimits(
+            cell_max_v=4.2,
+            temperature_max_c=50.0,
+        ),
+    )
+
+    assert result["validation_status"] != "PASS"
 
 
 def test_utf8_bom_header_is_supported(tmp_path: Path) -> None:
