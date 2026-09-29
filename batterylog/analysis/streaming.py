@@ -62,6 +62,7 @@ from .rules import (
     build_imbalance_events,
     build_low_events,
     build_pack_voltage_cell_sum_events,
+    _event_duration_s,
     build_temperature_spread_events,
     contiguous_true_ranges,
 )
@@ -83,7 +84,10 @@ def _merge_streaming_events(
         **previous,
         "end_time_s": current["end_time_s"],
         "sample_count": previous["sample_count"] + current["sample_count"],
-        "duration_s": round(current["end_time_s"] - previous["start_time_s"], 12),
+        "duration_s": _event_duration_s(
+            previous["start_time_s"],
+            current["end_time_s"],
+        ),
     }
     if current_is_more_severe:
         merged["peak_time_s"] = current["peak_time_s"]
