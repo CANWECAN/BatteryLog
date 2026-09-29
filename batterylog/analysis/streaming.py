@@ -48,6 +48,7 @@ from .core import (
     _resolve_limits,
     _rule_prefers_lower,
     _signal_mapping_snapshot,
+    _valid_timestamp_values,
     _warn_legacy_threshold_arguments,
 )
 from .data_quality import DataQualityCollector
@@ -285,20 +286,21 @@ def _analyze_battery_chunks(
             )
             invalid_rows = pd.Series(invalid_values, index=numeric.index, dtype=bool)
 
+        ordering_timestamps = _valid_timestamp_values(frame, numeric)
+        if not ordering_timestamps.is_monotonic_increasing:
+            raise ValueError("timestamp_s must be non-decreasing")
+        if len(ordering_timestamps):
+            first_timestamp = float(ordering_timestamps.iloc[0])
+            if previous_timestamp is not None and first_timestamp < previous_timestamp:
+                raise ValueError("timestamp_s must be non-decreasing")
+            previous_timestamp = float(ordering_timestamps.iloc[-1])
+
         rows_input += len(frame)
         chunk_rows_excluded = int(invalid_rows.sum())
         rows_excluded += chunk_rows_excluded
         valid_rows = ~invalid_rows
         valid_numeric = numeric.loc[valid_rows]
         valid_timestamps = valid_numeric["timestamp_s"]
-
-        if not valid_timestamps.is_monotonic_increasing:
-            raise ValueError("timestamp_s must be non-decreasing")
-        if len(valid_timestamps):
-            first_timestamp = float(valid_timestamps.iloc[0])
-            if previous_timestamp is not None and first_timestamp < previous_timestamp:
-                raise ValueError("timestamp_s must be non-decreasing")
-            previous_timestamp = float(valid_timestamps.iloc[-1])
 
         rule_numeric = pd.DataFrame(
             numeric.to_numpy(dtype=float, na_value=np.nan),
