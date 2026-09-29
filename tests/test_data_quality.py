@@ -54,6 +54,7 @@ def test_data_quality_collector_classifies_required_numeric_defects() -> None:
         },
     ]
 
+
 @pytest.mark.parametrize(
     ("column", "value"),
     [
@@ -181,7 +182,6 @@ def test_csv_boolean_inference_is_chunk_boundary_independent() -> None:
             "affected_values": 2,
         }
     ]
-
 
 
 @pytest.mark.parametrize(
