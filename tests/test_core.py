@@ -707,10 +707,13 @@ def test_derived_metric_overflow_fails_closed(
     path = tmp_path / name
     path.write_text(body, encoding="utf-8")
 
-    with pytest.raises(ValueError, match="calculation overflowed"):
+    with pytest.raises(ValueError, match="calculation overflowed") as streaming_exc:
         analyze_battery_log(path)
-    with pytest.raises(ValueError, match="calculation overflowed"):
+    with pytest.raises(ValueError, match="calculation overflowed") as frame_exc:
         analyze_battery_bytes(body.encode())
+
+    assert "data row 1" in str(streaming_exc.value)
+    assert str(streaming_exc.value) == str(frame_exc.value)
 
 
 @pytest.mark.parametrize(
