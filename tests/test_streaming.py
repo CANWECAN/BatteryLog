@@ -128,12 +128,8 @@ def battery_v091_frames(draw) -> pd.DataFrame:
     cell_2 = draw(st.lists(CELL_VALUE, min_size=row_count, max_size=row_count))
     temp_1 = draw(st.lists(TEMP_VALUE, min_size=row_count, max_size=row_count))
     temp_2 = draw(st.lists(TEMP_VALUE, min_size=row_count, max_size=row_count))
-    current = draw(
-        st.lists(PACK_CURRENT_VALUE, min_size=row_count, max_size=row_count)
-    )
-    pack_error = draw(
-        st.lists(PACK_CELL_ERROR, min_size=row_count, max_size=row_count)
-    )
+    current = draw(st.lists(PACK_CURRENT_VALUE, min_size=row_count, max_size=row_count))
+    pack_error = draw(st.lists(PACK_CELL_ERROR, min_size=row_count, max_size=row_count))
     frame = pd.DataFrame(
         {
             "timestamp_s": list(accumulate(gaps)),
@@ -365,8 +361,7 @@ def test_v091_streaming_is_differentially_equivalent_with_pack_and_data_quality(
         data_quality=data_quality,
     )
     chunks = [
-        frame.iloc[start : start + chunk_rows].copy()
-        for start in range(0, len(frame), chunk_rows)
+        frame.iloc[start : start + chunk_rows].copy() for start in range(0, len(frame), chunk_rows)
     ]
     actual = _analyze_battery_chunks(
         chunks,
