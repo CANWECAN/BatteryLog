@@ -123,6 +123,45 @@ def test_schema_enforces_validation_status_invariants(
         validator.validate(result)
 
 
+def test_schema_rejects_rule_limit_and_violation_provenance_mismatch(
+    validator: Draft202012Validator,
+) -> None:
+    passed = copy.deepcopy(
+        analyze_battery_log(
+            SAMPLE,
+            limits=ValidationLimits(
+                imbalance_max_v=0.11,
+                temperature_max_c=50.0,
+            ),
+        )
+    )
+    assert passed["validation_status"] == "PASS"
+    assert passed["rules_evaluated"] == [
+        "CELL_IMBALANCE_HIGH",
+        "TEMPERATURE_HIGH",
+    ]
+    passed["rules_evaluated"].remove("CELL_IMBALANCE_HIGH")
+
+    with pytest.raises(ValidationError):
+        validator.validate(passed)
+
+    failed = copy.deepcopy(
+        analyze_battery_log(
+            SAMPLE,
+            limits=ValidationLimits(
+                imbalance_max_v=0.08,
+                temperature_max_c=50.0,
+            ),
+        )
+    )
+    assert failed["validation_status"] == "FAIL"
+    assert any(event["code"] == "CELL_IMBALANCE_HIGH" for event in failed["violations"])
+    failed["rules_evaluated"].remove("CELL_IMBALANCE_HIGH")
+
+    with pytest.raises(ValidationError):
+        validator.validate(failed)
+
+
 def test_schema_rejects_invalid_canonical_mapping_provenance(
     validator: Draft202012Validator,
 ) -> None:
