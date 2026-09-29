@@ -10,7 +10,36 @@ from batterylog import (
     analyze_battery_log,
 )
 
+from batterylog.analysis.core import analyze_battery_bytes
+from batterylog.reporting.json import render_json_result
+
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
+
+
+
+def test_finite_cell_values_do_not_produce_non_finite_json_evidence() -> None:
+    result = analyze_battery_bytes(
+        b"timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,1e308,-1e308\n"
+    )
+
+    render_json_result(result)
+
+
+def test_finite_temperature_values_do_not_produce_non_finite_json_evidence() -> None:
+    result = analyze_battery_bytes(
+        b"timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,1e308,-1e308,3.8\n"
+    )
+
+    render_json_result(result)
+
+
+def test_finite_timestamps_do_not_produce_non_finite_event_duration() -> None:
+    result = analyze_battery_bytes(
+        b"timestamp_s,temp_c,cell_1_v\n-1e308,25,4.3\n1e308,25,4.3\n",
+        limits=ValidationLimits(cell_max_v=4.2),
+    )
+
+    render_json_result(result)
 
 
 def test_sample_log_returns_structured_violation_events() -> None:
