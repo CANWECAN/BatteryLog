@@ -249,7 +249,6 @@ def test_streaming_is_differentially_equivalent_to_whole_frame(
     assert actual == expected
 
 
-
 def test_streaming_fails_closed_on_cell_delta_overflow() -> None:
     frame = pd.DataFrame(
         {
