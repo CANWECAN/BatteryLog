@@ -338,6 +338,22 @@ def test_streaming_and_whole_frame_data_quality_results_match_across_chunk_bound
     ]
 
 
+def test_excluded_row_cannot_hide_timestamp_regression() -> None:
+    data = (
+        b"timestamp_s,cell_1_v,cell_2_v,temp_c\n"
+        b"0,4.30,3.80,25\n"
+        b"-1,bad,3.80,25\n"
+        b"1,4.40,3.80,25\n"
+    )
+
+    with pytest.raises(ValueError, match="timestamp_s must be non-decreasing"):
+        analyze_battery_bytes(
+            data,
+            limits=ValidationLimits(cell_max_v=4.2),
+            data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
+        )
+
+
 def test_invalid_timestamp_is_excluded_and_breaks_violation_continuity() -> None:
     data = (
         b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,4.30,3.80,25\nbad,4.35,3.80,25\n2,4.40,3.80,25\n"
