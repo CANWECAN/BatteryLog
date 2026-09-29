@@ -27,30 +27,32 @@ def _validate_header(header: list[str]) -> list[str]:
     return header
 
 
+def _validate_data_row_widths(handle: BinaryIO) -> None:
+    handle.seek(0)
+    reader = None
+    try:
+        reader = pd.read_csv(
+            handle,
+            encoding="utf-8-sig",
+            header=None,
+            dtype=str,
+            keep_default_na=False,
+            na_filter=False,
+            chunksize=DEFAULT_CSV_CHUNK_ROWS,
+        )
+        for _ in reader:
+            pass
+    except pd.errors.ParserError as exc:
+        raise ValueError(f"Invalid CSV structure: {exc}") from exc
+    finally:
+        if reader is not None:
+            reader.close()
+        handle.seek(0)
+
+
 def _read_header_from_bytes(data: bytes) -> list[str]:
-    with io.TextIOWrapper(
-        io.BytesIO(data),
-        encoding="utf-8-sig",
-        newline="",
-    ) as handle:
-        reader = csv.reader(handle)
-        try:
-            header = next(reader)
-        except StopIteration as exc:
-            raise ValueError("Battery log is empty") from exc
-
-    return _validate_header(header)
-
-
-def _read_header_from_path(path: str | Path) -> list[str]:
-    with Path(path).open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.reader(handle)
-        try:
-            header = next(reader)
-        except StopIteration as exc:
-            raise ValueError("Battery log is empty") from exc
-
-    return _validate_header(header)
+    with io.BytesIO(data) as handle:
+        return _read_header_from_binary_file(handle)
 
 
 def _read_header_from_binary_file(handle: BinaryIO) -> list[str]:
@@ -62,11 +64,13 @@ def _read_header_from_binary_file(handle: BinaryIO) -> list[str]:
             header = next(reader)
         except StopIteration as exc:
             raise ValueError("Battery log is empty") from exc
+        header = _validate_header(header)
     finally:
         text.detach()
         handle.seek(0)
 
-    return _validate_header(header)
+    _validate_data_row_widths(handle)
+    return header
 
 
 def _validate_chunk_rows(chunk_rows: int) -> None:
@@ -76,7 +80,7 @@ def _validate_chunk_rows(chunk_rows: int) -> None:
 
 def load_battery_csv_bytes(data: bytes) -> pd.DataFrame:
     _read_header_from_bytes(data)
-    return pd.read_csv(io.BytesIO(data), encoding="utf-8-sig")
+    return pd.read_csv(io.BytesIO(data), encoding="utf-8-sig", skip_blank_lines=False)
 
 
 def load_battery_csv(path: str | Path) -> pd.DataFrame:
@@ -88,15 +92,9 @@ def iter_battery_csv(
     *,
     chunk_rows: int,
 ) -> Iterator[pd.DataFrame]:
-    _validate_chunk_rows(chunk_rows)
-
     source = Path(path)
-    _read_header_from_path(source)
-    yield from pd.read_csv(
-        source,
-        encoding="utf-8-sig",
-        chunksize=chunk_rows,
-    )
+    with source.open("rb") as handle:
+        yield from iter_battery_csv_file(handle, chunk_rows=chunk_rows)
 
 
 def iter_battery_csv_file(
@@ -111,6 +109,7 @@ def iter_battery_csv_file(
         handle,
         encoding="utf-8-sig",
         chunksize=chunk_rows,
+        skip_blank_lines=False,
     )
     try:
         yield from reader
