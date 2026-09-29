@@ -1,10 +1,17 @@
+from io import BytesIO
 from pathlib import Path
 
 import pytest
 
 from batterylog import ValidationLimits
 from batterylog.analysis.core import analyze_battery_bytes
-from batterylog.loaders import iter_battery_csv_file, load_battery_csv, load_battery_csv_bytes
+from batterylog.analysis.streaming import analyze_measurement_loader
+from batterylog.loaders import (
+    CsvFileLoader,
+    iter_battery_csv_file,
+    load_battery_csv,
+    load_battery_csv_bytes,
+)
 
 
 def test_empty_csv_is_rejected(tmp_path: Path) -> None:
@@ -34,18 +41,28 @@ def test_empty_column_name_is_rejected(tmp_path: Path) -> None:
         load_battery_csv(path)
 
 
-def test_csv_row_with_extra_field_cannot_hide_engineering_violation() -> None:
+def test_csv_row_with_extra_field_is_rejected_instead_of_hiding_violation() -> None:
     data = b"timestamp_s,temp_c,cell_1_v\n0,100,3.8,4.0\n1,101,3.9,4.0\n"
 
-    result = analyze_battery_bytes(
-        data,
-        limits=ValidationLimits(
-            cell_max_v=4.2,
-            temperature_max_c=50.0,
-        ),
-    )
+    with pytest.raises(ValueError, match="CSV data row 1 has 4 fields; expected 3"):
+        analyze_battery_bytes(
+            data,
+            limits=ValidationLimits(
+                cell_max_v=4.2,
+                temperature_max_c=50.0,
+            ),
+        )
 
-    assert result["validation_status"] != "PASS"
+
+def test_chunked_csv_rejects_extra_field_at_chunk_boundary() -> None:
+    data = b"timestamp_s,temp_c,cell_1_v\n0,25,3.8\n1,100,3.9,4.0\n"
+    loader = CsvFileLoader(BytesIO(data), chunk_rows=1)
+
+    with pytest.raises(ValueError, match="CSV data row 2 has 4 fields; expected 3"):
+        analyze_measurement_loader(
+            loader,
+            limits=ValidationLimits(temperature_max_c=50.0),
+        )
 
 
 def test_utf8_bom_header_is_supported(tmp_path: Path) -> None:
