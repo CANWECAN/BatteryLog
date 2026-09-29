@@ -82,31 +82,44 @@ def _raise_invalid_numeric_value(
     row_offset: int = 0,
 ) -> None:
     columns = list(numeric.columns)
-    invalid_numeric = numeric.isna().to_numpy() | _required_boolean_mask(frame, columns)
-    invalid_position = _first_true_position(invalid_numeric)
-    if invalid_position is not None:
-        row_pos, column_pos = invalid_position
-        column = numeric.columns[column_pos]
+    numeric_missing = numeric.isna().to_numpy(dtype=bool)
+    invalid_numeric = numeric_missing | _required_boolean_mask(frame, columns)
+    values = numeric.to_numpy(dtype=float, na_value=np.nan)
+    non_finite = ~np.isfinite(values) & ~numeric_missing
+
+    invalid_position = _first_true_position(invalid_numeric | non_finite)
+    if invalid_position is None:
+        return
+
+    row_pos, column_pos = invalid_position
+    column = numeric.columns[column_pos]
+    row_index = frame.index[row_pos]
+    if invalid_numeric[row_pos, column_pos]:
         raw_value = frame.iloc[row_pos][column]
-        row_index = frame.index[row_pos]
         raise ValueError(
             "Required numeric value is missing or non-numeric at "
             f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
             f"column {column!r}: {raw_value!r}"
         )
 
-    values = numeric.to_numpy(dtype=float)
-    non_finite_position = _first_true_position(~np.isfinite(values))
-    if non_finite_position is not None:
-        row_pos, column_pos = non_finite_position
-        column = numeric.columns[column_pos]
-        value = values[row_pos, column_pos]
-        row_index = frame.index[row_pos]
-        raise ValueError(
-            "Required numeric value is non-finite at "
-            f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
-            f"column {column!r}: {value!r}"
-        )
+    value = values[row_pos, column_pos]
+    raise ValueError(
+        "Required numeric value is non-finite at "
+        f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
+        f"column {column!r}: {value!r}"
+    )
+
+
+def _valid_timestamp_values(
+    frame: pd.DataFrame,
+    numeric: pd.DataFrame,
+) -> pd.Series:
+    timestamp = numeric["timestamp_s"]
+    invalid = timestamp.isna().to_numpy(dtype=bool).copy()
+    invalid |= _required_boolean_mask(frame, ["timestamp_s"])[:, 0]
+    values = timestamp.to_numpy(dtype=float, na_value=np.nan)
+    invalid |= ~np.isfinite(values)
+    return pd.Series(values[~invalid], dtype=float)
 
 
 def _resolve_limits(
@@ -258,6 +271,28 @@ def _active_rule_codes(limits: ValidationLimits) -> list[RuleCode]:
     return codes
 
 
+def _ensure_finite_derived_metric(
+    values: pd.Series,
+    valid_rows: pd.Series,
+    *,
+    metric_name: str,
+    row_offset: int = 0,
+) -> None:
+    valid_mask = valid_rows.to_numpy(dtype=bool)
+    selected = values.to_numpy(dtype=float)[valid_mask]
+    non_finite = ~np.isfinite(selected)
+    if not non_finite.any():
+        return
+
+    valid_position = int(np.flatnonzero(non_finite)[0])
+    row_pos = int(np.flatnonzero(valid_mask)[valid_position])
+    row_index = values.index[row_pos]
+    raise ValueError(
+        f"{metric_name} calculation overflowed at "
+        f"data row {row_offset + row_pos + 1} (index {row_index!r})"
+    )
+
+
 def _pack_cell_sum_and_delta(
     numeric: pd.DataFrame,
     cell_cols: list[str],
@@ -343,13 +378,14 @@ def _analyze_battery_frame(
         invalid_rows = pd.Series(invalid_values, index=numeric.index, dtype=bool)
         data_quality_events = collector.finish()
 
+    ordering_timestamps = _valid_timestamp_values(df, numeric)
+    if not ordering_timestamps.is_monotonic_increasing:
+        raise ValueError("timestamp_s must be non-decreasing")
+
     valid_rows = ~invalid_rows
     rows_excluded = int(invalid_rows.sum())
     rows_analyzed = int(valid_rows.sum())
     valid_numeric = numeric.loc[valid_rows]
-    valid_timestamps = valid_numeric["timestamp_s"]
-    if not valid_timestamps.is_monotonic_increasing:
-        raise ValueError("timestamp_s must be non-decreasing")
 
     rule_numeric = pd.DataFrame(
         numeric.to_numpy(dtype=float, na_value=np.nan),
@@ -361,13 +397,24 @@ def _analyze_battery_frame(
     timestamps = rule_numeric["timestamp_s"]
     cell_max = rule_numeric[cell_cols].max(axis=1)
     cell_min = rule_numeric[cell_cols].min(axis=1)
-    delta_v = cell_max - cell_min
+    row_max_temp = rule_numeric[temp_cols].max(axis=1)
+    row_min_temp = rule_numeric[temp_cols].min(axis=1)
+    with np.errstate(over="ignore", invalid="ignore"):
+        delta_v = cell_max - cell_min
+        temperature_spread = row_max_temp - row_min_temp
+    _ensure_finite_derived_metric(
+        delta_v,
+        valid_rows,
+        metric_name="Cell-voltage delta",
+    )
+    _ensure_finite_derived_metric(
+        temperature_spread,
+        valid_rows,
+        metric_name="Temperature spread",
+    )
     cell_sum, pack_cell_delta = _pack_cell_sum_and_delta(
         rule_numeric, cell_cols, pack_voltage_col, valid_rows
     )
-    row_max_temp = rule_numeric[temp_cols].max(axis=1)
-    row_min_temp = rule_numeric[temp_cols].min(axis=1)
-    temperature_spread = row_max_temp - row_min_temp
 
     rules_evaluated = _active_rule_codes(resolved_limits)
     violations: list[ViolationEvent] = []
