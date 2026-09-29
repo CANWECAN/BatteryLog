@@ -52,6 +52,20 @@ def contiguous_true_ranges(
     return ranges
 
 
+def _event_evidence(
+    *,
+    start_time_s: float,
+    end_time_s: float,
+    measured_value: float,
+    limit_value: float,
+) -> tuple[float, float]:
+    duration_s = end_time_s - start_time_s
+    peak_excursion = abs(measured_value - limit_value)
+    if not np.isfinite(duration_s) or not np.isfinite(peak_excursion):
+        raise ValueError("Violation event evidence calculation overflowed")
+    return round(duration_s, 12), round(peak_excursion, 12)
+
+
 def build_imbalance_events(
     numeric: pd.DataFrame,
     timestamps: pd.Series,
@@ -80,17 +94,25 @@ def build_imbalance_events(
         min_signals = [cell_cols[index] for index in np.flatnonzero(peak_cells == min_value)]
         measured = round(float(delta_values[peak_pos]), 12)
 
+        start_time_s = float(timestamp_values[start])
+        end_time_s = float(timestamp_values[end])
+        duration_s, peak_excursion = _event_evidence(
+            start_time_s=start_time_s,
+            end_time_s=end_time_s,
+            measured_value=measured,
+            limit_value=limit_v,
+        )
         events.append(
             {
                 "code": "CELL_IMBALANCE_HIGH",
-                "start_time_s": float(timestamp_values[start]),
-                "end_time_s": float(timestamp_values[end]),
+                "start_time_s": start_time_s,
+                "end_time_s": end_time_s,
                 "peak_time_s": float(timestamp_values[peak_pos]),
                 "measured_value": measured,
                 "limit_value": limit_v,
                 "sample_count": end - start + 1,
-                "duration_s": round(float(timestamp_values[end] - timestamp_values[start]), 12),
-                "peak_excursion": round(abs(measured - limit_v), 12),
+                "duration_s": duration_s,
+                "peak_excursion": peak_excursion,
                 "unit": "V",
                 "signals": [*max_signals, *min_signals],
             }
@@ -127,17 +149,25 @@ def build_temperature_spread_events(
         min_signals = [temp_cols[index] for index in np.flatnonzero(peak_temperatures == min_value)]
         measured = round(float(spread_values[peak_pos]), 12)
 
+        start_time_s = float(timestamp_values[start])
+        end_time_s = float(timestamp_values[end])
+        duration_s, peak_excursion = _event_evidence(
+            start_time_s=start_time_s,
+            end_time_s=end_time_s,
+            measured_value=measured,
+            limit_value=limit_c,
+        )
         events.append(
             {
                 "code": "TEMPERATURE_SPREAD_HIGH",
-                "start_time_s": float(timestamp_values[start]),
-                "end_time_s": float(timestamp_values[end]),
+                "start_time_s": start_time_s,
+                "end_time_s": end_time_s,
                 "peak_time_s": float(timestamp_values[peak_pos]),
                 "measured_value": measured,
                 "limit_value": limit_c,
                 "sample_count": end - start + 1,
-                "duration_s": round(float(timestamp_values[end] - timestamp_values[start]), 12),
-                "peak_excursion": round(abs(measured - limit_c), 12),
+                "duration_s": duration_s,
+                "peak_excursion": peak_excursion,
                 "unit": "degC",
                 "signals": [*max_signals, *min_signals],
             }
@@ -170,17 +200,25 @@ def build_pack_voltage_cell_sum_events(
         measured = float(deltas[peak_pos])
         pack = float(pack_values[peak_pos])
         summed = float(sum_values[peak_pos])
+        start_time_s = float(times[start])
+        end_time_s = float(times[end])
+        duration_s, peak_excursion = _event_evidence(
+            start_time_s=start_time_s,
+            end_time_s=end_time_s,
+            measured_value=measured,
+            limit_value=limit_v,
+        )
         events.append(
             {
                 "code": "PACK_VOLTAGE_CELL_SUM_MISMATCH",
-                "start_time_s": float(times[start]),
-                "end_time_s": float(times[end]),
+                "start_time_s": start_time_s,
+                "end_time_s": end_time_s,
                 "peak_time_s": float(times[peak_pos]),
                 "measured_value": measured,
                 "limit_value": limit_v,
                 "sample_count": end - start + 1,
-                "duration_s": round(float(times[end] - times[start]), 12),
-                "peak_excursion": round(abs(measured - limit_v), 12),
+                "duration_s": duration_s,
+                "peak_excursion": peak_excursion,
                 "unit": "V",
                 "signals": ["pack_voltage_v", *cell_cols],
                 "pack_voltage_v": pack,
@@ -220,17 +258,25 @@ def _build_extreme_events(
         peak_signals = signal_values[peak_pos]
         implicated = [signal_cols[index] for index in np.flatnonzero(peak_signals == measured)]
 
+        start_time_s = float(timestamp_values[start])
+        end_time_s = float(timestamp_values[end])
+        duration_s, peak_excursion = _event_evidence(
+            start_time_s=start_time_s,
+            end_time_s=end_time_s,
+            measured_value=measured,
+            limit_value=limit,
+        )
         events.append(
             {
                 "code": code,
-                "start_time_s": float(timestamp_values[start]),
-                "end_time_s": float(timestamp_values[end]),
+                "start_time_s": start_time_s,
+                "end_time_s": end_time_s,
                 "peak_time_s": float(timestamp_values[peak_pos]),
                 "measured_value": measured,
                 "limit_value": limit,
                 "sample_count": end - start + 1,
-                "duration_s": round(float(timestamp_values[end] - timestamp_values[start]), 12),
-                "peak_excursion": round(abs(measured - limit), 12),
+                "duration_s": duration_s,
+                "peak_excursion": peak_excursion,
                 "unit": unit,
                 "signals": implicated,
             }
