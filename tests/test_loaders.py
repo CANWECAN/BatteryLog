@@ -67,10 +67,7 @@ def test_chunked_csv_rejects_extra_field_at_chunk_boundary() -> None:
 
 def test_csv_row_width_validation_allows_large_ignored_metadata_field() -> None:
     metadata = "x" * 200_000
-    data = (
-        "timestamp_s,temp_c,cell_1_v,metadata\n"
-        f"0,25,3.8,{metadata}\n"
-    ).encode()
+    data = (f"timestamp_s,temp_c,cell_1_v,metadata\n0,25,3.8,{metadata}\n").encode()
 
     result = analyze_battery_bytes(data)
 
