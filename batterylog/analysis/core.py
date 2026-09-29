@@ -82,31 +82,32 @@ def _raise_invalid_numeric_value(
     row_offset: int = 0,
 ) -> None:
     columns = list(numeric.columns)
-    invalid_numeric = numeric.isna().to_numpy() | _required_boolean_mask(frame, columns)
-    invalid_position = _first_true_position(invalid_numeric)
-    if invalid_position is not None:
-        row_pos, column_pos = invalid_position
-        column = numeric.columns[column_pos]
+    numeric_missing = numeric.isna().to_numpy(dtype=bool)
+    invalid_numeric = numeric_missing | _required_boolean_mask(frame, columns)
+    values = numeric.to_numpy(dtype=float, na_value=np.nan)
+    non_finite = ~np.isfinite(values) & ~numeric_missing
+
+    invalid_position = _first_true_position(invalid_numeric | non_finite)
+    if invalid_position is None:
+        return
+
+    row_pos, column_pos = invalid_position
+    column = numeric.columns[column_pos]
+    row_index = frame.index[row_pos]
+    if invalid_numeric[row_pos, column_pos]:
         raw_value = frame.iloc[row_pos][column]
-        row_index = frame.index[row_pos]
         raise ValueError(
             "Required numeric value is missing or non-numeric at "
             f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
             f"column {column!r}: {raw_value!r}"
         )
 
-    values = numeric.to_numpy(dtype=float)
-    non_finite_position = _first_true_position(~np.isfinite(values))
-    if non_finite_position is not None:
-        row_pos, column_pos = non_finite_position
-        column = numeric.columns[column_pos]
-        value = values[row_pos, column_pos]
-        row_index = frame.index[row_pos]
-        raise ValueError(
-            "Required numeric value is non-finite at "
-            f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
-            f"column {column!r}: {value!r}"
-        )
+    value = values[row_pos, column_pos]
+    raise ValueError(
+        "Required numeric value is non-finite at "
+        f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
+        f"column {column!r}: {value!r}"
+    )
 
 
 def _resolve_limits(
