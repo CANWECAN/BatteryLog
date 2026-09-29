@@ -304,20 +304,21 @@ def _analyze_battery_chunks(
         ):
             raise ValueError("Canonical signal columns changed between measurement chunks")
 
+        chunk_row_offset = rows_input
         numeric_cols = ["timestamp_s", *pack_cols, *cell_cols, *temp_cols]
         numeric = frame[numeric_cols].apply(pd.to_numeric, errors="coerce")
         if data_quality_collector is None:
             _raise_invalid_numeric_value(
                 frame,
                 numeric,
-                row_offset=rows_input,
+                row_offset=chunk_row_offset,
             )
             invalid_rows = pd.Series(False, index=numeric.index, dtype=bool)
         else:
             invalid_values = data_quality_collector.consume_chunk(
                 frame,
                 numeric,
-                row_offset=rows_input,
+                row_offset=chunk_row_offset,
             )
             invalid_rows = pd.Series(invalid_values, index=numeric.index, dtype=bool)
 
@@ -359,13 +360,13 @@ def _analyze_battery_chunks(
             delta_v,
             valid_rows,
             metric_name="Cell-voltage delta",
-            row_offset=rows_input,
+            row_offset=chunk_row_offset,
         )
         _ensure_finite_derived_metric(
             temperature_spread,
             valid_rows,
             metric_name="Temperature spread",
-            row_offset=rows_input,
+            row_offset=chunk_row_offset,
         )
         cell_sum, pack_cell_delta = _pack_cell_sum_and_delta(
             rule_numeric, cell_cols, pack_voltage_col, valid_rows
