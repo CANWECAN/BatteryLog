@@ -9,6 +9,7 @@ from batterylog import (
     ValidationLimits,
     analyze_battery_log,
 )
+from batterylog.analysis.core import analyze_battery_bytes
 
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
@@ -664,6 +665,27 @@ def test_non_finite_error_identifies_first_row_column_and_value(
     assert "index 1" in message
     assert "column 'temp_c'" in message
     assert "inf" in message
+
+
+@pytest.mark.parametrize(
+    ("data", "limits"),
+    [
+        (
+            b"timestamp_s,temp_c,cell_1_v\n0,25,1e308\n",
+            ValidationLimits(cell_max_v=-1e308),
+        ),
+        (
+            b"timestamp_s,temp_c,cell_1_v\n-1e308,25,4.3\n1e308,25,4.3\n",
+            ValidationLimits(cell_max_v=4.2),
+        ),
+    ],
+)
+def test_violation_event_evidence_overflow_fails_closed(
+    data: bytes,
+    limits: ValidationLimits,
+) -> None:
+    with pytest.raises(ValueError, match="calculation overflowed"):
+        analyze_battery_bytes(data, limits=limits)
 
 
 def test_result_records_explicit_comparison_policy() -> None:
