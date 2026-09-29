@@ -16,16 +16,12 @@ SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
 def test_finite_cell_values_fail_closed_on_delta_overflow() -> None:
     with pytest.raises(ValueError, match="Cell-voltage delta calculation overflowed"):
-        analyze_battery_bytes(
-            b"timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,1e308,-1e308\n"
-        )
+        analyze_battery_bytes(b"timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,1e308,-1e308\n")
 
 
 def test_finite_temperature_values_fail_closed_on_spread_overflow() -> None:
     with pytest.raises(ValueError, match="Temperature spread calculation overflowed"):
-        analyze_battery_bytes(
-            b"timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,1e308,-1e308,3.8\n"
-        )
+        analyze_battery_bytes(b"timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,1e308,-1e308,3.8\n")
 
 
 def test_finite_timestamps_fail_closed_on_event_duration_overflow() -> None:
