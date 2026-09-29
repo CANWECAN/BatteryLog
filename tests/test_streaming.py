@@ -249,6 +249,51 @@ def test_streaming_is_differentially_equivalent_to_whole_frame(
     assert actual == expected
 
 
+
+def test_streaming_fails_closed_on_cell_delta_overflow() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0],
+            "temp_c": [25.0],
+            "cell_1_v": [1e308],
+            "cell_2_v": [-1e308],
+        }
+    )
+
+    with pytest.raises(ValueError, match="Cell-voltage delta calculation overflowed"):
+        _analyze_battery_chunks([frame])
+
+
+def test_streaming_fails_closed_on_temperature_spread_overflow() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0],
+            "temp_1_c": [1e308],
+            "temp_2_c": [-1e308],
+            "cell_1_v": [3.8],
+        }
+    )
+
+    with pytest.raises(ValueError, match="Temperature spread calculation overflowed"):
+        _analyze_battery_chunks([frame])
+
+
+def test_streaming_fails_closed_when_merged_event_duration_overflows() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [-1e308, 1e308],
+            "temp_c": [25.0, 25.0],
+            "cell_1_v": [4.3, 4.3],
+        }
+    )
+
+    with pytest.raises(ValueError, match="Violation event duration calculation overflowed"):
+        _analyze_battery_chunks(
+            [frame.iloc[:1].copy(), frame.iloc[1:].copy()],
+            limits=ValidationLimits(cell_max_v=4.2),
+        )
+
+
 def test_standard_file_analysis_does_not_materialize_source_bytes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
