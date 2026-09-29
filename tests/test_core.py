@@ -36,6 +36,15 @@ def test_finite_timestamps_do_not_produce_non_finite_event_duration() -> None:
     render_json_result(result)
 
 
+def test_finite_values_do_not_produce_non_finite_peak_excursion() -> None:
+    result = analyze_battery_bytes(
+        b"timestamp_s,temp_c,cell_1_v\n0,25,1e308\n",
+        limits=ValidationLimits(cell_max_v=-1e308),
+    )
+
+    render_json_result(result)
+
+
 def test_sample_log_returns_structured_violation_events() -> None:
     result = analyze_battery_log(
         SAMPLE,
