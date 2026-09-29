@@ -109,6 +109,18 @@ def _raise_invalid_numeric_value(
         )
 
 
+def _valid_timestamp_values(
+    frame: pd.DataFrame,
+    numeric: pd.DataFrame,
+) -> pd.Series:
+    timestamp = numeric["timestamp_s"]
+    invalid = timestamp.isna().to_numpy(dtype=bool)
+    invalid |= _required_boolean_mask(frame, ["timestamp_s"])[:, 0]
+    values = timestamp.to_numpy(dtype=float, na_value=np.nan)
+    invalid |= ~np.isfinite(values)
+    return pd.Series(values[~invalid], dtype=float)
+
+
 def _resolve_limits(
     limits: ValidationLimits | None,
     imbalance_limit_v: float | None,
@@ -343,13 +355,15 @@ def _analyze_battery_frame(
         invalid_rows = pd.Series(invalid_values, index=numeric.index, dtype=bool)
         data_quality_events = collector.finish()
 
+    ordering_timestamps = _valid_timestamp_values(df, numeric)
+    if not ordering_timestamps.is_monotonic_increasing:
+        raise ValueError("timestamp_s must be non-decreasing")
+
     valid_rows = ~invalid_rows
     rows_excluded = int(invalid_rows.sum())
     rows_analyzed = int(valid_rows.sum())
     valid_numeric = numeric.loc[valid_rows]
     valid_timestamps = valid_numeric["timestamp_s"]
-    if not valid_timestamps.is_monotonic_increasing:
-        raise ValueError("timestamp_s must be non-decreasing")
 
     rule_numeric = pd.DataFrame(
         numeric.to_numpy(dtype=float, na_value=np.nan),
