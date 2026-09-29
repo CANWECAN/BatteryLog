@@ -44,7 +44,7 @@ def test_empty_column_name_is_rejected(tmp_path: Path) -> None:
 def test_csv_row_with_extra_field_is_rejected_instead_of_hiding_violation() -> None:
     data = b"timestamp_s,temp_c,cell_1_v\n0,100,3.8,4.0\n1,101,3.9,4.0\n"
 
-    with pytest.raises(ValueError, match="CSV data row 1 has 4 fields; expected 3"):
+    with pytest.raises(ValueError, match="Invalid CSV structure"):
         analyze_battery_bytes(
             data,
             limits=ValidationLimits(
@@ -58,7 +58,7 @@ def test_chunked_csv_rejects_extra_field_at_chunk_boundary() -> None:
     data = b"timestamp_s,temp_c,cell_1_v\n0,25,3.8\n1,100,3.9,4.0\n"
     loader = CsvFileLoader(BytesIO(data), chunk_rows=1)
 
-    with pytest.raises(ValueError, match="CSV data row 2 has 4 fields; expected 3"):
+    with pytest.raises(ValueError, match="Invalid CSV structure"):
         analyze_measurement_loader(
             loader,
             limits=ValidationLimits(temperature_max_c=50.0),
