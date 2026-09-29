@@ -114,7 +114,7 @@ def _valid_timestamp_values(
     numeric: pd.DataFrame,
 ) -> pd.Series:
     timestamp = numeric["timestamp_s"]
-    invalid = timestamp.isna().to_numpy(dtype=bool)
+    invalid = timestamp.isna().to_numpy(dtype=bool).copy()
     invalid |= _required_boolean_mask(frame, ["timestamp_s"])[:, 0]
     values = timestamp.to_numpy(dtype=float, na_value=np.nan)
     invalid |= ~np.isfinite(values)
@@ -363,7 +363,6 @@ def _analyze_battery_frame(
     rows_excluded = int(invalid_rows.sum())
     rows_analyzed = int(valid_rows.sum())
     valid_numeric = numeric.loc[valid_rows]
-    valid_timestamps = valid_numeric["timestamp_s"]
 
     rule_numeric = pd.DataFrame(
         numeric.to_numpy(dtype=float, na_value=np.nan),
