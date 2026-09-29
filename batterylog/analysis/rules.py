@@ -8,6 +8,20 @@ from batterylog.models import RuleCode, ViolationEvent
 from .comparison import below_limit, exceeds_limit, exceeds_limit_scalar
 
 
+def _event_duration_s(start_time_s: float, end_time_s: float) -> float:
+    duration = float(end_time_s) - float(start_time_s)
+    if not np.isfinite(duration):
+        raise ValueError("Violation event duration calculation overflowed")
+    return round(duration, 12)
+
+
+def _peak_excursion(measured_value: float, limit_value: float) -> float:
+    difference = float(measured_value) - float(limit_value)
+    if not np.isfinite(difference):
+        raise ValueError("Violation peak-excursion calculation overflowed")
+    return round(abs(difference), 12)
+
+
 def contiguous_true_ranges(
     mask: pd.Series,
     *,
@@ -89,8 +103,8 @@ def build_imbalance_events(
                 "measured_value": measured,
                 "limit_value": limit_v,
                 "sample_count": end - start + 1,
-                "duration_s": round(float(timestamp_values[end] - timestamp_values[start]), 12),
-                "peak_excursion": round(abs(measured - limit_v), 12),
+                "duration_s": _event_duration_s(timestamp_values[start], timestamp_values[end]),
+                "peak_excursion": _peak_excursion(measured, limit_v),
                 "unit": "V",
                 "signals": [*max_signals, *min_signals],
             }
@@ -136,8 +150,8 @@ def build_temperature_spread_events(
                 "measured_value": measured,
                 "limit_value": limit_c,
                 "sample_count": end - start + 1,
-                "duration_s": round(float(timestamp_values[end] - timestamp_values[start]), 12),
-                "peak_excursion": round(abs(measured - limit_c), 12),
+                "duration_s": _event_duration_s(timestamp_values[start], timestamp_values[end]),
+                "peak_excursion": _peak_excursion(measured, limit_c),
                 "unit": "degC",
                 "signals": [*max_signals, *min_signals],
             }
@@ -179,8 +193,8 @@ def build_pack_voltage_cell_sum_events(
                 "measured_value": measured,
                 "limit_value": limit_v,
                 "sample_count": end - start + 1,
-                "duration_s": round(float(times[end] - times[start]), 12),
-                "peak_excursion": round(abs(measured - limit_v), 12),
+                "duration_s": _event_duration_s(times[start], times[end]),
+                "peak_excursion": _peak_excursion(measured, limit_v),
                 "unit": "V",
                 "signals": ["pack_voltage_v", *cell_cols],
                 "pack_voltage_v": pack,
@@ -229,8 +243,8 @@ def _build_extreme_events(
                 "measured_value": measured,
                 "limit_value": limit,
                 "sample_count": end - start + 1,
-                "duration_s": round(float(timestamp_values[end] - timestamp_values[start]), 12),
-                "peak_excursion": round(abs(measured - limit), 12),
+                "duration_s": _event_duration_s(timestamp_values[start], timestamp_values[end]),
+                "peak_excursion": _peak_excursion(measured, limit),
                 "unit": unit,
                 "signals": implicated,
             }
