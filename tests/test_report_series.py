@@ -439,6 +439,24 @@ def test_report_series_combined_pack_metrics_respect_point_budget(max_points: in
     )
 
 
+
+def test_report_series_downsampling_preserves_peak_temperature_spread() -> None:
+    collector = ReportSeriesCollector(max_points=16)
+    points = [_point(index) for index in range(17)]
+    points[2] = _point(2, temperature_min_c=0.0, temperature_max_c=20.0)
+    points[5] = _point(5, temperature_min_c=10.0, temperature_max_c=45.0)
+    points[8] = _point(8, temperature_min_c=30.0, temperature_max_c=50.0)
+
+    for point in points:
+        collector.consume(point)
+
+    series = collector.finish()
+
+    assert series.is_downsampled is True
+    assert max(point.temperature_spread_c for point in series.points) == pytest.approx(35.0)
+    assert any(point.row_index == 5 for point in series.points)
+
+
 def test_report_series_temperature_spread_is_derived_without_expanding_point_contract() -> None:
     point = _point(0, temperature_min_c=21.0, temperature_max_c=34.5)
     assert point.temperature_spread_c == pytest.approx(13.5)
