@@ -9,6 +9,7 @@ from batterylog import (
     ValidationLimits,
     analyze_battery_log,
 )
+from batterylog.analysis.core import analyze_battery_bytes
 
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
@@ -689,6 +690,8 @@ def test_derived_metric_overflow_fails_closed(
 
     with pytest.raises(ValueError, match="calculation overflowed"):
         analyze_battery_log(path)
+    with pytest.raises(ValueError, match="calculation overflowed"):
+        analyze_battery_bytes(body.encode())
 
 
 def test_result_records_explicit_comparison_policy() -> None:
