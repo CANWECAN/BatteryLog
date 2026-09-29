@@ -41,8 +41,7 @@ def _validate_data_row_widths(
             data_row += 1
             if len(row) > expected_fields:
                 raise ValueError(
-                    f"CSV data row {data_row} has {len(row)} fields; "
-                    f"expected {expected_fields}"
+                    f"CSV data row {data_row} has {len(row)} fields; expected {expected_fields}"
                 )
     except csv.Error as exc:
         raise ValueError(f"Invalid CSV structure: {exc}") from exc
