@@ -647,6 +647,25 @@ def test_invalid_numeric_error_identifies_first_row_column_and_value(
     assert "'bad'" in message
 
 
+def test_invalid_numeric_error_uses_earliest_row_across_defect_classes(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "mixed_invalid_numeric.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v\n0,25,inf\n1,bad,3.9\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as exc:
+        analyze_battery_log(path)
+
+    message = str(exc.value)
+    assert "data row 1" in message
+    assert "index 0" in message
+    assert "column 'cell_1_v'" in message
+    assert "inf" in message
+
+
 def test_non_finite_error_identifies_first_row_column_and_value(
     tmp_path: Path,
 ) -> None:
