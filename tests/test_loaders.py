@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pytest
 
+from batterylog import ValidationLimits
+from batterylog.analysis.core import analyze_battery_bytes
 from batterylog.loaders import iter_battery_csv_file, load_battery_csv, load_battery_csv_bytes
 
 
@@ -30,6 +32,24 @@ def test_empty_column_name_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="empty column name"):
         load_battery_csv(path)
+
+
+
+def test_csv_row_with_extra_field_is_rejected_instead_of_shifting_columns() -> None:
+    data = (
+        b"timestamp_s,temp_c,cell_1_v\n"
+        b"0,25,3.8,999\n"
+        b"1,26,3.9,999\n"
+    )
+
+    with pytest.raises(ValueError):
+        analyze_battery_bytes(
+            data,
+            limits=ValidationLimits(
+                cell_max_v=30.0,
+                temperature_max_c=1000.0,
+            ),
+        )
 
 
 def test_utf8_bom_header_is_supported(tmp_path: Path) -> None:
