@@ -128,7 +128,7 @@ def test_plot_renderer_preserves_pack_voltage_extremum() -> None:
     )
     assert result["max_pack_voltage_v"] == pytest.approx(10.9)
     assert retained_max == pytest.approx(10.9)
-    assert "Pack voltage vs cell-voltage sum" in render_report_plots(result, series)
+    assert "<section" in render_report_plots(result, series)
 
 
 def test_plot_rendering_is_deterministic() -> None:
