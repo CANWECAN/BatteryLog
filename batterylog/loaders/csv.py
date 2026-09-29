@@ -76,7 +76,7 @@ def _validate_chunk_rows(chunk_rows: int) -> None:
 
 def load_battery_csv_bytes(data: bytes) -> pd.DataFrame:
     _read_header_from_bytes(data)
-    return pd.read_csv(io.BytesIO(data), encoding="utf-8-sig")
+    return pd.read_csv(io.BytesIO(data), encoding="utf-8-sig", skip_blank_lines=False)
 
 
 def load_battery_csv(path: str | Path) -> pd.DataFrame:
@@ -96,6 +96,7 @@ def iter_battery_csv(
         source,
         encoding="utf-8-sig",
         chunksize=chunk_rows,
+        skip_blank_lines=False,
     )
 
 
@@ -111,6 +112,7 @@ def iter_battery_csv_file(
         handle,
         encoding="utf-8-sig",
         chunksize=chunk_rows,
+        skip_blank_lines=False,
     )
     try:
         yield from reader
