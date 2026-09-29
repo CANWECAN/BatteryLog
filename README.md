@@ -2,7 +2,7 @@
 
 BatteryLog is an open-source engineering toolkit for reproducible EV battery/BMS log validation from the command line or Python.
 
-**Current release:** `v0.9.1`
+**Current release:** `v0.9.2`
 
 **Status:** **Pre-1.0 engineering beta.** The validation core is stable and extensively tested; APIs and supported workflows may still evolve before 1.0.
 
