@@ -9,6 +9,7 @@ from batterylog import (
     ValidationLimits,
     analyze_battery_log,
 )
+from batterylog.analysis.core import analyze_battery_bytes
 
 SAMPLE = Path(__file__).parents[1] / "examples" / "sample_battery_log.csv"
 
@@ -647,6 +648,25 @@ def test_invalid_numeric_error_identifies_first_row_column_and_value(
     assert "'bad'" in message
 
 
+def test_invalid_numeric_error_uses_earliest_row_across_defect_classes(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "mixed_invalid_numeric.csv"
+    path.write_text(
+        "timestamp_s,temp_c,cell_1_v\n0,25,inf\n1,bad,3.9\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as exc:
+        analyze_battery_log(path)
+
+    message = str(exc.value)
+    assert "data row 1" in message
+    assert "index 0" in message
+    assert "column 'cell_1_v'" in message
+    assert "inf" in message
+
+
 def test_non_finite_error_identifies_first_row_column_and_value(
     tmp_path: Path,
 ) -> None:
@@ -664,6 +684,60 @@ def test_non_finite_error_identifies_first_row_column_and_value(
     assert "index 1" in message
     assert "column 'temp_c'" in message
     assert "inf" in message
+
+
+@pytest.mark.parametrize(
+    ("name", "body"),
+    [
+        (
+            "cell_delta.csv",
+            "timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,1e308,-1e308\n",
+        ),
+        (
+            "temperature_spread.csv",
+            "timestamp_s,temp_1_c,temp_2_c,cell_1_v\n0,1e308,-1e308,3.8\n",
+        ),
+    ],
+)
+def test_derived_metric_overflow_fails_closed(
+    tmp_path: Path,
+    name: str,
+    body: str,
+) -> None:
+    path = tmp_path / name
+    path.write_text(body, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="calculation overflowed"):
+        analyze_battery_log(path)
+    with pytest.raises(ValueError, match="calculation overflowed"):
+        analyze_battery_bytes(body.encode())
+
+
+@pytest.mark.parametrize(
+    ("data", "limits"),
+    [
+        (
+            b"timestamp_s,temp_c,cell_1_v\n0,25,1e308\n",
+            ValidationLimits(cell_max_v=-1e308),
+        ),
+        (
+            b"timestamp_s,temp_c,cell_1_v\n-1e308,25,4.3\n1e308,25,4.3\n",
+            ValidationLimits(cell_max_v=4.2),
+        ),
+    ],
+)
+def test_violation_event_evidence_overflow_fails_closed(
+    tmp_path: Path,
+    data: bytes,
+    limits: ValidationLimits,
+) -> None:
+    with pytest.raises(ValueError, match="calculation overflowed"):
+        analyze_battery_bytes(data, limits=limits)
+
+    path = tmp_path / "event_evidence_overflow.csv"
+    path.write_bytes(data)
+    with pytest.raises(ValueError, match="calculation overflowed"):
+        analyze_battery_log(path, limits=limits)
 
 
 def test_result_records_explicit_comparison_policy() -> None:
