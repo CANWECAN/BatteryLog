@@ -1,4 +1,3 @@
-import warnings
 from pathlib import Path
 
 import numpy as np
@@ -9,129 +8,26 @@ from batterylog.config import (
     EventDetectionConfig,
     SignalMapping,
     ValidationLimits,
-    override_validation_limits,
 )
 from batterylog.loaders import load_battery_csv_bytes
 from batterylog.models import AnalysisResult, DataQualityEvent, PackVoltageCellSumPeak
-from batterylog.signals import (
-    canonicalize_battery_signals,
-    find_canonical_pack_signal_columns,
-    find_canonical_signal_columns,
-)
 
-from .data_quality import DataQualityCollector, _required_boolean_mask
+from .configuration import (
+    resolve_data_quality,
+    resolve_event_detection,
+    resolve_limits,
+    validate_signal_mapping,
+    warn_legacy_threshold_arguments,
+)
+from .data_quality import DataQualityCollector
 from .evaluation import active_rule_codes, evaluate_rules
+from .input_validation import (
+    canonicalize_analysis_frame,
+    raise_invalid_numeric_value,
+    valid_timestamp_values,
+)
 from .preparation import prepare_measurements
 from .result_assembly import AnalysisMetrics, build_analysis_result
-
-
-def _find_signal_columns(columns: pd.Index) -> tuple[list[str], list[str]]:
-    return find_canonical_signal_columns(columns)
-
-
-def _warn_legacy_threshold_arguments(
-    imbalance_limit_v: float | None,
-    temp_warning_c: float | None,
-) -> None:
-    if imbalance_limit_v is None and temp_warning_c is None:
-        return
-
-    warnings.warn(
-        "imbalance_limit_v and temp_warning_c are deprecated; "
-        "pass a ValidationLimits instance via limits=. "
-        "Legacy values currently override the corresponding limits fields.",
-        DeprecationWarning,
-        stacklevel=3,
-    )
-
-
-def _first_true_position(mask: np.ndarray) -> tuple[int, int] | None:
-    if not mask.any():
-        return None
-
-    flat_position = int(np.argmax(mask))
-    row_pos, column_pos = divmod(flat_position, mask.shape[1])
-    return row_pos, column_pos
-
-
-def _raise_invalid_numeric_value(
-    frame: pd.DataFrame,
-    numeric: pd.DataFrame,
-    *,
-    row_offset: int = 0,
-) -> None:
-    columns = list(numeric.columns)
-    numeric_missing = numeric.isna().to_numpy(dtype=bool)
-    invalid_numeric = numeric_missing | _required_boolean_mask(frame, columns)
-    values = numeric.to_numpy(dtype=float, na_value=np.nan)
-    non_finite = ~np.isfinite(values) & ~numeric_missing
-
-    invalid_position = _first_true_position(invalid_numeric | non_finite)
-    if invalid_position is None:
-        return
-
-    row_pos, column_pos = invalid_position
-    column = numeric.columns[column_pos]
-    row_index = frame.index[row_pos]
-    if invalid_numeric[row_pos, column_pos]:
-        raw_value = frame.iloc[row_pos][column]
-        raise ValueError(
-            "Required numeric value is missing or non-numeric at "
-            f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
-            f"column {column!r}: {raw_value!r}"
-        )
-
-    value = values[row_pos, column_pos]
-    raise ValueError(
-        "Required numeric value is non-finite at "
-        f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
-        f"column {column!r}: {value!r}"
-    )
-
-
-def _valid_timestamp_values(
-    frame: pd.DataFrame,
-    numeric: pd.DataFrame,
-) -> pd.Series:
-    timestamp = numeric["timestamp_s"]
-    invalid = timestamp.isna().to_numpy(dtype=bool).copy()
-    invalid |= _required_boolean_mask(frame, ["timestamp_s"])[:, 0]
-    values = timestamp.to_numpy(dtype=float, na_value=np.nan)
-    invalid |= ~np.isfinite(values)
-    return pd.Series(values[~invalid], dtype=float)
-
-
-def _resolve_limits(
-    limits: ValidationLimits | None,
-    imbalance_limit_v: float | None,
-    temp_warning_c: float | None,
-) -> ValidationLimits:
-    if limits is not None and not isinstance(limits, ValidationLimits):
-        raise TypeError("limits must be a ValidationLimits instance or null")
-
-    resolved = limits if limits is not None else ValidationLimits()
-    return override_validation_limits(
-        resolved,
-        imbalance_max_v=imbalance_limit_v,
-        temperature_max_c=temp_warning_c,
-    )
-
-
-def _resolve_event_detection(
-    event_detection: EventDetectionConfig | None,
-) -> EventDetectionConfig:
-    if event_detection is not None and not isinstance(
-        event_detection,
-        EventDetectionConfig,
-    ):
-        raise TypeError("event_detection must be an EventDetectionConfig instance or null")
-    return event_detection if event_detection is not None else EventDetectionConfig()
-
-
-def _resolve_data_quality(data_quality: DataQualityConfig | None) -> DataQualityConfig:
-    if data_quality is not None and not isinstance(data_quality, DataQualityConfig):
-        raise TypeError("data_quality must be a DataQualityConfig instance or null")
-    return data_quality if data_quality is not None else DataQualityConfig()
 
 
 def _analyze_battery_frame(
@@ -144,49 +40,35 @@ def _analyze_battery_frame(
     data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
 ) -> AnalysisResult:
-    _warn_legacy_threshold_arguments(
+    warn_legacy_threshold_arguments(
         imbalance_limit_v,
         temp_warning_c,
     )
-    resolved_limits = _resolve_limits(
+    resolved_limits = resolve_limits(
         limits,
         imbalance_limit_v,
         temp_warning_c,
     )
-    resolved_event_detection = _resolve_event_detection(event_detection)
-    resolved_data_quality = _resolve_data_quality(data_quality)
-    if signal_mapping is not None and not isinstance(signal_mapping, SignalMapping):
-        raise TypeError("signal_mapping must be a SignalMapping instance or null")
+    resolved_event_detection = resolve_event_detection(event_detection)
+    resolved_data_quality = resolve_data_quality(data_quality)
+    validate_signal_mapping(signal_mapping)
 
     if df.empty:
         raise ValueError("Battery log contains no data rows")
 
-    df = canonicalize_battery_signals(df, signal_mapping)
-    if "timestamp_s" not in df.columns:
-        raise ValueError("Required column 'timestamp_s' is missing")
+    df, layout = canonicalize_analysis_frame(df, signal_mapping, resolved_limits)
+    cell_cols = layout.cell_cols
+    temp_cols = layout.temp_cols
+    pack_current_col = layout.pack_current_col
+    pack_voltage_col = layout.pack_voltage_col
+    pack_cols = layout.pack_cols
 
-    cell_cols, temp_cols = _find_signal_columns(df.columns)
-    if not cell_cols:
-        raise ValueError("No cell voltage columns found")
-    if not temp_cols:
-        raise ValueError("No temperature columns found")
-    pack_current_col, pack_voltage_col = find_canonical_pack_signal_columns(df.columns)
-    if resolved_limits.pack_voltage_cell_sum_max_delta_v is not None and pack_voltage_col is None:
-        raise ValueError("Pack-voltage cell-sum validation requires column 'pack_voltage_v'")
-    if (
-        resolved_limits.pack_charge_max_a is not None
-        or resolved_limits.pack_discharge_max_a is not None
-    ) and pack_current_col is None:
-        raise ValueError("Pack-current validation requires column 'pack_current_a'")
-    pack_cols = [column for column in (pack_current_col, pack_voltage_col) if column is not None]
-
-    numeric_cols = ["timestamp_s", *pack_cols, *cell_cols, *temp_cols]
-    numeric = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
+    numeric = df[layout.numeric_cols].apply(pd.to_numeric, errors="coerce")
     rows_input = len(df)
     data_quality_events: list[DataQualityEvent] = []
 
     if resolved_data_quality.mode == "strict":
-        _raise_invalid_numeric_value(df, numeric)
+        raise_invalid_numeric_value(df, numeric)
         invalid_rows = pd.Series(False, index=numeric.index, dtype=bool)
     else:
         collector = DataQualityCollector()
@@ -194,7 +76,7 @@ def _analyze_battery_frame(
         invalid_rows = pd.Series(invalid_values, index=numeric.index, dtype=bool)
         data_quality_events = collector.finish()
 
-    ordering_timestamps = _valid_timestamp_values(df, numeric)
+    ordering_timestamps = valid_timestamp_values(df, numeric)
     if not ordering_timestamps.is_monotonic_increasing:
         raise ValueError("timestamp_s must be non-decreasing")
 
