@@ -183,6 +183,21 @@ def test_blank_csv_row_cannot_disappear_from_data_quality() -> None:
         }
     ]
 
+    for chunk_rows in (1, 2, 3):
+        streaming = analyze_measurement_loader(
+            CsvFileLoader(BytesIO(data), chunk_rows=chunk_rows),
+            limits=ValidationLimits(cell_max_v=4.2),
+            data_quality=config,
+        )
+        assert streaming == result
+
+
+def test_strict_mode_rejects_blank_csv_row() -> None:
+    data = b"timestamp_s,cell_1_v,temp_c\n0,3.8,25\n\n2,3.8,25\n"
+
+    with pytest.raises(ValueError, match="Required numeric value is missing"):
+        analyze_battery_bytes(data)
+
 
 def test_csv_boolean_inference_is_chunk_boundary_independent() -> None:
     data = b"timestamp_s,cell_1_v,temp_c\n0,3.8,True\n1,3.8,bad\n"
