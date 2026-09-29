@@ -27,7 +27,6 @@ def _validate_header(header: list[str]) -> list[str]:
     return header
 
 
-
 def _validate_data_row_widths(
     reader: Iterator[list[str]],
     *,
