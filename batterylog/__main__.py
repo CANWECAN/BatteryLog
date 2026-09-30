@@ -335,6 +335,7 @@ def run(argv: Sequence[str] | None = None) -> int:
                     source_snapshot.evidence,
                     config_snapshot.evidence if config_snapshot is not None else None,
                 )
+                json_text = render_json_result(result)
                 write_html_report(
                     result,
                     report_path,
@@ -350,8 +351,7 @@ def run(argv: Sequence[str] | None = None) -> int:
                 data_quality=validation_config.data_quality,
                 signal_mapping=validation_config.signals,
             )
-
-        json_text = render_json_result(result)
+            json_text = render_json_result(result)
 
         if json_out_path is not None:
             write_json_result(result, json_out_path)

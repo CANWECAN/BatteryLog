@@ -178,6 +178,27 @@ def test_cli_writes_html_report_and_preserves_fail_exit_code(
     assert "Validation events remain sourced from AnalysisResult" in html
 
 
+def test_cli_preflights_json_before_writing_html_report(
+    tmp_path,
+    capsys,
+    monkeypatch,
+) -> None:
+    report = tmp_path / "report.html"
+
+    def reject_json(_result):
+        raise ValueError("synthetic invalid result")
+
+    monkeypatch.setattr(cli_module, "render_json_result", reject_json)
+
+    exit_code = run([str(SAMPLE), "--report", str(report)])
+
+    captured = capsys.readouterr()
+    assert exit_code == EXIT_RUNTIME_ERROR
+    assert "synthetic invalid result" in captured.err
+    assert captured.out == ""
+    assert not report.exists()
+
+
 def test_cli_report_contains_config_provenance(tmp_path, capsys) -> None:
     config = tmp_path / "validation.yaml"
     config.write_text(
