@@ -104,7 +104,7 @@ def _canonical_signals(frame: pd.DataFrame) -> list[Signal]:
 @pytest.mark.parametrize("entrypoint", ["path", "file", "loader"])
 @pytest.mark.parametrize("report_max_points", [None, 14])
 def test_real_mf4_service_matches_fixed_golden(tmp_path, entrypoint, report_max_points) -> None:
-    path = tmp_path / "service.MF4"
+    path = tmp_path / "generated.mf4"
     timestamps = np.array([0.0, 1.0])
     _save_mdf(
         path,
@@ -117,6 +117,9 @@ def test_real_mf4_service_matches_fixed_golden(tmp_path, entrypoint, report_max_
             ]
         ],
     )
+    # The writer normalizes its output suffix; rename an existing fixture to
+    # exercise case-insensitive source dispatch without guessing the save name.
+    path = path.rename(tmp_path / "service.MF4")
     service = AnalysisService(
         ValidationConfig(
             limits=ValidationLimits(
