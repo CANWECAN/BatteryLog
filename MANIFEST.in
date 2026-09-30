@@ -1,6 +1,6 @@
 include CHANGELOG.md CITATION.cff
 recursive-include examples *.csv *.yaml
-recursive-include docs *.md *.png
+recursive-include docs *.md *.png *.json
 recursive-include tests *.py
 recursive-include scripts *.py
 recursive-include benchmarks *.py

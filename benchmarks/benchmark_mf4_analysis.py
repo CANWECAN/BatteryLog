@@ -10,7 +10,9 @@ import subprocess
 import sys
 import tempfile
 import threading
+from collections import Counter
 from importlib.metadata import version
+from math import isfinite
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -33,8 +35,8 @@ def _positive_int(value: str) -> int:
 
 def _positive_float(value: str) -> float:
     parsed = float(value)
-    if parsed <= 0:
-        raise argparse.ArgumentTypeError("value must be greater than zero")
+    if not isfinite(parsed) or parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be finite and greater than zero")
     return parsed
 
 
@@ -48,6 +50,8 @@ def _write_synthetic_mf4(
     rows: int,
     cells: int,
     temperatures: int,
+    layout: str = "single-group",
+    scenario: str = "steady",
 ) -> None:
     try:
         import numpy as np
@@ -64,6 +68,8 @@ def _write_synthetic_mf4(
     signals: list[Signal] = []
     for index in range(cells):
         samples = 3.70 + (index % 8) * 0.001 + 0.012 * np.sin(phase * 0.0031 + index * 0.17)
+        if scenario == "event-pressure" and index == 0:
+            samples = np.where(np.arange(rows) % 2 == 0, 4.5, 3.7)
         signals.append(
             Signal(
                 samples=samples,
@@ -86,7 +92,11 @@ def _write_synthetic_mf4(
 
     mdf = MDF(version="4.10")
     try:
-        mdf.append(signals, common_timebase=True)
+        if layout == "single-group":
+            mdf.append(signals, common_timebase=True)
+        else:
+            mdf.append(signals[:cells], common_timebase=True)
+            mdf.append(signals[cells:], common_timebase=True)
         mdf.save(
             path,
             overwrite=True,
@@ -101,6 +111,18 @@ def _native_peak_rss_bytes(process: psutil.Process) -> int | None:
     peak_wset = getattr(info, "peak_wset", None)
     if peak_wset is not None:
         return int(peak_wset)
+
+    if sys.platform == "linux":
+        # ru_maxrss can retain the parent's pre-exec peak. VmHWM describes the
+        # current address space, so fixture-generator memory is excluded.
+        try:
+            status = Path(f"/proc/{process.pid}/status").read_text()
+        except OSError:
+            return None
+        for line in status.splitlines():
+            if line.startswith("VmHWM:"):
+                return int(line.split()[1]) * 1024
+        return None
 
     if os.name == "posix":
         import resource
@@ -147,7 +169,7 @@ def _run_batterylog_workload(path: Path, *, mode: str, report_path: Path) -> dic
                 str(report_path),
             ]
         )
-    if exit_code != 0:
+    if exit_code not in (0, 1):
         raise RuntimeError(f"report benchmark returned exit code {exit_code}")
     return json.loads(stdout.getvalue())
 
@@ -158,8 +180,11 @@ def _measure_worker(
     mode: str,
     report_path: Path,
     sample_interval_ms: float,
+    scenario: str = "steady",
 ) -> dict[str, Any]:
-    process = psutil.Process(os.getpid())
+    # /proc may be mounted from a different PID namespace than getpid().
+    pid = int(Path("/proc/self").resolve().name) if sys.platform == "linux" else os.getpid()
+    process = psutil.Process(pid)
     baseline_rss = process.memory_info().rss
     peak_rss = baseline_rss
     stop = threading.Event()
@@ -187,9 +212,10 @@ def _measure_worker(
     elapsed = perf_counter() - started
     native_peak_rss = _native_peak_rss_bytes(process)
 
-    if result["validation_status"] != "PASS":
+    expected_status = "FAIL" if scenario == "event-pressure" else "PASS"
+    if result["validation_status"] != expected_status:
         raise RuntimeError(
-            "synthetic MF4 benchmark should pass the configured engineering limits; "
+            f"synthetic MF4 benchmark should return {expected_status}; "
             f"got {result['validation_status']}"
         )
 
@@ -209,6 +235,10 @@ def _measure_worker(
             max(0, native_peak_rss - baseline_rss) if native_peak_rss is not None else None
         ),
         "sample_interval_ms": sample_interval_ms,
+        "rss_peak_native_method": "proc-vmhwm" if sys.platform == "linux" else "os-high-water",
+        "events": len(result["violations"]),
+        "events_by_rule": dict(Counter(event["code"] for event in result["violations"])),
+        "rows_excluded": int(result["rows_excluded"]),
         "status": result["validation_status"],
         "report_bytes": report_path.stat().st_size if report_path.exists() else None,
     }
@@ -220,6 +250,7 @@ def _worker_main(args: argparse.Namespace) -> None:
         mode=args.mode,
         report_path=Path(args.report_path),
         sample_interval_ms=args.sample_interval_ms,
+        scenario=args.scenario,
     )
     print(json.dumps(payload, sort_keys=True))
 
@@ -230,6 +261,7 @@ def _invoke_worker(
     mode: str,
     report_path: Path,
     sample_interval_ms: float,
+    scenario: str = "steady",
 ) -> dict[str, Any]:
     completed = subprocess.run(
         [
@@ -244,6 +276,8 @@ def _invoke_worker(
             str(report_path),
             "--sample-interval-ms",
             str(sample_interval_ms),
+            "--scenario",
+            scenario,
         ],
         check=True,
         capture_output=True,
@@ -253,6 +287,16 @@ def _invoke_worker(
 
 
 def _environment_metadata(*, cells: int, temperatures: int) -> dict[str, Any]:
+    try:
+        source_revision, source_tree = subprocess.check_output(
+            ["git", "rev-parse", "HEAD", "HEAD^{tree}"],
+            cwd=Path(__file__).resolve().parents[1],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        source_revision = None
+        source_tree = None
     return {
         "python_version": platform.python_version(),
         "python_implementation": platform.python_implementation(),
@@ -262,6 +306,8 @@ def _environment_metadata(*, cells: int, temperatures: int) -> dict[str, Any]:
         "asammdf_version": version("asammdf"),
         "psutil_version": version("psutil"),
         "batterylog_version": version("batterylog"),
+        "source_revision": source_revision,
+        "source_tree": source_tree,
         "cells": cells,
         "temperature_sensors": temperatures,
     }
@@ -284,6 +330,7 @@ def _print_human_summary(payload: dict[str, Any]) -> None:
             f"rows={case['rows']} "
             f"mf4_mib={_mib(case['mf4_bytes']):.1f} "
             f"mode={case['mode']} "
+            f"layout={case['layout']} scenario={case['scenario']} events={case['events']} "
             f"repeat={case['repeat']} "
             f"elapsed_s={case['elapsed_s']:.3f} "
             f"rows_per_s={case['rows_per_s']:.0f} "
@@ -325,6 +372,8 @@ def main() -> None:
         help="One or more sample counts; use at least two sizes to inspect RSS scaling.",
     )
     parser.add_argument("--cells", type=_positive_int, default=_DEFAULT_CELLS)
+    parser.add_argument("--layout", choices=("single-group", "multi-group"), default="single-group")
+    parser.add_argument("--scenario", choices=("steady", "event-pressure"), default="steady")
     parser.add_argument(
         "--temperatures",
         type=_positive_int,
@@ -380,6 +429,8 @@ def main() -> None:
                 rows=rows,
                 cells=args.cells,
                 temperatures=args.temperatures,
+                layout=args.layout,
+                scenario=args.scenario,
             )
             mf4_bytes = mf4_path.stat().st_size
 
@@ -391,7 +442,23 @@ def main() -> None:
                         mode=mode,
                         report_path=report_path,
                         sample_interval_ms=args.sample_interval_ms,
+                        scenario=args.scenario,
                     )
+                    expected_events = (
+                        ((rows + 1) // 2) * (2 if args.cells > 1 else 1)
+                        if args.scenario == "event-pressure"
+                        else 0
+                    )
+                    if (
+                        case["rows"] != rows
+                        or case["rows_excluded"] != 0
+                        or case["events"] != expected_events
+                    ):
+                        raise RuntimeError(
+                            "Benchmark result does not match independent source counts"
+                        )
+                    case["layout"] = args.layout
+                    case["scenario"] = args.scenario
                     case["repeat"] = repeat
                     case["mf4_bytes"] = mf4_bytes
                     cases.append(case)

@@ -1,4 +1,5 @@
 import json
+import runpy
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +23,29 @@ from batterylog.analysis.streaming import analyze_measurement_loader
 from batterylog.loaders import MdfPathLoader
 
 ROOT = Path(__file__).parents[1]
+
+
+@pytest.mark.parametrize("layout", ["single-group", "multi-group"])
+@pytest.mark.parametrize("scenario", ["steady", "event-pressure"])
+def test_benchmark_sources_have_independent_event_counts(tmp_path, layout, scenario) -> None:
+    benchmark = runpy.run_path(str(ROOT / "benchmarks/benchmark_mf4_analysis.py"))
+    path = tmp_path / "benchmark.mf4"
+    benchmark["_write_synthetic_mf4"](
+        path,
+        rows=5,
+        cells=2,
+        temperatures=1,
+        layout=layout,
+        scenario=scenario,
+    )
+    result = analyze_battery_log(path, limits=LIMITS)
+    assert result["rows_analyzed"] == 5
+    assert result["rows_excluded"] == 0
+    assert result["validation_status"] == ("PASS" if scenario == "steady" else "FAIL")
+    expected = 3 if scenario == "event-pressure" else 0
+    assert sum(e["code"] == "CELL_OVERVOLTAGE" for e in result["violations"]) == expected
+    assert sum(e["code"] == "CELL_IMBALANCE_HIGH" for e in result["violations"]) == expected
+
 
 LIMITS = ValidationLimits(
     cell_min_v=2.8,
@@ -438,12 +462,20 @@ def test_real_mf4_cli_report_uses_file_backed_snapshot(tmp_path: Path, capsys) -
     assert "Cell-voltage envelope" in html
 
 
-def test_mf4_benchmark_smoke_exercises_analysis_and_report_paths(tmp_path: Path) -> None:
+@pytest.mark.parametrize("layout", ["single-group", "multi-group"])
+@pytest.mark.parametrize("scenario", ["steady", "event-pressure"])
+def test_mf4_benchmark_smoke_exercises_analysis_and_report_paths(
+    tmp_path: Path, layout: str, scenario: str
+) -> None:
     json_path = tmp_path / "benchmark.json"
     completed = subprocess.run(
         [
             sys.executable,
             str(ROOT / "benchmarks" / "benchmark_mf4_analysis.py"),
+            "--layout",
+            layout,
+            "--scenario",
+            scenario,
             "--rows",
             "40",
             "80",
@@ -482,7 +514,14 @@ def test_mf4_benchmark_smoke_exercises_analysis_and_report_paths(tmp_path: Path)
         (80, "report"),
     }
     for case in cases:
-        assert case["status"] == "PASS"
+        assert case["status"] == ("FAIL" if scenario == "event-pressure" else "PASS")
+        assert case["layout"] == layout
+        assert case["scenario"] == scenario
+        assert case["events_by_rule"] == (
+            {"CELL_OVERVOLTAGE": case["rows"] // 2, "CELL_IMBALANCE_HIGH": case["rows"] // 2}
+            if scenario == "event-pressure"
+            else {}
+        )
         assert case["cells"] == 4
         assert case["temperature_sensors"] == 2
         assert case["elapsed_s"] > 0.0

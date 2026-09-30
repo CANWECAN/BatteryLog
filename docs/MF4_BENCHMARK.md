@@ -23,9 +23,9 @@ Defaults:
 - both standard analysis and full HTML evidence-report modes
 - three fresh child-process repeats per size/mode
 - process RSS sampled every 10 ms with `psutil`
-- OS-native process peak RSS captured as a high-water mark (`peak_wset` on Windows; `resource.ru_maxrss` on POSIX)
+- OS-native process peak RSS captured as a high-water mark (`peak_wset` on Windows; `/proc` `VmHWM` on Linux; `resource.ru_maxrss` on other POSIX systems)
 
-Synthetic MF4 generation runs in the parent process. Each measured analysis/report workload runs in a fresh child process, so the generator's allocations do not contaminate the measured RSS baseline or peak.
+Synthetic MF4 generation runs in the parent process. Each measured analysis/report workload runs in a fresh child process. Linux uses the worker address-space high-water mark to avoid inherited pre-exec `ru_maxrss`; other POSIX fallback behavior has not been validated. The defaults remain single-group, steady values. `--layout multi-group` and `--scenario event-pressure` exercise additional cases. Source revision and tree identifiers are recorded when available.
 
 The standard-analysis worker calls the public path-based analysis API. The report worker executes the CLI report path, including the file-backed evidence snapshot, hashing, MF4 ingestion, report-series collection, and HTML generation.
 
@@ -94,3 +94,7 @@ The report path happened to use less peak RSS than the standard path on this hos
 - Results are from one Windows host and are not suitable as universal performance thresholds.
 
 For real-world validation, repeat the benchmark with representative channel counts, file sizes, MDF compression/layout, and host operating systems, and keep the raw JSON output with `--json-out`.
+
+## Development follow-up
+
+The [0.10 resource characterization](0.10_RESOURCE_CHARACTERIZATION.md) includes Linux single/two-group and high-event-count measurements with raw JSON. Its environment and scenarios differ from the historical Windows runs above.
