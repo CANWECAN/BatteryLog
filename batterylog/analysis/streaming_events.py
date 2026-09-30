@@ -31,11 +31,15 @@ def _merge_streaming_events(
         else current_comparison_value > previous_comparison_value
     )
 
+    duration_s = current["end_time_s"] - previous["start_time_s"]
+    if not np.isfinite(duration_s):
+        raise ValueError("Violation event evidence calculation overflowed")
+
     merged: ViolationEvent = {
         **previous,
         "end_time_s": current["end_time_s"],
         "sample_count": previous["sample_count"] + current["sample_count"],
-        "duration_s": round(current["end_time_s"] - previous["start_time_s"], 12),
+        "duration_s": round(duration_s, 12),
     }
     if current_is_more_severe:
         merged["peak_time_s"] = current["peak_time_s"]
