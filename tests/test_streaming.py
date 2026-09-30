@@ -385,6 +385,7 @@ def test_streaming_is_differentially_equivalent_to_whole_frame(
     )
 
     assert actual == expected
+    assert render_json_result(actual) == render_json_result(expected)
 
 
 @settings(deadline=None, max_examples=200)
@@ -420,6 +421,7 @@ def test_v091_streaming_is_differentially_equivalent_with_pack_and_data_quality(
     )
 
     assert actual == expected
+    assert render_json_result(actual) == render_json_result(expected)
 
 
 def test_standard_file_analysis_does_not_materialize_source_bytes(
