@@ -16,6 +16,7 @@ from batterylog import (
 from batterylog.analysis.core import _analyze_battery_frame
 from batterylog.analysis.streaming import _analyze_battery_chunks, analyze_measurement_loader
 from batterylog.loaders import iter_battery_csv, load_battery_csv
+from batterylog.reporting import render_json_result
 
 LIMITS = ValidationLimits(
     cell_min_v=2.8,
@@ -554,3 +555,25 @@ def test_streaming_and_frame_both_fail_closed_on_event_duration_overflow() -> No
             [frame.iloc[:1].copy(), frame.iloc[1:].copy()],
             limits=limits,
         )
+
+
+def test_serialized_result_is_chunk_invariant_for_signed_zero_extrema() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0],
+            "pack_current_a": [-0.0, 0.0],
+            "temp_c": [-0.0, 0.0],
+            "cell_1_v": [-0.0, 0.0],
+        }
+    )
+
+    whole = _analyze_battery_frame(frame)
+    chunked = _analyze_battery_chunks([frame.iloc[:1].copy(), frame.iloc[1:].copy()])
+
+    assert whole == chunked
+    assert render_json_result(whole) == render_json_result(chunked)
+    assert whole["max_pack_current_a"] == 0.0
+    assert whole["min_pack_current_a"] == 0.0
+    assert chunked["max_pack_current_a"] == 0.0
+    assert chunked["min_pack_current_a"] == 0.0
+    assert "-0.0" not in render_json_result(whole)
