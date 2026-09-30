@@ -664,6 +664,11 @@ def _validate_report_series(result: AnalysisResult, series: ReportSeries) -> Non
         min(point.temperature_min_c for point in series.points),
         result["min_temperature_c"],
     )
+    require_extremum(
+        "max_temperature_spread_c",
+        max(point.temperature_spread_c for point in series.points),
+        result["max_temperature_spread_c"],
+    )
 
     if retained_currents:
         require_extremum(
