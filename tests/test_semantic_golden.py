@@ -99,8 +99,8 @@ def _all_limits(positive_direction: CurrentDirection = "charge") -> ValidationLi
 
 PASS_DATA = (
     b"timestamp_s,pack_current_a,pack_voltage_v,cell_1_v,cell_2_v,temp_1_c,temp_2_c\n"
-    b"0,10,7,3.5,3.5,-20,-20\n"
-    b"1,-15,7.25,3.5,3.5,40,50\n"
+    b"0,10,7,3,4,-20,-10\n"
+    b"1,-15,8.75,4.25,4.25,50,50\n"
 )
 
 

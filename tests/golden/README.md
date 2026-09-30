@@ -7,8 +7,8 @@ serialized bytes, because Python dictionary equality alone hides signed zero.
 The initial three anchors preserve ordinary v0.9.2 behavior. The additional
 fixtures use hand-calculated, binary-exact inputs:
 
-- `semantic_all_rules_pass.json`: all nine rules enabled; current, temperature,
-  temperature-spread and pack/cell-sum values on exact limits remain PASS.
+- `semantic_all_rules_pass.json`: all nine rules enabled; every rule is exercised
+  at its exact limit, including cell minimum/maximum voltage and imbalance.
 - `semantic_pack_lower_fail_charge.json` and
   `semantic_pack_lower_fail_discharge.json`: physically equivalent current
   traces with reversed polarity; signed limits and measured evidence, cell

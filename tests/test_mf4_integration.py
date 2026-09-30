@@ -20,6 +20,7 @@ from batterylog import (
 from batterylog.__main__ import run
 from batterylog.analysis.streaming import analyze_measurement_loader
 from batterylog.loaders import MdfPathLoader
+from batterylog.reporting import render_json_result
 
 ROOT = Path(__file__).parents[1]
 
@@ -50,6 +51,50 @@ def _save_mdf(path: Path, groups: list[list[Signal]]) -> None:
         mdf.save(path, overwrite=True)
     finally:
         mdf.close()
+
+
+@pytest.mark.parametrize("chunk_ram_bytes", [64, 1024 * 1024])
+def test_real_mf4_matches_independent_all_rule_boundary_golden(
+    tmp_path: Path, chunk_ram_bytes: int
+) -> None:
+    timestamps = np.array([0.0, 1.0])
+    channels = [
+        ("pack_current_a", "A", [10.0, -15.0]),
+        ("pack_voltage_v", "V", [7.0, 8.75]),
+        ("cell_1_v", "V", [3.0, 4.25]),
+        ("cell_2_v", "V", [4.0, 4.25]),
+        ("temp_1_c", "degC", [-20.0, 50.0]),
+        ("temp_2_c", "degC", [-10.0, 50.0]),
+    ]
+    source = tmp_path / "boundary-golden.mf4"
+    _save_mdf(
+        source,
+        [
+            [
+                Signal(np.array(values), timestamps, name=name, unit=unit)
+                for name, unit, values in channels
+            ]
+        ],
+    )
+    limits = ValidationLimits(
+        cell_min_v=3.0,
+        cell_max_v=4.25,
+        imbalance_max_v=1.0,
+        temperature_min_c=-20.0,
+        temperature_max_c=50.0,
+        temperature_spread_max_c=10.0,
+        pack_charge_max_a=10.0,
+        pack_discharge_max_a=15.0,
+        pack_current_positive_direction="charge",
+        pack_voltage_cell_sum_max_delta_v=0.25,
+    )
+    expected = (ROOT / "tests/golden/semantic_all_rules_pass.json").read_text(encoding="utf-8")
+    result = analyze_measurement_loader(
+        MdfPathLoader(source, chunk_ram_bytes=chunk_ram_bytes), limits=limits
+    )
+
+    # The oracle is fixed JSON, not equivalent CSV analyzed by the same kernel.
+    assert render_json_result(result) == expected
 
 
 def _canonical_signals(frame: pd.DataFrame) -> list[Signal]:

@@ -7,14 +7,21 @@ from pathlib import Path
 
 def check_sdist_test_fixtures(archive_path: Path) -> None:
     source_tests = Path(__file__).resolve().parents[1] / "tests"
+    if not source_tests.is_dir():
+        raise ValueError(f"Reference test directory is missing: {source_tests}")
+    sources = [
+        source
+        for source in sorted(source_tests.rglob("*"))
+        if source.is_file() and source.suffix in {".py", ".json", ".md"}
+    ]
+    if not sources:
+        raise ValueError(f"Reference test corpus is empty: {source_tests}")
     with tarfile.open(archive_path) as archive:
         roots = {name.split("/", 1)[0] for name in archive.getnames()}
         if len(roots) != 1:
             raise ValueError("Source distribution must contain one top-level directory")
         root = roots.pop()
-        for source in sorted(source_tests.rglob("*")):
-            if not source.is_file() or source.suffix not in {".py", ".json", ".md"}:
-                continue
+        for source in sources:
             member_name = f"{root}/tests/{source.relative_to(source_tests).as_posix()}"
             try:
                 member = archive.extractfile(member_name)
