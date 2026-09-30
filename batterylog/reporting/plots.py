@@ -614,9 +614,7 @@ def _validate_report_series(result: AnalysisResult, series: ReportSeries) -> Non
         point.pack_voltage_v for point in series.points if point.pack_voltage_v is not None
     )
     retained_sums = tuple(
-        point.cell_voltage_sum_v
-        for point in series.points
-        if point.cell_voltage_sum_v is not None
+        point.cell_voltage_sum_v for point in series.points if point.cell_voltage_sum_v is not None
     )
     if voltage_present != (len(retained_voltages) == len(series.points)) or (
         voltage_present != (len(retained_sums) == len(series.points))
