@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from batterylog.analysis.evaluation import RuleEvaluation
 from batterylog.analysis.streaming_events import StreamingEventAccumulator
@@ -145,3 +146,33 @@ def test_accumulator_finish_flushes_pending_event_once() -> None:
 
     assert len(first) == 1
     assert second == first
+
+
+def test_accumulator_fails_closed_when_cross_chunk_duration_overflows() -> None:
+    accumulator = StreamingEventAccumulator.for_rules(
+        ["CELL_IMBALANCE_HIGH"],
+        ValidationLimits(imbalance_max_v=0.1),
+    )
+
+    accumulator.consume(
+        _evaluation(
+            time_s=-1e308,
+            measured=0.2,
+            raw_peak=0.2,
+            signal="cell_1_v",
+        ),
+        timestamps=pd.Series([-1e308]),
+        max_gap_s=None,
+    )
+
+    with pytest.raises(ValueError, match="Violation event evidence calculation overflowed"):
+        accumulator.consume(
+            _evaluation(
+                time_s=1e308,
+                measured=0.3,
+                raw_peak=0.3,
+                signal="cell_2_v",
+            ),
+            timestamps=pd.Series([1e308]),
+            max_gap_s=None,
+        )
