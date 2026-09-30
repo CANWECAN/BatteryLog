@@ -483,24 +483,39 @@ def override_validation_limits(
     temperature_spread_max_c: float | None = None,
     pack_voltage_cell_sum_max_delta_v: float | None = None,
 ) -> ValidationLimits:
-    updates: dict[str, float | CurrentDirection] = {}
-    for name, value in (
-        ("cell_min_v", cell_min_v),
-        ("cell_max_v", cell_max_v),
-        ("imbalance_max_v", imbalance_max_v),
-        ("temperature_min_c", temperature_min_c),
-        ("temperature_max_c", temperature_max_c),
-        ("temperature_spread_max_c", temperature_spread_max_c),
-        ("pack_charge_max_a", pack_charge_max_a),
-        ("pack_discharge_max_a", pack_discharge_max_a),
-        ("pack_voltage_cell_sum_max_delta_v", pack_voltage_cell_sum_max_delta_v),
-    ):
-        if value is not None:
-            updates[name] = value
-
-    if pack_current_positive_direction is not None:
-        updates["pack_current_positive_direction"] = pack_current_positive_direction
-    return replace(limits, **updates)
+    return replace(
+        limits,
+        cell_min_v=limits.cell_min_v if cell_min_v is None else cell_min_v,
+        cell_max_v=limits.cell_max_v if cell_max_v is None else cell_max_v,
+        imbalance_max_v=(limits.imbalance_max_v if imbalance_max_v is None else imbalance_max_v),
+        temperature_min_c=(
+            limits.temperature_min_c if temperature_min_c is None else temperature_min_c
+        ),
+        temperature_max_c=(
+            limits.temperature_max_c if temperature_max_c is None else temperature_max_c
+        ),
+        pack_charge_max_a=(
+            limits.pack_charge_max_a if pack_charge_max_a is None else pack_charge_max_a
+        ),
+        pack_discharge_max_a=(
+            limits.pack_discharge_max_a if pack_discharge_max_a is None else pack_discharge_max_a
+        ),
+        pack_current_positive_direction=(
+            limits.pack_current_positive_direction
+            if pack_current_positive_direction is None
+            else pack_current_positive_direction
+        ),
+        temperature_spread_max_c=(
+            limits.temperature_spread_max_c
+            if temperature_spread_max_c is None
+            else temperature_spread_max_c
+        ),
+        pack_voltage_cell_sum_max_delta_v=(
+            limits.pack_voltage_cell_sum_max_delta_v
+            if pack_voltage_cell_sum_max_delta_v is None
+            else pack_voltage_cell_sum_max_delta_v
+        ),
+    )
 
 
 def override_event_detection(

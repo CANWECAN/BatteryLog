@@ -9,7 +9,8 @@ from batterylog.config import SignalMapping
 class MeasurementLoader(Protocol):
     """Source adapter that yields measurement frames for the validation engine."""
 
-    source_format: str
+    @property
+    def source_format(self) -> str: ...
 
     def iter_chunks(
         self,

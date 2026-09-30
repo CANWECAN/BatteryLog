@@ -610,56 +610,98 @@ def _validate_report_series(result: AnalysisResult, series: ReportSeries) -> Non
     if current_present != (len(retained_currents) == len(series.points)):
         raise ValueError("Report-series pack-current presence does not match AnalysisResult")
     voltage_present = result["signal_mapping"]["pack_voltage_source"] is not None
-    retained_voltage = tuple(p for p in series.points if p.pack_voltage_v is not None)
-    retained_sums = tuple(p for p in series.points if p.cell_voltage_sum_v is not None)
-    if voltage_present != (len(retained_voltage) == len(series.points)) or (
+    retained_voltages = tuple(
+        point.pack_voltage_v for point in series.points if point.pack_voltage_v is not None
+    )
+    retained_sums = tuple(
+        point.cell_voltage_sum_v for point in series.points if point.cell_voltage_sum_v is not None
+    )
+    if voltage_present != (len(retained_voltages) == len(series.points)) or (
         voltage_present != (len(retained_sums) == len(series.points))
     ):
         raise ValueError(
             "Report-series pack-voltage/cell-sum presence does not match AnalysisResult"
         )
 
-    extrema: tuple[tuple[str, float], ...] = (
-        ("max_cell_voltage_v", max(point.cell_max_v for point in series.points)),
-        ("min_cell_voltage_v", min(point.cell_min_v for point in series.points)),
-        ("max_delta_v", max(point.cell_delta_v for point in series.points)),
-        ("max_temperature_c", max(point.temperature_max_c for point in series.points)),
-        ("min_temperature_c", min(point.temperature_min_c for point in series.points)),
-    )
-    if retained_currents:
-        extrema += (
-            ("max_pack_current_a", max(retained_currents)),
-            ("min_pack_current_a", min(retained_currents)),
-        )
-    if retained_voltage:
-        extrema += (
-            ("max_pack_voltage_v", max(p.pack_voltage_v for p in retained_voltage)),
-            ("min_pack_voltage_v", min(p.pack_voltage_v for p in retained_voltage)),
-            (
-                "pack_voltage_cell_sum_peak",
-                max(
-                    p.pack_cell_delta_v for p in retained_voltage if p.pack_cell_delta_v is not None
-                ),
-            ),
-        )
-    for result_key, retained_value in extrema:
-        if result_key == "pack_voltage_cell_sum_peak":
-            peak = result[result_key]
-            if peak is None or not isclose(
-                retained_value, peak["absolute_delta_v"], rel_tol=1e-12, abs_tol=1e-12
-            ):
-                raise ValueError("Report series does not preserve pack/cell-sum mismatch peak")
-            continue
-        if not isclose(
+    def require_extremum(
+        name: str,
+        retained_value: float,
+        result_value: float | None,
+    ) -> None:
+        if result_value is None or not isclose(
             retained_value,
-            result[result_key],
+            result_value,
             rel_tol=1e-12,
             abs_tol=1e-12,
         ):
             raise ValueError(
                 "Report series does not preserve AnalysisResult extrema: "
-                f"{result_key}={retained_value!r}, result={result[result_key]!r}"
+                f"{name}={retained_value!r}, result={result_value!r}"
             )
+
+    require_extremum(
+        "max_cell_voltage_v",
+        max(point.cell_max_v for point in series.points),
+        result["max_cell_voltage_v"],
+    )
+    require_extremum(
+        "min_cell_voltage_v",
+        min(point.cell_min_v for point in series.points),
+        result["min_cell_voltage_v"],
+    )
+    require_extremum(
+        "max_delta_v",
+        max(point.cell_delta_v for point in series.points),
+        result["max_delta_v"],
+    )
+    require_extremum(
+        "max_temperature_c",
+        max(point.temperature_max_c for point in series.points),
+        result["max_temperature_c"],
+    )
+    require_extremum(
+        "min_temperature_c",
+        min(point.temperature_min_c for point in series.points),
+        result["min_temperature_c"],
+    )
+
+    if retained_currents:
+        require_extremum(
+            "max_pack_current_a",
+            max(retained_currents),
+            result["max_pack_current_a"],
+        )
+        require_extremum(
+            "min_pack_current_a",
+            min(retained_currents),
+            result["min_pack_current_a"],
+        )
+
+    if retained_voltages:
+        require_extremum(
+            "max_pack_voltage_v",
+            max(retained_voltages),
+            result["max_pack_voltage_v"],
+        )
+        require_extremum(
+            "min_pack_voltage_v",
+            min(retained_voltages),
+            result["min_pack_voltage_v"],
+        )
+        retained_pack_deltas = tuple(
+            point.pack_cell_delta_v
+            for point in series.points
+            if point.pack_cell_delta_v is not None
+        )
+        peak = result["pack_voltage_cell_sum_peak"]
+        retained_peak = max(retained_pack_deltas)
+        if peak is None or not isclose(
+            retained_peak,
+            peak["absolute_delta_v"],
+            rel_tol=1e-12,
+            abs_tol=1e-12,
+        ):
+            raise ValueError("Report series does not preserve pack/cell-sum mismatch peak")
 
 
 def render_report_plots(result: AnalysisResult, series: ReportSeries) -> str:
