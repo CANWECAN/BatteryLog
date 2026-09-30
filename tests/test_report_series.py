@@ -426,8 +426,8 @@ def test_report_series_combined_pack_metrics_respect_point_budget(max_points: in
     try:
         series = collector.finish()
     except ValueError as exc:
-        assert max_points < 18
-        assert "max_points must be at least 18" in str(exc)
+        assert max_points < 20
+        assert "max_points must be at least 20" in str(exc)
         return
 
     assert len(series.points) <= max_points
@@ -442,6 +442,41 @@ def test_report_series_combined_pack_metrics_respect_point_budget(max_points: in
     )
 
 
-def test_report_series_temperature_spread_is_derived_without_expanding_point_contract() -> None:
+def test_report_series_temperature_spread_is_derived_from_retained_envelope() -> None:
     point = _point(0, temperature_min_c=21.0, temperature_max_c=34.5)
     assert point.temperature_spread_c == pytest.approx(13.5)
+
+
+def test_report_series_preserves_temperature_spread_peak_distinct_from_temperature_extrema() -> (
+    None
+):
+    collector = ReportSeriesCollector(max_points=14)
+    points: list[ReportSeriesPoint] = []
+    for index in range(40):
+        temperature_min = 20.0
+        temperature_max = 30.0
+        if index == 5:
+            temperature_min = 0.0
+            temperature_max = 50.0
+        elif index == 10:
+            temperature_min = 10.0
+            temperature_max = 90.0
+        elif index == 15:
+            temperature_min = 30.0
+            temperature_max = 100.0
+
+        point = _point(
+            index,
+            temperature_min_c=temperature_min,
+            temperature_max_c=temperature_max,
+        )
+        points.append(point)
+        collector.consume(point)
+
+    series = collector.finish()
+
+    expected_peak = max(point.temperature_spread_c for point in points)
+    retained_peak = max(point.temperature_spread_c for point in series.points)
+    assert expected_peak == 80.0
+    assert retained_peak == expected_peak
+    assert 10 in {point.row_index for point in series.points}
