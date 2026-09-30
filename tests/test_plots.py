@@ -190,6 +190,15 @@ def test_plot_renderer_rejects_inverted_cell_voltage_envelope() -> None:
         render_report_plots(result, malformed)
 
 
+def test_plot_renderer_rejects_missing_temperature_spread_extremum() -> None:
+    result, series = _result_and_series()
+    malformed_result = deepcopy(result)
+    malformed_result["max_temperature_spread_c"] = result["max_temperature_spread_c"] + 1.0
+
+    with pytest.raises(ValueError, match="max_temperature_spread_c"):
+        render_report_plots(malformed_result, series)
+
+
 def test_plot_renderer_rejects_inverted_temperature_envelope() -> None:
     result, series = _result_and_series()
     bad_point = replace(series.points[0], temperature_min_c=30.0, temperature_max_c=20.0)
