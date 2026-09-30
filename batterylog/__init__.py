@@ -28,6 +28,7 @@ from .models import (
     ValidationStatus,
     ViolationEvent,
 )
+from .result_validation import validate_result_semantics
 
 __all__ = [
     "RESULT_SCHEMA_VERSION",
@@ -56,4 +57,5 @@ __all__ = [
     "analyze_battery_log",
     "load_validation_config",
     "load_validation_limits",
+    "validate_result_semantics",
 ]

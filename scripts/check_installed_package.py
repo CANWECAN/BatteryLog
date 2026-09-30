@@ -10,6 +10,7 @@ from tempfile import TemporaryDirectory
 
 import jsonschema
 
+from batterylog import validate_result_semantics
 from batterylog.analysis.report_series import ReportSeriesCollector
 
 expected_version, sample = sys.argv[1:]
@@ -55,6 +56,7 @@ with TemporaryDirectory() as directory:
     )
     result = json.loads(completed.stdout)
     jsonschema.validate(result, schema)
+    validate_result_semantics(result)
     assert result["validation_status"] == "PASS"
     html = report.read_text(encoding="utf-8")
     assert html.count('class="timeseries-chart"') == 3
@@ -81,6 +83,7 @@ with TemporaryDirectory() as directory:
     assert mismatch_run.returncode == 1
     mismatch_result = json.loads(mismatch_run.stdout)
     jsonschema.validate(mismatch_result, schema)
+    validate_result_semantics(mismatch_result)
     assert mismatch_result["rules_evaluated"] == ["PACK_VOLTAGE_CELL_SUM_MISMATCH"]
     assert mismatch_result["violations"][0]["signed_error_v"] == 0.25
 

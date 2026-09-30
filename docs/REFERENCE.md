@@ -207,6 +207,11 @@ The result also contains `rules_evaluated`, so downstream reports can show exact
 
 ## Result schema
 
+For independent result producers, apply structural validation first, then the
+opt-in [`validate_result_semantics()` checks](RESULT_VALIDATION.md). The helper
+checks rule/policy coherence and row/data-quality accounting; it does not
+recompute measurement evidence or validate every event arithmetic relationship.
+
 Machine-readable analysis results include their own `schema_version`. The current **result schema is 8**.
 
 The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v8.json`](../batterylog/schema/result-v8.json) and is included in the Python distribution package. The frozen v7, v6, v5, v4, v3, and v2 artifacts remain packaged for earlier consumers.
