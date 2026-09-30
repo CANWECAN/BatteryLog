@@ -487,9 +487,7 @@ def override_validation_limits(
         limits,
         cell_min_v=limits.cell_min_v if cell_min_v is None else cell_min_v,
         cell_max_v=limits.cell_max_v if cell_max_v is None else cell_max_v,
-        imbalance_max_v=(
-            limits.imbalance_max_v if imbalance_max_v is None else imbalance_max_v
-        ),
+        imbalance_max_v=(limits.imbalance_max_v if imbalance_max_v is None else imbalance_max_v),
         temperature_min_c=(
             limits.temperature_min_c if temperature_min_c is None else temperature_min_c
         ),
@@ -500,9 +498,7 @@ def override_validation_limits(
             limits.pack_charge_max_a if pack_charge_max_a is None else pack_charge_max_a
         ),
         pack_discharge_max_a=(
-            limits.pack_discharge_max_a
-            if pack_discharge_max_a is None
-            else pack_discharge_max_a
+            limits.pack_discharge_max_a if pack_discharge_max_a is None else pack_discharge_max_a
         ),
         pack_current_positive_direction=(
             limits.pack_current_positive_direction
