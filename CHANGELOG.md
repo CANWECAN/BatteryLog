@@ -4,6 +4,26 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### 0.10 development scope
+
+- Prepare the analysis architecture and measurement contracts for future service and desktop-launcher integration. The desktop GUI and new engineering rules are outside this development checkpoint.
+- Mark the development checkout as `0.10.0.dev0` in package and citation metadata so it is distinguishable from the published `0.9.2` artifacts.
+- Preserve config schema v6 and frozen result schema v8; no new threshold, comparison, grouping, or validation-status policy is introduced.
+
+### Analysis architecture
+
+- Share rule evaluation, signal/input validation, measurement preparation, result assembly, and measurement summaries between whole-frame and streaming analysis.
+- Isolate streaming event accumulation and enforce package-wide mypy in Linux CI.
+- Add fixed serialized semantic anchors and byte-identical JSON assertions to the major whole-frame/streaming property suites so common implementation drift is not hidden by differential equality alone.
+
+### Reliability and report evidence
+
+- Report global source-row positions for derived arithmetic overflow in later streaming chunks.
+- Fail closed when an event duration overflows while merging otherwise finite events across chunks.
+- Preflight canonical JSON before writing HTML reports, avoiding report publication when result serialization fails.
+- Preserve temperature-spread extrema through report-series downsampling and validate retained spread evidence in the renderer.
+- Canonicalize zero-valued public aggregate metrics to positive zero so whole-frame and streaming JSON bytes agree.
+
 ## 0.9.2 - 2026-09-29
 
 ### Reliability and evidence hardening
