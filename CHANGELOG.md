@@ -9,6 +9,7 @@ All notable changes to BatteryLog are documented here.
 - Prepare the analysis architecture and measurement contracts for future service and desktop-launcher integration. The desktop GUI and new engineering rules are outside this development checkpoint.
 - Mark the development checkout as `0.10.0.dev0` in package and citation metadata so it is distinguishable from the published `0.9.2` artifacts.
 - Preserve config schema v6 and frozen result schema v8; no new threshold, comparison, grouping, or validation-status policy is introduced.
+- Track unfinished acceptance gates in `docs/0.10_DEVELOPMENT.md`; the development version is not a release candidate and development tags remain rejected by the release check.
 
 ### Analysis architecture
 
