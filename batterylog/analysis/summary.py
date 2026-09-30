@@ -164,21 +164,29 @@ def merge_measurement_summaries(
     )
 
 
+def _canonical_zero(value: float | None) -> float | None:
+    if value is None:
+        return None
+    return 0.0 if value == 0.0 else value
+
+
 def analysis_metrics_from_summary(summary: MeasurementSummary) -> AnalysisMetrics:
+    max_delta_v = round(summary.max_delta_v, 12) if summary.max_delta_v is not None else None
+    max_temperature_spread_c = (
+        round(summary.max_temperature_spread_c, 12)
+        if summary.max_temperature_spread_c is not None
+        else None
+    )
     return AnalysisMetrics(
-        max_cell_voltage_v=summary.max_cell_voltage_v,
-        min_cell_voltage_v=summary.min_cell_voltage_v,
-        max_delta_v=(round(summary.max_delta_v, 12) if summary.max_delta_v is not None else None),
-        max_temperature_c=summary.max_temperature_c,
-        min_temperature_c=summary.min_temperature_c,
-        max_temperature_spread_c=(
-            round(summary.max_temperature_spread_c, 12)
-            if summary.max_temperature_spread_c is not None
-            else None
-        ),
-        max_pack_current_a=summary.max_pack_current_a,
-        min_pack_current_a=summary.min_pack_current_a,
-        max_pack_voltage_v=summary.max_pack_voltage_v,
-        min_pack_voltage_v=summary.min_pack_voltage_v,
+        max_cell_voltage_v=_canonical_zero(summary.max_cell_voltage_v),
+        min_cell_voltage_v=_canonical_zero(summary.min_cell_voltage_v),
+        max_delta_v=_canonical_zero(max_delta_v),
+        max_temperature_c=_canonical_zero(summary.max_temperature_c),
+        min_temperature_c=_canonical_zero(summary.min_temperature_c),
+        max_temperature_spread_c=_canonical_zero(max_temperature_spread_c),
+        max_pack_current_a=_canonical_zero(summary.max_pack_current_a),
+        min_pack_current_a=_canonical_zero(summary.min_pack_current_a),
+        max_pack_voltage_v=_canonical_zero(summary.max_pack_voltage_v),
+        min_pack_voltage_v=_canonical_zero(summary.min_pack_voltage_v),
         pack_voltage_cell_sum_peak=summary.pack_voltage_cell_sum_peak,
     )
