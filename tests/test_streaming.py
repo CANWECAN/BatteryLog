@@ -534,3 +534,23 @@ def test_temperature_spread_streaming_matches_whole_frame_across_chunk_boundary(
         limits=limits,
     )
     assert actual == expected
+
+
+def test_streaming_and_frame_both_fail_closed_on_event_duration_overflow() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [-1e308, 1e308],
+            "temp_c": [25.0, 25.0],
+            "cell_1_v": [4.3, 4.3],
+        }
+    )
+    limits = ValidationLimits(cell_max_v=4.2)
+
+    with pytest.raises(ValueError, match="Violation event evidence calculation overflowed"):
+        _analyze_battery_frame(frame, limits=limits)
+
+    with pytest.raises(ValueError, match="Violation event evidence calculation overflowed"):
+        _analyze_battery_chunks(
+            [frame.iloc[:1].copy(), frame.iloc[1:].copy()],
+            limits=limits,
+        )
