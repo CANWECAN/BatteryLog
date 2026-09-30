@@ -17,9 +17,7 @@ print(render_json_result(output.result))
 
 # Collect display geometry in the same pass as validation.
 with open("capture.mf4", "rb") as handle:
-    output = service.analyze_file(
-        handle, source_name="capture.mf4", report_max_points=2400
-    )
+    output = service.analyze_file(handle, source_name="capture.mf4", report_max_points=2400)
 ```
 
 `analyze_path`, `analyze_file`, and `analyze_loader` have the same
