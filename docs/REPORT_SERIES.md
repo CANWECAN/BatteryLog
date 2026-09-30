@@ -4,13 +4,14 @@ BatteryLog prepares plot data separately from the machine-readable `AnalysisResu
 
 ## Series contract
 
-Each retained point contains the global analyzed-row index and timestamp plus the row-level cell/temperature metrics, optional pack current, and optional pack voltage with its synchronized cell sum. Temperature spread is derived from the retained temperature envelope; it is not an additional reducer candidate metric. In `exclude_invalid_rows` mode, excluded source rows are omitted from the report series; their original 1-based source-row positions remain available in `AnalysisResult["data_quality"]["events"]`.
+Each retained point contains the global analyzed-row index and timestamp plus the row-level cell/temperature metrics, optional pack current, and optional pack voltage with its synchronized cell sum. Temperature spread is derived from the retained temperature envelope and is also an extrema-preserving reducer candidate so the dedicated spread plot retains its global peak. In `exclude_invalid_rows` mode, excluded source rows are omitted from the report series; their original 1-based source-row positions remain available in `AnalysisResult["data_quality"]["events"]`.
 
 - minimum cell voltage
 - maximum cell voltage
 - cell-voltage delta (`max - min`)
 - minimum temperature
 - maximum temperature
+- maximum temperature spread (`max - min`)
 - optional pack current
 - optional absolute pack-voltage versus cell-sum mismatch
 
@@ -23,7 +24,7 @@ The default report budget is 2,400 retained points. Inputs at or below the confi
 When the source exceeds the budget, BatteryLog switches to `extrema-preserving-v1` reduction:
 
 1. Analyzed rows remain ordered by their global analyzed-row index. Reduction never uses loader chunk boundaries as bucket boundaries.
-2. Rows are summarized into fixed, globally aligned base blocks. A block retains its first and last row plus the row containing the minimum and maximum of each stored reducer metric. Derived temperature spread remains outside the candidates; optional pack voltage contributes its own extrema and pack mismatch contributes a candidate to preserve its worst peak. With both pack current and pack voltage, a bucket can contain up to 18 candidates. Downsampling with a budget below 18 raises a clear `ValueError` if the retained extrema cannot fit; budgets of at least 18 preserve the point limit.
+2. Rows are summarized into fixed, globally aligned base blocks. A block retains its first and last row plus the row containing the minimum and maximum of each stored reducer metric. Temperature spread contributes its own extrema candidate; optional pack voltage contributes its own extrema and pack mismatch contributes a candidate to preserve its worst peak. With both pack current and pack voltage, a bucket can contain up to 20 candidates. Downsampling with a budget below 18 raises a clear `ValueError` if the retained extrema cannot fit; budgets of at least 20 preserve the point limit.
 3. Duplicate candidate rows are collapsed by original row index and retained in source order.
 4. When too many summarized buckets accumulate, adjacent buckets are merged. A merged bucket applies the same first/last plus per-metric min/max rule to the candidates from its children.
 5. Recursive merging is safe because the minimum or maximum of a union must be one of the child minima or maxima. The reducer therefore does not need discarded interior rows to preserve the extrema invariant.
