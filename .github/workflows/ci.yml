@@ -87,6 +87,8 @@ jobs:
         run: python scripts/check_release_version.py
       - name: Build sdist and wheel from sdist
         run: python -m build
+      - name: Verify source-distribution test corpus
+        run: python scripts/check_sdist_test_fixtures.py dist/*.tar.gz
       - run: python -m twine check --strict dist/*
       - name: Validate both installed distributions outside checkout
         shell: bash
