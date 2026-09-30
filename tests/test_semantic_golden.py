@@ -47,11 +47,7 @@ def test_not_evaluated_serialized_semantics_match_v092_golden() -> None:
 
 def test_multi_rule_serialized_semantics_match_v092_golden() -> None:
     _assert_serialized_golden(
-        (
-            b"timestamp_s,temp_1_c,temp_2_c,cell_1_v,cell_2_v\n"
-            b"0,25,24,3.8,3.7\n"
-            b"1,56,50,4.3,3.9\n"
-        ),
+        (b"timestamp_s,temp_1_c,temp_2_c,cell_1_v,cell_2_v\n0,25,24,3.8,3.7\n1,56,50,4.3,3.9\n"),
         "semantic_multi_rule_fail.json",
         limits=ValidationLimits(
             imbalance_max_v=0.08,
@@ -63,12 +59,7 @@ def test_multi_rule_serialized_semantics_match_v092_golden() -> None:
 
 def test_data_quality_serialized_semantics_match_v092_golden() -> None:
     _assert_serialized_golden(
-        (
-            b"timestamp_s,temp_c,cell_1_v,cell_2_v\n"
-            b"0,25,3.8,3.7\n"
-            b"1,bad,4.5,3.0\n"
-            b"2,26,4.0,3.9\n"
-        ),
+        (b"timestamp_s,temp_c,cell_1_v,cell_2_v\n0,25,3.8,3.7\n1,bad,4.5,3.0\n2,26,4.0,3.9\n"),
         "semantic_data_quality_fail.json",
         limits=ValidationLimits(imbalance_max_v=0.08),
         data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
