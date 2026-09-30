@@ -384,6 +384,11 @@ This allows CI/HIL pipelines to distinguish a true PASS, validation failure, une
 
 ## Python API
 
+Early 0.10 development adds a [shared analysis service](ANALYSIS_SERVICE.md)
+that accepts one effective `ValidationConfig`, and documents the
+[measurement adapter contract](MEASUREMENT_CONTRACT.md). Existing APIs below
+remain supported.
+
 ```python
 from batterylog import EventDetectionConfig, ValidationLimits, analyze_battery_log
 
@@ -415,6 +420,7 @@ result = analyze_battery_log(
     "test.csv",
     limits=config.limits,
     event_detection=config.event_detection,
+    data_quality=config.data_quality,
     signal_mapping=config.signals,
 )
 ```

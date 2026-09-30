@@ -3,8 +3,8 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from .analysis.core import analyze_battery_log
-from .analysis.streaming import analyze_battery_file_with_report_series
+from .analysis.report_series import DEFAULT_REPORT_SERIES_MAX_POINTS
+from .analysis.service import AnalysisService
 from .config import (
     EventDetectionConfig,
     ValidationConfig,
@@ -318,14 +318,12 @@ def run(argv: Sequence[str] | None = None) -> int:
                     else ValidationConfig()
                 )
                 validation_config = _resolve_cli_config(args, base=base_config)
-                result, report_series = analyze_battery_file_with_report_series(
+                output = AnalysisService(validation_config).analyze_file(
                     source_snapshot.handle,
                     source_name=input_path.name,
-                    limits=validation_config.limits,
-                    event_detection=validation_config.event_detection,
-                    data_quality=validation_config.data_quality,
-                    signal_mapping=validation_config.signals,
+                    report_max_points=DEFAULT_REPORT_SERIES_MAX_POINTS,
                 )
+                result = output.result
 
                 verify_file_unchanged(input_path, source_snapshot.evidence)
                 if config_path is not None and config_snapshot is not None:
@@ -340,17 +338,11 @@ def run(argv: Sequence[str] | None = None) -> int:
                     result,
                     report_path,
                     metadata=metadata,
-                    series=report_series,
+                    series=output.report_series,
                 )
         else:
             validation_config = _resolve_cli_config(args)
-            result = analyze_battery_log(
-                input_path,
-                limits=validation_config.limits,
-                event_detection=validation_config.event_detection,
-                data_quality=validation_config.data_quality,
-                signal_mapping=validation_config.signals,
-            )
+            result = AnalysisService(validation_config).analyze_path(input_path).result
             json_text = render_json_result(result)
 
         if json_out_path is not None:

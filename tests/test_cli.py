@@ -679,7 +679,7 @@ def test_report_provenance_analyzes_exact_source_snapshot_during_restore_race(
 
     real_capture = cli_module.capture_file_backed_snapshot
     real_verify = cli_module.verify_file_unchanged
-    real_analyze = cli_module.analyze_battery_file_with_report_series
+    real_analyze = cli_module.AnalysisService.analyze_file
 
     @contextmanager
     def capture_then_poison(path):
@@ -688,12 +688,12 @@ def test_report_provenance_analyzes_exact_source_snapshot_during_restore_race(
                 source.write_bytes(poisoned)
             yield snapshot
 
-    def analyze_while_disk_is_poisoned(handle, *args, **kwargs):
+    def analyze_while_disk_is_poisoned(service, handle, *args, **kwargs):
         assert source.read_bytes() == poisoned
         handle.seek(0)
         assert handle.read() == original
         handle.seek(0)
-        return real_analyze(handle, *args, **kwargs)
+        return real_analyze(service, handle, *args, **kwargs)
 
     def restore_then_verify(path, evidence):
         if Path(path).resolve() == source.resolve():
@@ -702,8 +702,8 @@ def test_report_provenance_analyzes_exact_source_snapshot_during_restore_race(
 
     monkeypatch.setattr(cli_module, "capture_file_backed_snapshot", capture_then_poison)
     monkeypatch.setattr(
-        cli_module,
-        "analyze_battery_file_with_report_series",
+        cli_module.AnalysisService,
+        "analyze_file",
         analyze_while_disk_is_poisoned,
     )
     monkeypatch.setattr(cli_module, "verify_file_unchanged", restore_then_verify)

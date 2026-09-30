@@ -10,6 +10,7 @@ from tempfile import TemporaryDirectory
 
 import jsonschema
 
+from batterylog import AnalysisService, ValidationConfig, ValidationLimits
 from batterylog.analysis.report_series import ReportSeriesCollector
 
 expected_version, sample = sys.argv[1:]
@@ -56,6 +57,12 @@ with TemporaryDirectory() as directory:
     result = json.loads(completed.stdout)
     jsonschema.validate(result, schema)
     assert result["validation_status"] == "PASS"
+    service_output = AnalysisService(
+        ValidationConfig(limits=ValidationLimits(cell_max_v=5.0))
+    ).analyze_path(sample, report_max_points=20)
+    assert service_output.result == result
+    assert service_output.report_series is not None
+    assert service_output.report_series.source_rows == result["rows_analyzed"]
     html = report.read_text(encoding="utf-8")
     assert html.count('class="timeseries-chart"') == 3
     assert "Cell-voltage envelope" in html
@@ -84,4 +91,4 @@ with TemporaryDirectory() as directory:
     assert mismatch_result["rules_evaluated"] == ["PACK_VOLTAGE_CELL_SUM_MISMATCH"]
     assert mismatch_result["violations"][0]["signed_error_v"] == 0.25
 
-print(f"Installed BatteryLog {expected_version}: CLI, schema, rules, and HTML plots verified")
+print(f"Installed BatteryLog {expected_version}: service, CLI, schema, rules, HTML plots verified")

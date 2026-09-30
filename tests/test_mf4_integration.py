@@ -11,15 +11,18 @@ asammdf = pytest.importorskip("asammdf", exc_type=ImportError)
 from asammdf import MDF, Signal
 
 from batterylog import (
+    AnalysisService,
     DataQualityConfig,
     SignalMapping,
     SignalPattern,
+    ValidationConfig,
     ValidationLimits,
     analyze_battery_log,
 )
 from batterylog.__main__ import run
 from batterylog.analysis.streaming import analyze_measurement_loader
 from batterylog.loaders import MdfPathLoader
+from batterylog.reporting import render_json_result
 
 ROOT = Path(__file__).parents[1]
 
@@ -96,6 +99,55 @@ def _canonical_signals(frame: pd.DataFrame) -> list[Signal]:
         ]
     )
     return signals
+
+
+@pytest.mark.parametrize("entrypoint", ["path", "file", "loader"])
+@pytest.mark.parametrize("report_max_points", [None, 14])
+def test_real_mf4_service_matches_fixed_golden(tmp_path, entrypoint, report_max_points) -> None:
+    path = tmp_path / "service.MF4"
+    timestamps = np.array([0.0, 1.0])
+    _save_mdf(
+        path,
+        [
+            [
+                Signal(np.array([3.8, 4.3]), timestamps, name="cell_1_v", unit="V"),
+                Signal(np.array([3.7, 3.9]), timestamps, name="cell_2_v", unit="V"),
+                Signal(np.array([25.0, 56.0]), timestamps, name="temp_1_c", unit="degC"),
+                Signal(np.array([24.0, 50.0]), timestamps, name="temp_2_c", unit="degC"),
+            ]
+        ],
+    )
+    service = AnalysisService(
+        ValidationConfig(
+            limits=ValidationLimits(
+                imbalance_max_v=0.08,
+                cell_max_v=4.2,
+                temperature_max_c=55.0,
+            )
+        )
+    )
+    if entrypoint == "path":
+        output = service.analyze_path(path, report_max_points=report_max_points)
+    elif entrypoint == "file":
+        with path.open("rb") as handle:
+            handle.seek(7)
+            output = service.analyze_file(
+                handle, source_name=path.name, report_max_points=report_max_points
+            )
+            assert not handle.closed
+    else:
+        output = service.analyze_loader(
+            MdfPathLoader(path, chunk_ram_bytes=64), report_max_points=report_max_points
+        )
+
+    expected = (ROOT / "tests/golden/semantic_multi_rule_fail.json").read_text("utf-8")
+    assert render_json_result(output.result) == expected
+    if report_max_points is None:
+        assert output.report_series is None
+    else:
+        assert output.report_series is not None
+        assert output.report_series.source_rows == 2
+        assert len(output.report_series.points) == 2
 
 
 def test_real_mf4_matches_equivalent_csv(tmp_path: Path) -> None:

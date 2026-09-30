@@ -1,4 +1,5 @@
 from .analysis.core import analyze_battery_log
+from .analysis.service import AnalysisOutput, AnalysisService
 from .config import (
     DataQualityConfig,
     EventDetectionConfig,
@@ -32,7 +33,9 @@ from .models import (
 __all__ = [
     "RESULT_SCHEMA_VERSION",
     "AnalysisOptions",
+    "AnalysisOutput",
     "AnalysisResult",
+    "AnalysisService",
     "AppliedLimits",
     "ComparisonMode",
     "ComparisonPolicyInfo",
