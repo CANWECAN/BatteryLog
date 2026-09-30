@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 DEFAULT_REPORT_SERIES_MAX_POINTS = 2400
-_MAX_BUCKET_CANDIDATES = 18
+_MAX_BUCKET_CANDIDATES = 20
 _MIN_REPORT_SERIES_MAX_POINTS = 14
 _MIN_BASE_BLOCK_ROWS = 16
 _METRICS = (
@@ -15,6 +15,7 @@ _METRICS = (
     "cell_delta_v",
     "temperature_min_c",
     "temperature_max_c",
+    "temperature_spread_c",
     "pack_current_a",
     "pack_voltage_v",
     "pack_cell_delta_v",
@@ -141,7 +142,14 @@ def _summarize_array_block(
         raise ValueError("Report-series array block cannot be empty")
 
     selected_indexes = {0, length - 1}
-    arrays = [cell_min, cell_max, cell_delta, temperature_min, temperature_max]
+    arrays = [
+        cell_min,
+        cell_max,
+        cell_delta,
+        temperature_min,
+        temperature_max,
+        temperature_max - temperature_min,
+    ]
     if pack_current is not None:
         arrays.append(pack_current)
     if pack_voltage is not None:
