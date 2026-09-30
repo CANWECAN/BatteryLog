@@ -181,5 +181,6 @@ class StreamingEventAccumulator:
         )
 
     def finish(self) -> list[ViolationEvent]:
-        violations = [event for state in self.states.values() for event in state.finish()]\n        violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
+        violations = [event for state in self.states.values() for event in state.finish()]
+        violations.sort(key=lambda event: (event["start_time_s"], event["code"]))
         return violations
