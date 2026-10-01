@@ -28,6 +28,7 @@ batterylog = "batterylog.__main__:main"
 [project.optional-dependencies]
 mf4 = [
   "asammdf>=8.8,<9",
+  "canmatrix>=1.2,<1.3",
 ]
 dev = [
   "hypothesis>=6",

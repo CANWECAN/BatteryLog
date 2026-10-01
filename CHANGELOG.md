@@ -32,6 +32,8 @@ All notable changes to BatteryLog are documented here.
 
 - Extend the offline report pager to data-quality events, preserving complete source-row/signal evidence and using independent code/signal/row filters. Source data row numbers remain one-based; charts, canonical JSON and overall status are unchanged.
 
+- Bound the optional MF4 dependency to `canmatrix>=1.2,<1.3`: canmatrix 1.3.0 makes the asammdf 8.8.27 `CanMatrix` import a module and fails before analysis. Preserve the working 1.2 API until upstream compatibility is verified.
+
 ### Analysis architecture
 
 - Share rule evaluation, signal/input validation, measurement preparation, result assembly, and measurement summaries between whole-frame and streaming analysis.

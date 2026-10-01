@@ -1,0 +1,8 @@
+{
+  "asammdf_version": "8.8.27",
+  "canmatrix_version": "1.3.0",
+  "error": "unsupported operand type(s) for |: 'types.UnionType' and 'module'",
+  "export_type": "module",
+  "import_ok": false,
+  "stage": "1.3"
+}
