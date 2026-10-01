@@ -25,6 +25,9 @@ All notable changes to BatteryLog are documented here.
 - Reject boolean measurements in mixed categorical adapter columns, preserving their non-numeric evidence separately from missing values.
 - Remove partial HTML/JSON temporary files when output writing is interrupted, then propagate the interruption without replacing an existing destination.
 
+- Reject complex and datetime/timedelta required measurements before pandas numeric coercion, preventing silently truncated complex values and implicit temporal-unit conversion; preserve strict/exclude evidence and real numeric adapter inputs.
+- Correct the Windows temporary-file handle type annotation and run package-wide mypy in the existing Windows CI job.
+
 ### Analysis architecture
 
 - Share rule evaluation, signal/input validation, measurement preparation, result assembly, and measurement summaries between whole-frame and streaming analysis.

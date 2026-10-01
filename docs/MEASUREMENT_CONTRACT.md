@@ -38,6 +38,13 @@ exact decimal or arbitrary-precision API. Boolean values are invalid required
 measurements, even though Python treats bool as numeric. Do not turn booleans,
 missing values or non-numeric tokens into valid zeroes.
 
+Complex measurements and datetime/timedelta values are invalid required values;
+the engine must not discard an imaginary component or reinterpret nanoseconds
+as the configured physical unit. A complex-typed column remains invalid even
+when its imaginary components are zero. Adapters must explicitly prepare real
+values and timestamps in seconds. Missing entries, including NaT, retain
+missing-value evidence rather than becoming numeric zeroes.
+
 The selected timestamp, every selected cell and temperature, and each present
 pack signal participate in required-value validation even when their rules are
 disabled. In strict mode an invalid required value aborts analysis. Exclusion
