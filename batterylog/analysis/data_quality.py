@@ -19,6 +19,8 @@ def _required_boolean_mask(
     mask = np.zeros((len(frame), len(columns)), dtype=bool)
     for column_pos, column in enumerate(columns):
         values = frame[column]
+        if isinstance(values.dtype, pd.CategoricalDtype):
+            values = values.astype(object)
         if is_bool_dtype(values.dtype):
             mask[:, column_pos] = values.notna().to_numpy(dtype=bool)
         elif is_object_dtype(values.dtype):

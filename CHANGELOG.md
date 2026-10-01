@@ -21,6 +21,8 @@ All notable changes to BatteryLog are documented here.
 - Convert nullable missing measurements explicitly to NaN for data-quality classification on pandas 2.2, preserving missing-versus-boolean evidence and exclusion behavior.
 - Correct Linux worker RSS measurement and record end-to-end/event-pressure and report-stage observations with explicit limitations.
 - Remove partial HTML/JSON temporary files when an output write fails, preserving successful bytes and atomic replacement.
+- Close streaming chunk iterators after analysis, including failures with retained tracebacks, so CSV readers and MDF contexts are released while caller-owned input handles remain open.
+- Reject boolean measurements in mixed categorical adapter columns, preserving their non-numeric evidence separately from missing values.
 
 ### Analysis architecture
 

@@ -16,6 +16,7 @@ from batterylog import (
     ValidationLimits,
     analyze_battery_log,
 )
+from batterylog.analysis.streaming import analyze_measurement_loader
 from batterylog.loaders import CsvFileLoader
 from batterylog.reporting import render_json_result
 
@@ -179,3 +180,65 @@ def test_service_preserves_strict_errors_and_legacy_python_api(tmp_path) -> None
         ValidationConfig(limits=ValidationLimits(temperature_max_c=30.0))
     ).analyze_path(source)
     assert output.result == legacy
+
+
+@pytest.mark.parametrize("report_max_points", [None, 14])
+def test_service_closes_csv_path_reader_on_error_with_retained_traceback(
+    tmp_path, monkeypatch, report_max_points
+) -> None:
+    source = tmp_path / "bad.csv"
+    source.write_bytes(b"timestamp_s,cell_1_v,temp_c\n0,3.5,bad\n")
+    handles = []
+    original_open = Path.open
+
+    def tracked_open(path, *args, **kwargs):
+        handle = original_open(path, *args, **kwargs)
+        if path == source:
+            handles.append(handle)
+        return handle
+
+    monkeypatch.setattr(Path, "open", tracked_open)
+    with pytest.raises(ValueError, match="temp_c") as error:
+        AnalysisService().analyze_path(source, report_max_points=report_max_points)
+    assert error.value.__traceback__ is not None
+    assert len(handles) == 1
+    assert handles[0].closed
+
+
+@pytest.mark.parametrize("entrypoint", ["service", "legacy"])
+def test_analysis_closes_generator_on_error_without_closing_caller_handle(entrypoint) -> None:
+    handle = BytesIO(b"timestamp_s,cell_1_v,temp_c\n0,3.5,bad\n")
+
+    class TrackedLoader:
+        source_format = "csv"
+
+        def __init__(self):
+            self.finished = False
+
+        def iter_chunks(self, *, signal_mapping):
+            try:
+                yield from CsvFileLoader(handle).iter_chunks(signal_mapping=signal_mapping)
+            finally:
+                self.finished = True
+
+    loader = TrackedLoader()
+    analyze = (
+        AnalysisService().analyze_loader if entrypoint == "service" else analyze_measurement_loader
+    )
+    with pytest.raises(ValueError, match="temp_c") as error:
+        analyze(loader)
+    assert error.value.__traceback__ is not None
+    assert loader.finished
+    assert not handle.closed
+
+
+def test_service_accepts_iterator_without_close() -> None:
+    class ListLoader:
+        source_format = "csv"
+
+        def iter_chunks(self, *, signal_mapping):
+            return iter([pd.DataFrame({"timestamp_s": [0], "cell_1_v": [3.5], "temp_c": [25]})])
+
+    result = AnalysisService().analyze_loader(ListLoader()).result
+    assert result["rows_analyzed"] == 1
+    assert result["validation_status"] == "NOT_EVALUATED"

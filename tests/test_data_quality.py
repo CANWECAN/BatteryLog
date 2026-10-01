@@ -550,3 +550,48 @@ def test_nullable_measurements_preserve_missing_evidence_through_service(dtype, 
     assert output.report_series is not None
     assert output.report_series.source_rows == 2
     assert [point.timestamp_s for point in output.report_series.points] == [0.0, 2.0]
+
+
+@pytest.mark.parametrize("signal", ["cell_1_v", "timestamp_s"])
+@pytest.mark.parametrize("mode", ["strict", "exclude_invalid_rows"])
+@pytest.mark.parametrize("chunk_rows", [1, 3])
+def test_mixed_categorical_boolean_preserves_invalid_and_missing_evidence(
+    signal, mode, chunk_rows
+) -> None:
+    frame = pd.DataFrame({"timestamp_s": [0, 1, 2], "cell_1_v": [3.5] * 3, "temp_c": [25] * 3})
+    normal = 1 if signal == "timestamp_s" else 3.5
+    frame[signal] = pd.Series([False, normal, None], dtype="category")
+
+    class Loader:
+        source_format = "custom"
+
+        def iter_chunks(self, *, signal_mapping):
+            for start in range(0, len(frame), chunk_rows):
+                yield frame.iloc[start : start + chunk_rows]
+
+    service = AnalysisService(ValidationConfig(data_quality=DataQualityConfig(mode)))
+    if mode == "strict":
+        with pytest.raises(ValueError, match=rf"data row 1 .*column '{signal}'"):
+            service.analyze_loader(Loader(), report_max_points=20)
+    else:
+        output = service.analyze_loader(Loader(), report_max_points=20)
+        result = output.result
+        assert (result["rows_input"], result["rows_analyzed"], result["rows_excluded"]) == (3, 1, 2)
+        assert result["data_quality"]["events"] == [
+            {
+                "code": "NON_NUMERIC_REQUIRED_VALUE",
+                "start_row": 1,
+                "end_row": 1,
+                "signals": [signal],
+                "affected_values": 1,
+            },
+            {
+                "code": "MISSING_REQUIRED_VALUE",
+                "start_row": 3,
+                "end_row": 3,
+                "signals": [signal],
+                "affected_values": 1,
+            },
+        ]
+        assert output.report_series is not None
+        assert output.report_series.source_rows == 1

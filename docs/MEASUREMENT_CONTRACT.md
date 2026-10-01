@@ -71,8 +71,13 @@ peaks, event grouping or status.
 Adapters must preserve defects and row order rather than interpolating,
 forward-filling, sorting or silently dropping source rows. Built-in file
 adapters rewind a caller-owned seekable binary handle and leave it open. Path
-adapters manage their own handles. A service call consumes a loader once;
-reusability and custom-loader resource cleanup remain the adapter's responsibility.
+adapters manage their own handles. Analysis consumes a loader once and closes
+its chunk iterator, when it exposes `close()`, on success or failure. This runs
+generator `finally` blocks even when the caller retains an error traceback.
+Custom adapters must put their resource cleanup in that lifetime boundary;
+iterators without `close()` remain supported. Loader reusability remains the
+adapter's responsibility. Closing an iterator must not close a caller-owned
+input handle.
 
 ## Pack/cell topology and provenance
 

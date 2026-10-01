@@ -23,6 +23,7 @@ from batterylog import (
 from batterylog.__main__ import run
 from batterylog.analysis.streaming import analyze_measurement_loader
 from batterylog.loaders import MdfPathLoader
+from batterylog.loaders import mf4 as mf4_module
 from batterylog.reporting import render_json_result
 
 ROOT = Path(__file__).parents[1]
@@ -77,6 +78,44 @@ def _save_mdf(path: Path, groups: list[list[Signal]]) -> None:
         mdf.save(path, overwrite=True)
     finally:
         mdf.close()
+
+
+@pytest.mark.parametrize("entrypoint", ["path", "file"])
+@pytest.mark.parametrize("report_max_points", [None, 20])
+def test_real_mf4_context_exits_after_analysis_failure(
+    tmp_path, monkeypatch, entrypoint, report_max_points
+):
+    source = tmp_path / "invalid.mf4"
+    timestamps = np.array([0.0, 1.0])
+    _save_mdf(
+        source,
+        [
+            [
+                Signal(np.array([3.5, np.nan]), timestamps, name="cell_1_v", unit="V"),
+                Signal(np.array([25.0, 25.0]), timestamps, name="temp_c", unit="degC"),
+            ]
+        ],
+    )
+    backend, exception = mf4_module._load_asammdf()
+    exits = []
+
+    class TrackedMDF(backend):
+        def __exit__(self, exc_type, exc, tb):
+            super().__exit__(exc_type, exc, tb)
+            exits.append(self)
+
+    monkeypatch.setattr(mf4_module, "_load_asammdf", lambda: (TrackedMDF, exception))
+    with source.open("rb") as handle:
+        with pytest.raises(ValueError, match="cell_1_v") as error:
+            if entrypoint == "path":
+                AnalysisService().analyze_path(source, report_max_points=report_max_points)
+            else:
+                AnalysisService().analyze_file(
+                    handle, source_name=source.name, report_max_points=report_max_points
+                )
+        assert error.value.__traceback__ is not None
+        assert len(exits) == 1
+        assert not handle.closed
 
 
 @pytest.mark.parametrize("chunk_ram_bytes", [64, 1024 * 1024])
