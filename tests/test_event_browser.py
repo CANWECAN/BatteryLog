@@ -11,8 +11,10 @@ from batterylog.reporting import render_html_report, render_json_result
 
 
 class EventDocument(HTMLParser):
-    def __init__(self, html):
+    def __init__(self, html, *, prefix="event", table_class="event-table"):
         super().__init__()
+        self.prefix = prefix
+        self.table_class = table_class
         self.payload = ""
         self.scripts = 0
         self.in_payload = False
@@ -26,8 +28,8 @@ class EventDocument(HTMLParser):
         attrs = dict(attrs)
         if tag == "script":
             self.scripts += 1
-            self.in_payload = attrs.get("id") == "event-data"
-        if tag == "div" and attrs.get("class") == "event-table":
+            self.in_payload = attrs.get("id") == self.prefix + "-data"
+        if tag == "div" and attrs.get("class") == self.table_class:
             self.in_events = True
         if self.in_events and tag == "tr":
             self.current = []
@@ -113,3 +115,94 @@ def test_pack_chain_presentation_is_retained_in_embedded_events():
     payload = json.loads(doc.payload)
     assert payload[-1]["cells"] == doc.rows[0]
     assert payload[-1]["cells"][10] == "pack 8 V; cell sum 7 V; signed error 1 V"
+
+
+@pytest.mark.parametrize("count", [0, 1, 100, 101, 201])
+def test_quality_pages_retain_source_row_evidence_and_do_not_mutate_results(count):
+    result = _result(101)
+    result["data_quality"]["events"] = [
+        {
+            "code": "MISSING_REQUIRED_VALUE",
+            "start_row": index * 3 + 1,
+            "end_row": index * 3 + 2,
+            "affected_values": 2,
+            "signals": ["cell_2_v", "temp_c"],
+        }
+        for index in range(count)
+    ]
+    before = render_json_result(result)
+    html = render_html_report(result)
+    doc = EventDocument(html, prefix="quality", table_class="quality-table")
+    assert len(doc.rows) == min(count, 100)
+    assert render_json_result(result) == before
+    assert doc.rows == [
+        ["MISSING_REQUIRED_VALUE", str(index * 3 + 1), str(index * 3 + 2), "2", "cell_2_v, temp_c"]
+        for index in range(min(count, 100))
+    ]
+    if count <= 100:
+        assert not doc.payload
+    else:
+        payload = json.loads(doc.payload)
+        assert len(payload) == count
+        assert [event["start"] for event in payload] == [i * 3 + 1 for i in range(count)]
+        assert [event["end"] for event in payload] == [i * 3 + 2 for i in range(count)]
+        assert [event["cells"] for event in payload[:100]] == doc.rows
+        assert all(event["signals"] == ["cell_2_v", "temp_c"] for event in payload)
+        assert "one-based source data row numbers" in html
+        assert doc.scripts == 4
+        violation = EventDocument(html)
+        assert len(json.loads(violation.payload)) == 101
+        assert len(violation.rows) == 100
+
+
+def test_quality_embedded_strings_and_initial_rows_remain_literal_text():
+    result = _result(0)
+    signal = '</script><p>sensor & "label"</p>'
+    result["data_quality"]["events"] = [
+        {
+            "code": "NON_NUMERIC_REQUIRED_VALUE",
+            "start_row": i + 1,
+            "end_row": i + 1,
+            "affected_values": 1,
+            "signals": [signal],
+        }
+        for i in range(101)
+    ]
+    html = render_html_report(result)
+    doc = EventDocument(html, prefix="quality", table_class="quality-table")
+    assert doc.scripts == 2
+    assert doc.rows[0][-1] == signal
+    payload = json.loads(doc.payload)
+    assert all(event["signals"] == [signal] for event in payload)
+    assert all(event["cells"][-1] == signal for event in payload)
+    assert signal not in html
+
+
+def test_quality_presentation_uses_actual_one_based_csv_data_rows():
+    from batterylog.config import DataQualityConfig
+
+    data = (
+        "timestamp_s,cell_1_v,temp_c\n"
+        + "".join(f"{i},{'' if i % 2 == 0 else '3.7'},25\n" for i in range(202))
+    ).encode()
+    result = analyze_battery_bytes(
+        data,
+        limits=ValidationLimits(cell_max_v=4.2),
+        data_quality=DataQualityConfig(mode="exclude_invalid_rows"),
+    )
+    assert result["validation_status"] == "FAIL"
+    assert (result["rows_input"], result["rows_analyzed"], result["rows_excluded"]) == (
+        202,
+        101,
+        101,
+    )
+    assert not result["violations"]
+    events = result["data_quality"]["events"]
+    assert [event["start_row"] for event in events] == list(range(1, 202, 2))
+    assert [event["end_row"] for event in events] == list(range(1, 202, 2))
+    html = render_html_report(result)
+    doc = EventDocument(html, prefix="quality", table_class="quality-table")
+    assert doc.rows[0] == ["MISSING_REQUIRED_VALUE", "1", "1", "1", "cell_1_v"]
+    assert doc.rows[-1][1:3] == ["199", "199"]
+    assert json.loads(doc.payload)[-1]["cells"][1:3] == ["201", "201"]
+    assert "one-based source data row numbers" in html

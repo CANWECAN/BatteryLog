@@ -5,7 +5,13 @@ from tempfile import NamedTemporaryFile
 from batterylog.analysis.report_series import ReportSeries
 from batterylog.models import AnalysisResult
 
-from .event_browser import EVENT_PAGE_SIZE, render_event_browser, violation_cells
+from .event_browser import (
+    EVENT_PAGE_SIZE,
+    quality_cells,
+    render_event_browser,
+    render_quality_browser,
+    violation_cells,
+)
 from .evidence import ReportMetadata
 from .plots import render_report_plots
 
@@ -155,16 +161,13 @@ def _signal_mapping_rows(result: AnalysisResult) -> str:
 
 def _data_quality_rows(result: AnalysisResult) -> str:
     rows: list[str] = []
-    for event in result["data_quality"]["events"]:
-        signals = ", ".join(event["signals"])
+    for event in result["data_quality"]["events"][:EVENT_PAGE_SIZE]:
+        cells = quality_cells(event)
         rows.append(
             "<tr>"
-            f"<td><code>{escape(event['code'])}</code></td>"
-            f"<td>{event['start_row']}</td>"
-            f"<td>{event['end_row']}</td>"
-            f"<td>{event['affected_values']}</td>"
-            f"<td>{escape(signals)}</td>"
-            "</tr>"
+            f"<td><code>{escape(cells[0])}</code></td>"
+            + "".join(f"<td>{escape(value)}</td>" for value in cells[1:])
+            + "</tr>"
         )
     return "".join(rows)
 
@@ -279,6 +282,11 @@ def render_html_report(
         if data_quality_rows
         else "<p>No required-data quality defects were recorded.</p>"
     )
+    quality_controls, quality_scripts = (
+        render_quality_browser(result["data_quality"]["events"])
+        if len(result["data_quality"]["events"]) > EVENT_PAGE_SIZE
+        else ("", "")
+    )
     violations = _violation_rows(result)
     event_controls, event_scripts = (
         render_event_browser(result["violations"])
@@ -312,19 +320,19 @@ header, section {{ margin-bottom: 28px; }}
 table {{ width: 100%; border-collapse: collapse; }}
 th, td {{ border-bottom: 1px solid #8886; padding: 9px; text-align: left; vertical-align: top; }}
 code {{ font-family: ui-monospace, Consolas, monospace; }}
-.event-table {{ max-height: 70vh; overflow: auto; scroll-padding-top: 3rem; }}
-.event-table:focus-visible {{ outline: 2px solid #2563eb; }}
-.event-table thead th {{ position: sticky; top: 0; background: Canvas; z-index: 2; }}
-#event-filters, #event-pages {{ display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }}
-#event-filters[hidden], #event-pages[hidden] {{ display: none; }}
-#event-filters label {{ display: flex; flex-direction: column; gap: 4px; }}
-#event-filters input {{ width: 120px; }}
+.event-table, .quality-table {{ max-height: 70vh; overflow: auto; scroll-padding-top: 3rem; }}
+.event-table:focus-visible, .quality-table:focus-visible {{ outline: 2px solid #2563eb; }}
+.event-table thead th, .quality-table thead th {{ position: sticky; top: 0; background: Canvas; z-index: 2; }}
+.event-filters, .event-pages {{ display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }}
+.event-filters[hidden], .event-pages[hidden] {{ display: none; }}
+.event-filters label {{ display: flex; flex-direction: column; gap: 4px; }}
+.event-filters input {{ width: 120px; }}
 button, select, input {{ font: inherit; }}
-#event-error {{ color: #b91c1c; }}
+.event-error {{ color: #b91c1c; }}
 @media print {{
-  .event-table {{ max-height: none; overflow: visible; }}
-  .event-table thead th {{ position: static; }}
-  #event-filters, #event-pages {{ display: none; }}
+  .event-table, .quality-table {{ max-height: none; overflow: visible; }}
+  .event-table thead th, .quality-table thead th {{ position: static; }}
+  .event-filters, .event-pages {{ display: none; }}
 }}
 .small {{ opacity: 0.8; }}
 .plot-card {{ border: 1px solid #8886; border-radius: 8px; padding: 12px; margin: 16px 0; overflow-x: auto; }}
@@ -392,12 +400,16 @@ button, select, input {{ font: inherit; }}
 <section id="data-quality">
 <h2>Data quality</h2>
 <p>Mode: <code>{escape(result["data_quality"]["mode"])}</code></p>
+{quality_controls}
+<div id="quality-table" class="quality-table" role="region" aria-label="Data-quality events" tabindex="0">
 {data_quality_section}
+</div>
+{quality_scripts}
 </section>
 <section id="violation-events">
 <h2>Violation events</h2>
 {event_controls}
-<div class="event-table" role="region" aria-label="Violation events" tabindex="0">
+<div id="event-table" class="event-table" role="region" aria-label="Violation events" tabindex="0">
 {violation_section}
 </div>
 {event_scripts}

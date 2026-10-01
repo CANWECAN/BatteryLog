@@ -44,12 +44,12 @@ with sync_playwright() as playwright:
 
         def monitor(stop=stop, resources=resources):
             while not stop.wait(0.2):
-                owned = [
-                    p
-                    for p in psutil.Process().children(recursive=True)
-                    if p.name().lower() == "msedge.exe"
-                ]
                 try:
+                    owned = [
+                        p
+                        for p in psutil.Process().children(recursive=True)
+                        if p.name().lower() == "msedge.exe"
+                    ]
                     memory = sum(p.memory_info().rss for p in owned)
                     resources["owned_edge_rss_sum_peak_bytes"] = max(
                         resources["owned_edge_rss_sum_peak_bytes"], memory
