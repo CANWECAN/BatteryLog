@@ -22,6 +22,7 @@ from .data_quality import DataQualityCollector
 from .evaluation import active_rule_codes, evaluate_rules
 from .input_validation import (
     canonicalize_analysis_frame,
+    coerce_required_numeric,
     raise_invalid_numeric_value,
     valid_timestamp_values,
 )
@@ -63,7 +64,7 @@ def _analyze_battery_frame(
     pack_voltage_col = layout.pack_voltage_col
     pack_cols = layout.pack_cols
 
-    numeric = df[layout.numeric_cols].apply(pd.to_numeric, errors="coerce")
+    numeric = coerce_required_numeric(df[layout.numeric_cols])
     rows_input = len(df)
     data_quality_events: list[DataQualityEvent] = []
 

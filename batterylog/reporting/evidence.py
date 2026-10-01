@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
 _COPY_CHUNK_BYTES = 1024 * 1024
 
@@ -109,7 +109,7 @@ def capture_file_backed_snapshot(path: str | Path) -> Iterator[FileBackedSnapsho
     file_path = Path(path)
 
     with file_path.open("rb") as source, TemporaryFile(mode="w+b") as snapshot_file:
-        snapshot_handle = getattr(snapshot_file, "file", snapshot_file)
+        snapshot_handle = cast(BinaryIO, getattr(snapshot_file, "file", snapshot_file))
         before = os.fstat(source.fileno())
         digest, size_bytes = _stream_hash(source, destination=snapshot_handle)
         after = os.fstat(source.fileno())

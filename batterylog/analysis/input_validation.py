@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_object_dtype
 
 from batterylog.config import SignalMapping, ValidationLimits
 from batterylog.signals import (
@@ -62,6 +63,25 @@ def canonicalize_analysis_frame(
         pack_current_col=pack_current_col,
         pack_voltage_col=pack_voltage_col,
     )
+
+
+def coerce_required_numeric(frame: pd.DataFrame) -> pd.DataFrame:
+    """Parse real measurements without coercing complex or temporal values."""
+    numeric: dict[str, pd.Series] = {}
+    for name in frame.columns:
+        values = frame[name]
+        if values.dtype.kind in "cMm":
+            numeric[name] = pd.Series(np.nan, index=frame.index, dtype=float)
+            continue
+        if is_object_dtype(values.dtype) or isinstance(values.dtype, pd.CategoricalDtype):
+            values = values.astype(object)
+            complex_values = values.map(
+                lambda value: isinstance(value, (complex, np.complexfloating))
+            )
+            if complex_values.any():
+                values = values.mask(complex_values, np.nan)
+        numeric[name] = pd.to_numeric(values, errors="coerce")
+    return pd.DataFrame(numeric, index=frame.index)
 
 
 def _first_true_position(mask: np.ndarray) -> tuple[int, int] | None:

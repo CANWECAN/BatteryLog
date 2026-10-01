@@ -29,6 +29,7 @@ from .evaluation import active_rule_codes, evaluate_rules
 from .input_validation import (
     SignalLayout,
     canonicalize_analysis_frame,
+    coerce_required_numeric,
     raise_invalid_numeric_value,
     valid_timestamp_values,
 )
@@ -108,7 +109,7 @@ def _analyze_battery_chunks(
                 raise ValueError("Canonical signal columns changed between measurement chunks")
 
             chunk_row_offset = rows_input
-            numeric = frame[layout.numeric_cols].apply(pd.to_numeric, errors="coerce")
+            numeric = coerce_required_numeric(frame[layout.numeric_cols])
             if data_quality_collector is None:
                 raise_invalid_numeric_value(
                     frame,
