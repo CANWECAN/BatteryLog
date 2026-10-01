@@ -225,12 +225,15 @@ _EVENT_BROWSER_SCRIPT = r"""
     apply();
   });
   buttons.forEach(button => button.addEventListener("click", () => {
+    const wasFocused = document.activeElement === button;
     const action = button.dataset.page;
     if (action === "first") page = 0;
     if (action === "previous") page = Math.max(0, page - 1);
     if (action === "next") page++;
     if (action === "last") page = Math.max(0, Math.ceil(matches.length / pageSize) - 1);
     render();
+    // A disabled boundary button cannot keep a usable keyboard focus.
+    if (wasFocused && button.disabled) region.focus({preventScroll: true});
   }));
   form.closest("section").querySelectorAll(".rule-link").forEach(link => {
     link.addEventListener("click", event => {

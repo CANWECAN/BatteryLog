@@ -1,5 +1,6 @@
 import warnings
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import numpy as np
@@ -147,3 +148,32 @@ def test_supported_real_measurements_keep_existing_results(dtype, entrypoint, ch
     assert result["max_temperature_c"] == 25.0
     assert result["min_pack_current_a"] == result["max_pack_current_a"] == 0.0
     assert result["min_pack_voltage_v"] == result["max_pack_voltage_v"] == 3.5
+
+
+@pytest.mark.parametrize("dtype", ["object", "category"])
+@pytest.mark.parametrize(
+    "value",
+    [
+        np.timedelta64(1, "h"),
+        np.timedelta64(1000, "ms"),
+        np.datetime64("2026-01-01"),
+        pd.Timedelta(hours=1),
+        pd.Timestamp("2026-01-01"),
+        timedelta(hours=1),
+        datetime(2026, 1, 1, tzinfo=UTC),
+    ],
+)
+@pytest.mark.parametrize("mode", ["strict", "exclude_invalid_rows"])
+def test_mixed_temporal_measurements_remain_defects_across_chunks(dtype, value, mode):
+    frame = _frame()
+    frame["cell_1_v"] = pd.Series([value, "3.5", None], dtype=dtype)
+    before = frame.copy(deep=True)
+    if mode == "strict":
+        with pytest.raises(ValueError, match=r"data row 1 .*column 'cell_1_v'"):
+            _analyze(frame, mode, "service", 1)
+    else:
+        result, series = _analyze(frame, mode, "service", 1)
+        _assert_defects(result, "cell_1_v", analyzed_rows=1, invalid_end=1)
+        assert series is not None and series.source_rows == 1
+        assert [point.timestamp_s for point in series.points] == [1.0]
+    pd.testing.assert_frame_equal(frame, before)

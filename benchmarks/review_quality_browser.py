@@ -8,8 +8,38 @@ from playwright.sync_api import sync_playwright
 
 from batterylog.reporting import render_html_report
 
+
+def check_keyboard_paging(page, prefix, total):
+    """Keep focus usable when a keyboard-activated boundary button becomes disabled."""
+    region = page.locator("#" + prefix + "-table")
+    pages = page.locator("#" + prefix + "-pages")
+    actions = ["last", "first"]
+    actions += ["next"] * ((total - 1) // 100)
+    actions += ["previous"] * ((total - 1) // 100)
+    observations = []
+    for action in actions:
+        button = pages.locator("[data-page=" + action + "]")
+        assert button.is_enabled()
+        button.focus()
+        page.keyboard.press("Enter")
+        target = region if button.is_disabled() else button
+        assert target.evaluate("(e)=>document.activeElement===e")
+        if button.is_disabled():
+            page.keyboard.press("Shift+Tab")
+            assert pages.evaluate(
+                "(e)=>e.contains(document.activeElement) && !document.activeElement.disabled"
+            )
+            region.focus()
+        observations.append(
+            {"action": action, "count": page.locator("#" + prefix + "-count").inner_text()}
+        )
+    assert page.locator("#" + prefix + "-table tbody tr").count() == 100
+    return observations
+
+
 root = Path.cwd()
 out = root / "dist" / "quality-review"
+out.mkdir(parents=True, exist_ok=True)
 fixture = runpy.run_path(str(root / "tests" / "test_event_browser.py"))["_result"]
 cases = []
 with sync_playwright() as pw:
@@ -49,7 +79,9 @@ with sync_playwright() as pw:
             violations = page.locator("#event-table tbody tr")
             assert quality.count() == min(count, 100)
             assert violations.count() == 100
+            keyboard_checks = {"event": check_keyboard_paging(page, "event", 201)}
             if count > 100:
+                keyboard_checks["quality"] = check_keyboard_paging(page, "quality", count)
                 payload = page.locator("#quality-data").evaluate("(e)=>JSON.parse(e.textContent)")
                 observed = []
                 while True:
@@ -136,6 +168,7 @@ with sync_playwright() as pw:
                     "literal_text": count > 100,
                     "narrow_scroll_and_print": count > 100,
                     "nojs_notice": count > 100,
+                    "keyboard_boundary_focus": keyboard_checks,
                     "page_errors": errors,
                 }
             )
