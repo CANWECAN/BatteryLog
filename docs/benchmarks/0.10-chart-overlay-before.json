@@ -1,0 +1,10 @@
+{
+  "dom_nodes": 301630,
+  "events": 100000,
+  "mf4_sha256": "58a0811dfcbd2b1b5440c48e3e7a66fc3258ed877d915512434e46b256d316c1",
+  "overlay_control_present": false,
+  "peaks": 100000,
+  "report_bytes": 56961060,
+  "source_checkpoint": "5dde0781adbf941aac63d605dc88e0f7ab55d193",
+  "windows": 100000
+}

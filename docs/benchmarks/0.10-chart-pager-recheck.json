@@ -1,0 +1,209 @@
+{
+  "cases": [
+    {
+      "complete_page_order": false,
+      "initial_row_count": true,
+      "isolated_filters": false,
+      "keyboard_boundary_focus": {
+        "event": [
+          {
+            "action": "last",
+            "count": "Showing 201\u2013201 of 201 matching events (201 total). Page 3 of 3."
+          },
+          {
+            "action": "first",
+            "count": "Showing 1\u2013100 of 201 matching events (201 total). Page 1 of 3."
+          },
+          {
+            "action": "next",
+            "count": "Showing 101\u2013200 of 201 matching events (201 total). Page 2 of 3."
+          },
+          {
+            "action": "next",
+            "count": "Showing 201\u2013201 of 201 matching events (201 total). Page 3 of 3."
+          },
+          {
+            "action": "previous",
+            "count": "Showing 101\u2013200 of 201 matching events (201 total). Page 2 of 3."
+          },
+          {
+            "action": "previous",
+            "count": "Showing 1\u2013100 of 201 matching events (201 total). Page 1 of 3."
+          }
+        ]
+      },
+      "literal_text": false,
+      "narrow_scroll_and_print": false,
+      "nojs_notice": false,
+      "page_errors": [],
+      "quality_events": 0,
+      "violation_events": 201,
+      "zero_bound_first_row_and_overlap": false
+    },
+    {
+      "complete_page_order": false,
+      "initial_row_count": true,
+      "isolated_filters": false,
+      "keyboard_boundary_focus": {
+        "event": [
+          {
+            "action": "last",
+            "count": "Showing 201\u2013201 of 201 matching events (201 total). Page 3 of 3."
+          },
+          {
+            "action": "first",
+            "count": "Showing 1\u2013100 of 201 matching events (201 total). Page 1 of 3."
+          },
+          {
+            "action": "next",
+            "count": "Showing 101\u2013200 of 201 matching events (201 total). Page 2 of 3."
+          },
+          {
+            "action": "next",
+            "count": "Showing 201\u2013201 of 201 matching events (201 total). Page 3 of 3."
+          },
+          {
+            "action": "previous",
+            "count": "Showing 101\u2013200 of 201 matching events (201 total). Page 2 of 3."
+          },
+          {
+            "action": "previous",
+            "count": "Showing 1\u2013100 of 201 matching events (201 total). Page 1 of 3."
+          }
+        ]
+      },
+      "literal_text": false,
+      "narrow_scroll_and_print": false,
+      "nojs_notice": false,
+      "page_errors": [],
+      "quality_events": 100,
+      "violation_events": 201,
+      "zero_bound_first_row_and_overlap": false
+    },
+    {
+      "complete_page_order": true,
+      "initial_row_count": true,
+      "isolated_filters": true,
+      "keyboard_boundary_focus": {
+        "event": [
+          {
+            "action": "last",
+            "count": "Showing 201\u2013201 of 201 matching events (201 total). Page 3 of 3."
+          },
+          {
+            "action": "first",
+            "count": "Showing 1\u2013100 of 201 matching events (201 total). Page 1 of 3."
+          },
+          {
+            "action": "next",
+            "count": "Showing 101\u2013200 of 201 matching events (201 total). Page 2 of 3."
+          },
+          {
+            "action": "next",
+            "count": "Showing 201\u2013201 of 201 matching events (201 total). Page 3 of 3."
+          },
+          {
+            "action": "previous",
+            "count": "Showing 101\u2013200 of 201 matching events (201 total). Page 2 of 3."
+          },
+          {
+            "action": "previous",
+            "count": "Showing 1\u2013100 of 201 matching events (201 total). Page 1 of 3."
+          }
+        ],
+        "quality": [
+          {
+            "action": "last",
+            "count": "Showing 101\u2013101 of 101 matching data-quality events (101 total). Page 2 of 2."
+          },
+          {
+            "action": "first",
+            "count": "Showing 1\u2013100 of 101 matching data-quality events (101 total). Page 1 of 2."
+          },
+          {
+            "action": "next",
+            "count": "Showing 101\u2013101 of 101 matching data-quality events (101 total). Page 2 of 2."
+          },
+          {
+            "action": "previous",
+            "count": "Showing 1\u2013100 of 101 matching data-quality events (101 total). Page 1 of 2."
+          }
+        ]
+      },
+      "literal_text": true,
+      "narrow_scroll_and_print": true,
+      "nojs_notice": true,
+      "page_errors": [],
+      "quality_events": 101,
+      "violation_events": 201,
+      "zero_bound_first_row_and_overlap": true
+    },
+    {
+      "complete_page_order": true,
+      "initial_row_count": true,
+      "isolated_filters": true,
+      "keyboard_boundary_focus": {
+        "event": [
+          {
+            "action": "last",
+            "count": "Showing 201\u2013201 of 201 matching events (201 total). Page 3 of 3."
+          },
+          {
+            "action": "first",
+            "count": "Showing 1\u2013100 of 201 matching events (201 total). Page 1 of 3."
+          },
+          {
+            "action": "next",
+            "count": "Showing 101\u2013200 of 201 matching events (201 total). Page 2 of 3."
+          },
+          {
+            "action": "next",
+            "count": "Showing 201\u2013201 of 201 matching events (201 total). Page 3 of 3."
+          },
+          {
+            "action": "previous",
+            "count": "Showing 101\u2013200 of 201 matching events (201 total). Page 2 of 3."
+          },
+          {
+            "action": "previous",
+            "count": "Showing 1\u2013100 of 201 matching events (201 total). Page 1 of 3."
+          }
+        ],
+        "quality": [
+          {
+            "action": "last",
+            "count": "Showing 201\u2013201 of 201 matching data-quality events (201 total). Page 3 of 3."
+          },
+          {
+            "action": "first",
+            "count": "Showing 1\u2013100 of 201 matching data-quality events (201 total). Page 1 of 3."
+          },
+          {
+            "action": "next",
+            "count": "Showing 101\u2013200 of 201 matching data-quality events (201 total). Page 2 of 3."
+          },
+          {
+            "action": "next",
+            "count": "Showing 201\u2013201 of 201 matching data-quality events (201 total). Page 3 of 3."
+          },
+          {
+            "action": "previous",
+            "count": "Showing 101\u2013200 of 201 matching data-quality events (201 total). Page 2 of 3."
+          },
+          {
+            "action": "previous",
+            "count": "Showing 1\u2013100 of 201 matching data-quality events (201 total). Page 1 of 3."
+          }
+        ]
+      },
+      "literal_text": true,
+      "narrow_scroll_and_print": true,
+      "nojs_notice": true,
+      "page_errors": [],
+      "quality_events": 201,
+      "violation_events": 201,
+      "zero_bound_first_row_and_overlap": true
+    }
+  ],
+  "fixture": "presentation-only custom rows, not an analysis workload"
+}
