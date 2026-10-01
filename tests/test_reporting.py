@@ -537,8 +537,9 @@ def test_all_invalid_data_quality_report_uses_null_safe_extrema_and_empty_plots(
     ],
 )
 @pytest.mark.parametrize("existing_output", [False, True])
+@pytest.mark.parametrize("error_type", [OSError, KeyboardInterrupt])
 def test_output_writer_removes_partial_file_on_write_failure(
-    monkeypatch, tmp_path: Path, writer, module_name: str, existing_output: bool
+    monkeypatch, tmp_path: Path, writer, module_name: str, existing_output: bool, error_type
 ) -> None:
     import importlib
     from contextlib import contextmanager
@@ -558,13 +559,13 @@ def test_output_writer_removes_partial_file_on_write_failure(
             def fail_write(content):
                 original_write(content[:8])
                 handle.flush()
-                raise OSError("simulated partial write")
+                raise error_type("simulated partial write")
 
             monkeypatch.setattr(handle, "write", fail_write)
             yield handle
 
     monkeypatch.setattr(module, "NamedTemporaryFile", failing_temporary_file)
-    with pytest.raises(OSError, match="simulated partial write"):
+    with pytest.raises(error_type, match="simulated partial write"):
         writer(analyze_battery_log(SAMPLE), output)
 
     assert list(tmp_path.glob(".*.tmp")) == []

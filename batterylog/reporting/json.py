@@ -37,7 +37,7 @@ def write_json_result(
             handle.write(content.encode("utf-8"))
 
         temp_path.replace(path)
-    except Exception:
+    except BaseException:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
         raise

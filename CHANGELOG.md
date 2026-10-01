@@ -23,6 +23,7 @@ All notable changes to BatteryLog are documented here.
 - Remove partial HTML/JSON temporary files when an output write fails, preserving successful bytes and atomic replacement.
 - Close streaming chunk iterators after analysis, including failures with retained tracebacks, so CSV readers and MDF contexts are released while caller-owned input handles remain open.
 - Reject boolean measurements in mixed categorical adapter columns, preserving their non-numeric evidence separately from missing values.
+- Remove partial HTML/JSON temporary files when output writing is interrupted, then propagate the interruption without replacing an existing destination.
 
 ### Analysis architecture
 
