@@ -1,0 +1,7 @@
+{
+  "code_commit": "a25d7e58da09c6d3a4d42aa957ad245e498d385c",
+  "install_method": "--no-deps target directory; dependencies from existing readiness venv; not a fresh dependency environment",
+  "mf4_cap_present": true,
+  "python_files_match_source": 32,
+  "wheel_sha256": "9a3886fd67eda0064b09624951e0746596fb5737168c23e4fae06871a56a773c"
+}
