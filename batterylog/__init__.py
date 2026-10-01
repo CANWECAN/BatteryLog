@@ -1,4 +1,5 @@
 from .analysis.core import analyze_battery_log
+from .analysis.service import AnalysisOutput, AnalysisService
 from .config import (
     DataQualityConfig,
     EventDetectionConfig,
@@ -28,11 +29,14 @@ from .models import (
     ValidationStatus,
     ViolationEvent,
 )
+from .result_validation import validate_result_semantics
 
 __all__ = [
     "RESULT_SCHEMA_VERSION",
     "AnalysisOptions",
+    "AnalysisOutput",
     "AnalysisResult",
+    "AnalysisService",
     "AppliedLimits",
     "ComparisonMode",
     "ComparisonPolicyInfo",
@@ -56,4 +60,5 @@ __all__ = [
     "analyze_battery_log",
     "load_validation_config",
     "load_validation_limits",
+    "validate_result_semantics",
 ]

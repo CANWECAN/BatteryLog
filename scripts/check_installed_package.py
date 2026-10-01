@@ -10,6 +10,12 @@ from tempfile import TemporaryDirectory
 
 import jsonschema
 
+from batterylog import (
+    AnalysisService,
+    ValidationConfig,
+    ValidationLimits,
+    validate_result_semantics,
+)
 from batterylog.analysis.report_series import ReportSeriesCollector
 
 expected_version, sample = sys.argv[1:]
@@ -55,7 +61,20 @@ with TemporaryDirectory() as directory:
     )
     result = json.loads(completed.stdout)
     jsonschema.validate(result, schema)
+    validate_result_semantics(result)
     assert result["validation_status"] == "PASS"
+    service_output = AnalysisService(
+        ValidationConfig(limits=ValidationLimits(cell_max_v=5.0))
+    ).analyze_path(sample, report_max_points=20)
+    assert service_output.result == result
+    assert service_output.report_series is not None
+    assert service_output.report_series.source_rows == result["rows_analyzed"]
+    with Path(sample).open("rb") as handle:
+        file_output = AnalysisService(
+            ValidationConfig(limits=ValidationLimits(cell_max_v=5.0))
+        ).analyze_file(handle, source_name=Path(sample).name, report_max_points=20)
+        assert not handle.closed
+        assert file_output == service_output
     html = report.read_text(encoding="utf-8")
     assert html.count('class="timeseries-chart"') == 3
     assert "Cell-voltage envelope" in html
@@ -81,7 +100,8 @@ with TemporaryDirectory() as directory:
     assert mismatch_run.returncode == 1
     mismatch_result = json.loads(mismatch_run.stdout)
     jsonschema.validate(mismatch_result, schema)
+    validate_result_semantics(mismatch_result)
     assert mismatch_result["rules_evaluated"] == ["PACK_VOLTAGE_CELL_SUM_MISMATCH"]
     assert mismatch_result["violations"][0]["signed_error_v"] == 0.25
 
-print(f"Installed BatteryLog {expected_version}: CLI, schema, rules, and HTML plots verified")
+print(f"Installed BatteryLog {expected_version}: service, CLI, schema, rules, HTML plots verified")

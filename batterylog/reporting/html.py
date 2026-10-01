@@ -417,8 +417,8 @@ def write_html_report(
             suffix=".tmp",
             delete=False,
         ) as handle:
-            handle.write(content)
             temp_path = Path(handle.name)
+            handle.write(content)
 
         temp_path.replace(path)
     except Exception:

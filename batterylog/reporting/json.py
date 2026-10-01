@@ -33,8 +33,8 @@ def write_json_result(
             suffix=".tmp",
             delete=False,
         ) as handle:
-            handle.write(content.encode("utf-8"))
             temp_path = Path(handle.name)
+            handle.write(content.encode("utf-8"))
 
         temp_path.replace(path)
     except Exception:

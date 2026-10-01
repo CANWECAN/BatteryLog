@@ -527,3 +527,48 @@ def test_all_invalid_data_quality_report_uses_null_safe_extrema_and_empty_plots(
     assert "Rows excluded</strong><br>2" in html
     assert "NON_NUMERIC_REQUIRED_VALUE" in html
     assert "NON_FINITE_REQUIRED_VALUE" in html
+
+
+@pytest.mark.parametrize(
+    "writer,module_name",
+    [
+        (write_html_report, "batterylog.reporting.html"),
+        (write_json_result, "batterylog.reporting.json"),
+    ],
+)
+@pytest.mark.parametrize("existing_output", [False, True])
+def test_output_writer_removes_partial_file_on_write_failure(
+    monkeypatch, tmp_path: Path, writer, module_name: str, existing_output: bool
+) -> None:
+    import importlib
+    from contextlib import contextmanager
+
+    module = importlib.import_module(module_name)
+    original_temporary_file = module.NamedTemporaryFile
+    output = tmp_path / "report.out"
+    previous = b"previous complete output"
+    if existing_output:
+        output.write_bytes(previous)
+
+    @contextmanager
+    def failing_temporary_file(**kwargs):
+        with original_temporary_file(**kwargs) as handle:
+            original_write = handle.write
+
+            def fail_write(content):
+                original_write(content[:8])
+                handle.flush()
+                raise OSError("simulated partial write")
+
+            monkeypatch.setattr(handle, "write", fail_write)
+            yield handle
+
+    monkeypatch.setattr(module, "NamedTemporaryFile", failing_temporary_file)
+    with pytest.raises(OSError, match="simulated partial write"):
+        writer(analyze_battery_log(SAMPLE), output)
+
+    assert list(tmp_path.glob(".*.tmp")) == []
+    if existing_output:
+        assert output.read_bytes() == previous
+    else:
+        assert not output.exists()

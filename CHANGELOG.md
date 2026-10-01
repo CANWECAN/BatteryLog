@@ -4,6 +4,37 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### 0.10 development scope
+
+- Prepare the analysis architecture and measurement contracts for future service and desktop-launcher integration. The desktop GUI and new engineering rules are outside this development checkpoint.
+- Mark the development checkout as `0.10.0.dev0` in package and citation metadata so it is distinguishable from the published `0.9.2` artifacts.
+- Preserve config schema v6 and frozen result schema v8; no new threshold, comparison, grouping, or validation-status policy is introduced.
+- Track unfinished acceptance gates in `docs/0.10_DEVELOPMENT.md`; the development version is not a release candidate and development tags remain rejected by the release check.
+
+### Integrated 0.10 development foundation
+
+- Add a config-bound `AnalysisService` for path, caller-owned binary handle and measurement-loader analysis, returning the canonical result with optional report geometry from the same pass. The CLI uses this service; existing Python APIs remain supported.
+- Document physical units, time alignment, adapter lifetime, complete-stack responsibility and provenance at the measurement boundary.
+- Add opt-in result-v8 consumer consistency checks after structural schema validation, without changing frozen schemas or adding runtime dependencies.
+- Preserve independent engineering anchors and the source-distribution test corpus; validate the installed service/CLI and MF4 path/handle parity for both wheel and sdist builds.
+- Check declared minimum runtime dependencies on Python 3.11 alongside the existing latest-dependency matrix.
+- Correct Linux worker RSS measurement and record end-to-end/event-pressure and report-stage observations with explicit limitations.
+- Remove partial HTML/JSON temporary files when an output write fails, preserving successful bytes and atomic replacement.
+
+### Analysis architecture
+
+- Share rule evaluation, signal/input validation, measurement preparation, result assembly, and measurement summaries between whole-frame and streaming analysis.
+- Isolate streaming event accumulation and enforce package-wide mypy in Linux CI.
+- Add fixed serialized semantic anchors and byte-identical JSON assertions to the major whole-frame/streaming property suites so common implementation drift is not hidden by differential equality alone.
+
+### Reliability and report evidence
+
+- Report global source-row positions for derived arithmetic overflow in later streaming chunks.
+- Fail closed when an event duration overflows while merging otherwise finite events across chunks.
+- Preflight canonical JSON before writing HTML reports, avoiding report publication when result serialization fails.
+- Preserve temperature-spread extrema through report-series downsampling and validate retained spread evidence in the renderer.
+- Canonicalize zero-valued public aggregate metrics to positive zero so whole-frame and streaming JSON bytes agree.
+
 ## 0.9.2 - 2026-09-29
 
 ### Reliability and evidence hardening

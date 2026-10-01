@@ -30,6 +30,19 @@ jobs:
       - run: python -m pip check
       - run: python -m pytest -q --cov=batterylog --cov-report=term-missing --cov-fail-under=95
 
+  minimum-runtime:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev]" "numpy==1.26.0" "pandas==2.2.0" "PyYAML==6.0"
+      - run: python -m pip check
+      - run: python -m pytest -q --cov=batterylog --cov-report=term-missing --cov-fail-under=95
+
   windows:
     runs-on: windows-latest
     steps:
@@ -87,8 +100,10 @@ jobs:
         run: python scripts/check_release_version.py
       - name: Build sdist and wheel from sdist
         run: python -m build
+      - name: Verify source-distribution test corpus
+        run: python scripts/check_sdist_test_fixtures.py dist/*.tar.gz
       - run: python -m twine check --strict dist/*
-      - name: Validate both installed distributions outside checkout
+      - name: Validate base and MF4 installs of both distributions outside checkout
         shell: bash
         run: |
           set -euo pipefail
@@ -99,18 +114,10 @@ jobs:
             "$env_dir/venv/bin/python" -m pip install "$artifact" jsonschema
             "$env_dir/venv/bin/python" -m pip check
             (cd "$env_dir" && "$env_dir/venv/bin/python" "$GITHUB_WORKSPACE/scripts/check_installed_package.py" "$version" "$GITHUB_WORKSPACE/examples/sample_battery_log.csv")
+            "$env_dir/venv/bin/python" -m pip install "${artifact}[mf4]" jsonschema
+            "$env_dir/venv/bin/python" -m pip check
+            (cd "$env_dir" && "$env_dir/venv/bin/python" "$GITHUB_WORKSPACE/scripts/check_installed_mf4_package.py" "$version")
           done
-      - name: Validate MF4 wheel extra outside checkout
-        shell: bash
-        run: |
-          set -euo pipefail
-          version=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
-          wheel=$(printf '%s\n' "$GITHUB_WORKSPACE"/dist/*.whl)
-          env_dir=$(mktemp -d)
-          python -m venv "$env_dir/venv"
-          "$env_dir/venv/bin/python" -m pip install "${wheel}[mf4]"
-          "$env_dir/venv/bin/python" -m pip check
-          (cd "$env_dir" && "$env_dir/venv/bin/python" "$GITHUB_WORKSPACE/scripts/check_installed_mf4_package.py" "$version")
       - name: Compute checksums
         working-directory: dist
         run: sha256sum -- *.whl *.tar.gz > SHA256SUMS
@@ -122,7 +129,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
-    needs: [test, windows, mf4, package]
+    needs: [test, minimum-runtime, windows, mf4, package]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

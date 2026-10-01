@@ -1,0 +1,74 @@
+{
+  "analysis_options": {
+    "max_event_gap_s": null
+  },
+  "cells_detected": 2,
+  "comparison_policy": {
+    "absolute_tolerance": 0.0,
+    "mode": "strict_with_binary64_guard",
+    "relative_tolerance": 1.7763568394002505e-15
+  },
+  "data_quality": {
+    "events": [
+      {
+        "affected_values": 2,
+        "code": "NON_NUMERIC_REQUIRED_VALUE",
+        "end_row": 2,
+        "signals": [
+          "temp_1_c"
+        ],
+        "start_row": 1
+      }
+    ],
+    "mode": "exclude_invalid_rows"
+  },
+  "limits_applied": {
+    "cell_max_v": 4.25,
+    "cell_min_v": 3.0,
+    "imbalance_max_v": 1.0,
+    "pack_charge_max_a": 10.0,
+    "pack_current_positive_direction": "charge",
+    "pack_discharge_max_a": 15.0,
+    "pack_voltage_cell_sum_max_delta_v": 0.25,
+    "temperature_max_c": 50.0,
+    "temperature_min_c": -20.0,
+    "temperature_spread_max_c": 10.0
+  },
+  "max_cell_voltage_v": null,
+  "max_delta_v": null,
+  "max_pack_current_a": null,
+  "max_pack_voltage_v": null,
+  "max_temperature_c": null,
+  "max_temperature_spread_c": null,
+  "min_cell_voltage_v": null,
+  "min_pack_current_a": null,
+  "min_pack_voltage_v": null,
+  "min_temperature_c": null,
+  "pack_voltage_cell_sum_peak": null,
+  "rows_analyzed": 0,
+  "rows_excluded": 2,
+  "rows_input": 2,
+  "rules_evaluated": [
+    "CELL_IMBALANCE_HIGH",
+    "CELL_OVERVOLTAGE",
+    "CELL_UNDERVOLTAGE",
+    "TEMPERATURE_HIGH",
+    "TEMPERATURE_LOW",
+    "TEMPERATURE_SPREAD_HIGH",
+    "PACK_CHARGE_OVERCURRENT",
+    "PACK_DISCHARGE_OVERCURRENT",
+    "PACK_VOLTAGE_CELL_SUM_MISMATCH"
+  ],
+  "schema_version": 8,
+  "signal_mapping": {
+    "cell_voltage_pattern": null,
+    "mode": "canonical",
+    "pack_current_source": "pack_current_a",
+    "pack_voltage_source": "pack_voltage_v",
+    "temperature_pattern": null,
+    "timestamp_source": "timestamp_s"
+  },
+  "temperature_sensors_detected": 2,
+  "validation_status": "FAIL",
+  "violations": []
+}

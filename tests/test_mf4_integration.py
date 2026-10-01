@@ -1,4 +1,5 @@
 import json
+import runpy
 import subprocess
 import sys
 from pathlib import Path
@@ -11,17 +12,43 @@ asammdf = pytest.importorskip("asammdf", exc_type=ImportError)
 from asammdf import MDF, Signal
 
 from batterylog import (
+    AnalysisService,
     DataQualityConfig,
     SignalMapping,
     SignalPattern,
+    ValidationConfig,
     ValidationLimits,
     analyze_battery_log,
 )
 from batterylog.__main__ import run
 from batterylog.analysis.streaming import analyze_measurement_loader
 from batterylog.loaders import MdfPathLoader
+from batterylog.reporting import render_json_result
 
 ROOT = Path(__file__).parents[1]
+
+
+@pytest.mark.parametrize("layout", ["single-group", "multi-group"])
+@pytest.mark.parametrize("scenario", ["steady", "event-pressure"])
+def test_benchmark_sources_have_independent_event_counts(tmp_path, layout, scenario) -> None:
+    benchmark = runpy.run_path(str(ROOT / "benchmarks/benchmark_mf4_analysis.py"))
+    path = tmp_path / "benchmark.mf4"
+    benchmark["_write_synthetic_mf4"](
+        path,
+        rows=5,
+        cells=2,
+        temperatures=1,
+        layout=layout,
+        scenario=scenario,
+    )
+    result = analyze_battery_log(path, limits=LIMITS)
+    assert result["rows_analyzed"] == 5
+    assert result["rows_excluded"] == 0
+    assert result["validation_status"] == ("PASS" if scenario == "steady" else "FAIL")
+    expected = 3 if scenario == "event-pressure" else 0
+    assert sum(e["code"] == "CELL_OVERVOLTAGE" for e in result["violations"]) == expected
+    assert sum(e["code"] == "CELL_IMBALANCE_HIGH" for e in result["violations"]) == expected
+
 
 LIMITS = ValidationLimits(
     cell_min_v=2.8,
@@ -50,6 +77,50 @@ def _save_mdf(path: Path, groups: list[list[Signal]]) -> None:
         mdf.save(path, overwrite=True)
     finally:
         mdf.close()
+
+
+@pytest.mark.parametrize("chunk_ram_bytes", [64, 1024 * 1024])
+def test_real_mf4_matches_independent_all_rule_boundary_golden(
+    tmp_path: Path, chunk_ram_bytes: int
+) -> None:
+    timestamps = np.array([0.0, 1.0])
+    channels = [
+        ("pack_current_a", "A", [10.0, -15.0]),
+        ("pack_voltage_v", "V", [7.0, 8.75]),
+        ("cell_1_v", "V", [3.0, 4.25]),
+        ("cell_2_v", "V", [4.0, 4.25]),
+        ("temp_1_c", "degC", [-20.0, 50.0]),
+        ("temp_2_c", "degC", [-10.0, 50.0]),
+    ]
+    source = tmp_path / "boundary-golden.mf4"
+    _save_mdf(
+        source,
+        [
+            [
+                Signal(np.array(values), timestamps, name=name, unit=unit)
+                for name, unit, values in channels
+            ]
+        ],
+    )
+    limits = ValidationLimits(
+        cell_min_v=3.0,
+        cell_max_v=4.25,
+        imbalance_max_v=1.0,
+        temperature_min_c=-20.0,
+        temperature_max_c=50.0,
+        temperature_spread_max_c=10.0,
+        pack_charge_max_a=10.0,
+        pack_discharge_max_a=15.0,
+        pack_current_positive_direction="charge",
+        pack_voltage_cell_sum_max_delta_v=0.25,
+    )
+    expected = (ROOT / "tests/golden/semantic_all_rules_pass.json").read_text(encoding="utf-8")
+    result = analyze_measurement_loader(
+        MdfPathLoader(source, chunk_ram_bytes=chunk_ram_bytes), limits=limits
+    )
+
+    # The oracle is fixed JSON, not equivalent CSV analyzed by the same kernel.
+    assert render_json_result(result) == expected
 
 
 def _canonical_signals(frame: pd.DataFrame) -> list[Signal]:
@@ -96,6 +167,58 @@ def _canonical_signals(frame: pd.DataFrame) -> list[Signal]:
         ]
     )
     return signals
+
+
+@pytest.mark.parametrize("entrypoint", ["path", "file", "loader"])
+@pytest.mark.parametrize("report_max_points", [None, 14])
+def test_real_mf4_service_matches_fixed_golden(tmp_path, entrypoint, report_max_points) -> None:
+    path = tmp_path / "generated.mf4"
+    timestamps = np.array([0.0, 1.0])
+    _save_mdf(
+        path,
+        [
+            [
+                Signal(np.array([3.8, 4.3]), timestamps, name="cell_1_v", unit="V"),
+                Signal(np.array([3.7, 3.9]), timestamps, name="cell_2_v", unit="V"),
+                Signal(np.array([25.0, 56.0]), timestamps, name="temp_1_c", unit="degC"),
+                Signal(np.array([24.0, 50.0]), timestamps, name="temp_2_c", unit="degC"),
+            ]
+        ],
+    )
+    # The writer normalizes its output suffix; rename an existing fixture to
+    # exercise case-insensitive source dispatch without guessing the save name.
+    path = path.rename(tmp_path / "service.MF4")
+    service = AnalysisService(
+        ValidationConfig(
+            limits=ValidationLimits(
+                imbalance_max_v=0.08,
+                cell_max_v=4.2,
+                temperature_max_c=55.0,
+            )
+        )
+    )
+    if entrypoint == "path":
+        output = service.analyze_path(path, report_max_points=report_max_points)
+    elif entrypoint == "file":
+        with path.open("rb") as handle:
+            handle.seek(7)
+            output = service.analyze_file(
+                handle, source_name=path.name, report_max_points=report_max_points
+            )
+            assert not handle.closed
+    else:
+        output = service.analyze_loader(
+            MdfPathLoader(path, chunk_ram_bytes=64), report_max_points=report_max_points
+        )
+
+    expected = (ROOT / "tests/golden/semantic_multi_rule_fail.json").read_text("utf-8")
+    assert render_json_result(output.result) == expected
+    if report_max_points is None:
+        assert output.report_series is None
+    else:
+        assert output.report_series is not None
+        assert output.report_series.source_rows == 2
+        assert len(output.report_series.points) == 2
 
 
 def test_real_mf4_matches_equivalent_csv(tmp_path: Path) -> None:
@@ -438,12 +561,20 @@ def test_real_mf4_cli_report_uses_file_backed_snapshot(tmp_path: Path, capsys) -
     assert "Cell-voltage envelope" in html
 
 
-def test_mf4_benchmark_smoke_exercises_analysis_and_report_paths(tmp_path: Path) -> None:
+@pytest.mark.parametrize("layout", ["single-group", "multi-group"])
+@pytest.mark.parametrize("scenario", ["steady", "event-pressure"])
+def test_mf4_benchmark_smoke_exercises_analysis_and_report_paths(
+    tmp_path: Path, layout: str, scenario: str
+) -> None:
     json_path = tmp_path / "benchmark.json"
     completed = subprocess.run(
         [
             sys.executable,
             str(ROOT / "benchmarks" / "benchmark_mf4_analysis.py"),
+            "--layout",
+            layout,
+            "--scenario",
+            scenario,
             "--rows",
             "40",
             "80",
@@ -482,7 +613,14 @@ def test_mf4_benchmark_smoke_exercises_analysis_and_report_paths(tmp_path: Path)
         (80, "report"),
     }
     for case in cases:
-        assert case["status"] == "PASS"
+        assert case["status"] == ("FAIL" if scenario == "event-pressure" else "PASS")
+        assert case["layout"] == layout
+        assert case["scenario"] == scenario
+        assert case["events_by_rule"] == (
+            {"CELL_OVERVOLTAGE": case["rows"] // 2, "CELL_IMBALANCE_HIGH": case["rows"] // 2}
+            if scenario == "event-pressure"
+            else {}
+        )
         assert case["cells"] == 4
         assert case["temperature_sensors"] == 2
         assert case["elapsed_s"] > 0.0

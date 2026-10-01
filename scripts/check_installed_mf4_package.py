@@ -5,17 +5,27 @@ import json
 import sys
 from contextlib import redirect_stdout
 from importlib.metadata import version
+from importlib.resources import files
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import jsonschema
 import numpy as np
 from asammdf import MDF, Signal
 
-from batterylog import ValidationLimits, analyze_battery_log
+from batterylog import (
+    AnalysisService,
+    ValidationConfig,
+    ValidationLimits,
+    analyze_battery_log,
+    validate_result_semantics,
+)
 from batterylog.__main__ import run
 
 expected_version = sys.argv[1]
 assert version("batterylog") == expected_version
+schema = json.loads(files("batterylog").joinpath("schema/result-v8.json").read_text())
+validator = jsonschema.Draft202012Validator(schema)
 
 with TemporaryDirectory() as tmp:
     root = Path(tmp)
@@ -56,6 +66,19 @@ with TemporaryDirectory() as tmp:
         source,
         limits=ValidationLimits(cell_max_v=4.2, temperature_max_c=55.0),
     )
+    validator.validate(result)
+    validate_result_semantics(result)
+    service = AnalysisService(
+        ValidationConfig(limits=ValidationLimits(cell_max_v=4.2, temperature_max_c=55.0))
+    )
+    output = service.analyze_path(source, report_max_points=20)
+    assert output.result == result
+    assert output.report_series is not None
+    assert output.report_series.source_rows == 3
+    with source.open("rb") as handle:
+        file_output = service.analyze_file(handle, source_name=source.name, report_max_points=20)
+        assert not handle.closed
+        assert file_output == output
     assert result["validation_status"] == "FAIL"
     assert result["rows_analyzed"] == 3
     assert result["violations"][0]["start_time_s"] == 11.0
@@ -75,6 +98,8 @@ with TemporaryDirectory() as tmp:
         )
 
     payload = json.loads(stdout.getvalue())
+    validator.validate(payload)
+    validate_result_semantics(payload)
     assert exit_code == 0
     assert payload["validation_status"] == "PASS"
     assert report.exists()
@@ -83,4 +108,6 @@ with TemporaryDirectory() as tmp:
     assert html.count('class="timeseries-chart"') == 3
     assert "Cell-voltage envelope" in html
 
-print(f"Installed BatteryLog {expected_version}: MF4 extra, report path, and HTML plots verified")
+print(
+    f"Installed BatteryLog {expected_version}: MF4 extra, service/path/handle parity, schema/semantics and HTML plots verified"
+)
