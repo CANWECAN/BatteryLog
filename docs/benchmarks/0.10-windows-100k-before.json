@@ -1,0 +1,29 @@
+{
+  "input_commit": "1308fd8eca9ba445900417160575ea6a4713b7b5",
+  "input_tree": "b5b2bfadeddfd24b3735aa61216b1a32d8f2329f",
+  "events": 100000,
+  "cells": 4,
+  "temperature_sensors": 2,
+  "layout": "aligned multi-group",
+  "report_bytes": 58136740,
+  "source_bytes": 6402616,
+  "completed_cases": [
+    {
+      "repeat": 1,
+      "load_s": 32.47477440000512,
+      "last_row_scroll_s": 1.0687899999902584,
+      "dom_nodes": 1600278,
+      "document_height_px": 5432292,
+      "headers_visible_at_last_row": false,
+      "page_errors": [],
+      "browser_version": "154.0.4258.48"
+    }
+  ],
+  "incomplete_repeats": "Second fresh-browser repeat was stopped by killing only owned headless Edge descendants after observed RAM pressure; third repeat was not run.",
+  "stop_observation": {
+    "global_available_bytes": 1404997632,
+    "owned_edge_processes": 7,
+    "owned_edge_rss_sum_bytes": 7538372608
+  },
+  "method_limit": "The stop observation sums simultaneous owned Edge working sets, including shared pages, and is not a peak or unique physical-memory measurement. No baseline median or speedup ratio is claimed."
+}

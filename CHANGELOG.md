@@ -28,6 +28,8 @@ All notable changes to BatteryLog are documented here.
 - Reject complex and datetime/timedelta required measurements before pandas numeric coercion, preventing silently truncated complex values and implicit temporal-unit conversion; preserve strict/exclude evidence and real numeric adapter inputs.
 - Correct the Windows temporary-file handle type annotation and run package-wide mypy in the existing Windows CI job.
 
+- Retain all large-report event records in embedded data while displaying 100 events per page, with offline rule/signal/time filters, page navigation and sticky headers. Canonical JSON and engineering decisions are unchanged; JavaScript-disabled and current-page printing behavior are explicit.
+
 ### Analysis architecture
 
 - Share rule evaluation, signal/input validation, measurement preparation, result assembly, and measurement summaries between whole-frame and streaming analysis.

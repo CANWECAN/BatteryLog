@@ -1,0 +1,56 @@
+[
+  {
+    "input": "result-before.json",
+    "events": 100000,
+    "schema_and_semantics": true,
+    "canonical_bytes_unchanged": true
+  },
+  {
+    "input": "semantic_all_excluded_fail.json",
+    "events": 0,
+    "schema_and_semantics": true,
+    "canonical_bytes_unchanged": true
+  },
+  {
+    "input": "semantic_all_rules_pass.json",
+    "events": 0,
+    "schema_and_semantics": true,
+    "canonical_bytes_unchanged": true
+  },
+  {
+    "input": "semantic_data_quality_fail.json",
+    "events": 2,
+    "schema_and_semantics": true,
+    "canonical_bytes_unchanged": true
+  },
+  {
+    "input": "semantic_explicit_mapping_pass.json",
+    "events": 0,
+    "schema_and_semantics": true,
+    "canonical_bytes_unchanged": true
+  },
+  {
+    "input": "semantic_multi_rule_fail.json",
+    "events": 3,
+    "schema_and_semantics": true,
+    "canonical_bytes_unchanged": true
+  },
+  {
+    "input": "semantic_not_evaluated.json",
+    "events": 0,
+    "schema_and_semantics": true,
+    "canonical_bytes_unchanged": true
+  },
+  {
+    "input": "semantic_pack_lower_fail_charge.json",
+    "events": 7,
+    "schema_and_semantics": true,
+    "canonical_bytes_unchanged": true
+  },
+  {
+    "input": "semantic_pack_lower_fail_discharge.json",
+    "events": 7,
+    "schema_and_semantics": true,
+    "canonical_bytes_unchanged": true
+  }
+]
