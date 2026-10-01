@@ -1,11 +1,12 @@
 from copy import deepcopy
 from dataclasses import replace
+from html.parser import HTMLParser
 from io import BytesIO
 from typing import get_args
 
 import pytest
 
-from batterylog import ValidationLimits
+from batterylog import DataQualityConfig, ValidationLimits
 from batterylog.analysis.streaming import analyze_battery_file_with_report_series
 from batterylog.models import RuleCode
 from batterylog.reporting import plots as plots_module
@@ -430,3 +431,52 @@ def test_temperature_spread_rule_renders_dedicated_chart_and_exact_event_marker(
     assert "Temperature spread" in html
     assert 'data-limit="Spread max" data-value="10"' in html
     assert 'data-code="TEMPERATURE_SPREAD_HIGH"' in html
+
+
+class PlotControls(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.inputs = []
+        self.labels = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "input":
+            self.inputs.append(dict(attrs))
+        elif tag == "label":
+            self.labels.append(dict(attrs))
+
+
+def test_plot_overlay_control_defaults_to_complete_evidence_without_mutating_result():
+    result, series = _result_and_series()
+    before = deepcopy(result)
+    html = render_report_plots(result, series)
+    document = PlotControls()
+    document.feed(html)
+    assert len(document.inputs) == 1
+    control = document.inputs[0]
+    assert control["type"] == "checkbox" and "checked" in control
+    assert document.labels == [{"class": "plot-controls", "for": control["id"]}]
+    assert control["aria-describedby"] in html
+    assert html.count('class="violation-peak"') == len(result["violations"])
+    assert "<script" not in html.lower()
+    assert result == before
+
+
+@pytest.mark.parametrize("case", ["pass", "not_evaluated", "all_excluded"])
+def test_reports_without_engineering_events_have_no_overlay_control(case):
+    value = "" if case == "all_excluded" else "3.7"
+    source = BytesIO(f"timestamp_s,cell_1_v,temp_c\n0,{value},25\n".encode())
+    result, series = analyze_battery_file_with_report_series(
+        source,
+        source_name="capture.csv",
+        limits=ValidationLimits(cell_max_v=4.2) if case != "not_evaluated" else None,
+        data_quality=DataQualityConfig("exclude_invalid_rows"),
+    )
+    document = PlotControls()
+    document.feed(render_report_plots(result, series))
+    assert result["violations"] == []
+    assert document.inputs == [] and document.labels == []
+    assert (
+        result["validation_status"]
+        == {"pass": "PASS", "not_evaluated": "NOT_EVALUATED", "all_excluded": "FAIL"}[case]
+    )

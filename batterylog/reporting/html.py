@@ -358,6 +358,16 @@ button, select, input {{ font: inherit; }}
 .violation-instant {{ stroke: #dc2626; stroke-width: 1.5; stroke-opacity: 0.65; vector-effect: non-scaling-stroke; }}
 .violation-peak {{ fill: #dc2626; stroke: white; stroke-width: 1.5; vector-effect: non-scaling-stroke; }}
 .plot-note {{ margin-top: -4px; }}
+.plot-overlay-warning {{ display: none; border-left: 3px solid #d97706; padding-left: 12px; }}
+@media screen {{
+  #plot-overlays:not(:checked) ~ .plot-card .violation-window,
+  #plot-overlays:not(:checked) ~ .plot-card .violation-instant,
+  #plot-overlays:not(:checked) ~ .plot-card .violation-peak {{ display: none; }}
+  #plot-overlays:not(:checked) ~ .plot-overlay-warning {{ display: block; }}
+}}
+@media print {{
+  .plot-controls, .plot-overlay-warning {{ display: none; }}
+}}
 </style>
 </head>
 <body>

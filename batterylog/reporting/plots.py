@@ -861,8 +861,21 @@ def render_report_plots(result: AnalysisResult, series: ReportSeries) -> str:
             "from AnalysisResult."
         )
 
+    overlay_controls = (
+        '<input id="plot-overlays" class="plot-controls" type="checkbox" checked '
+        'aria-describedby="plot-overlay-help">'
+        '<label class="plot-controls" for="plot-overlays">Show violation overlays</label>'
+        '<p id="plot-overlay-help" class="small plot-controls">Clear this box to inspect '
+        "measurements and limits without event overlays. Status and event tables "
+        "are unchanged. Printing always includes all overlays.</p>"
+        '<p class="plot-overlay-warning" role="status">Violation overlays are hidden '
+        "on screen. Status and event tables are unchanged.</p>"
+        if result["violations"]
+        else ""
+    )
     return (
         '<section class="timeseries"><h2>Time-series plots</h2>'
         f'<p class="small plot-note">{sampling}</p>'
+        f"{overlay_controls}"
         f"{voltage}{delta}{temperature}{temperature_spread}{current}{pack_cell}</section>"
     )
