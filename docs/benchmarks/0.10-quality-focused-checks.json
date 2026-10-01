@@ -1,0 +1,53 @@
+{
+  "cases": [
+    {
+      "complete_page_order": false,
+      "initial_row_count": true,
+      "isolated_filters": false,
+      "literal_text": false,
+      "narrow_scroll_and_print": false,
+      "nojs_notice": false,
+      "page_errors": [],
+      "quality_events": 0,
+      "violation_events": 201,
+      "zero_bound_first_row_and_overlap": false
+    },
+    {
+      "complete_page_order": false,
+      "initial_row_count": true,
+      "isolated_filters": false,
+      "literal_text": false,
+      "narrow_scroll_and_print": false,
+      "nojs_notice": false,
+      "page_errors": [],
+      "quality_events": 100,
+      "violation_events": 201,
+      "zero_bound_first_row_and_overlap": false
+    },
+    {
+      "complete_page_order": true,
+      "initial_row_count": true,
+      "isolated_filters": true,
+      "literal_text": true,
+      "narrow_scroll_and_print": true,
+      "nojs_notice": true,
+      "page_errors": [],
+      "quality_events": 101,
+      "violation_events": 201,
+      "zero_bound_first_row_and_overlap": true
+    },
+    {
+      "complete_page_order": true,
+      "initial_row_count": true,
+      "isolated_filters": true,
+      "literal_text": true,
+      "narrow_scroll_and_print": true,
+      "nojs_notice": true,
+      "page_errors": [],
+      "quality_events": 201,
+      "violation_events": 201,
+      "zero_bound_first_row_and_overlap": true
+    }
+  ],
+  "fixture": "presentation-only custom rows, not an analysis workload"
+}

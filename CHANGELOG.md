@@ -30,6 +30,8 @@ All notable changes to BatteryLog are documented here.
 
 - Retain all large-report event records in embedded data while displaying 100 events per page, with offline rule/signal/time filters, page navigation and sticky headers. Canonical JSON and engineering decisions are unchanged; JavaScript-disabled and current-page printing behavior are explicit.
 
+- Extend the offline report pager to data-quality events, preserving complete source-row/signal evidence and using independent code/signal/row filters. Source data row numbers remain one-based; charts, canonical JSON and overall status are unchanged.
+
 ### Analysis architecture
 
 - Share rule evaluation, signal/input validation, measurement preparation, result assembly, and measurement summaries between whole-frame and streaming analysis.

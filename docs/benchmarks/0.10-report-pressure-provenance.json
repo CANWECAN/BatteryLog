@@ -1,0 +1,12 @@
+{
+    "code_head":  "0d2d200f8451577a434f6d81f3b2c86cb5c2b946",
+    "code_tree":  "74d51a92ed46533b87a0e9ea0c879b78db6c9eab",
+    "installed_wheel_py_files_matching":  32,
+    "wheel_sha256":  "678ebe111fac581a61ccf098422a64d5b04e6145b603071818f6036f0ca86708",
+    "svg_report_sha256":  "2ba829a66aaef6a3f86a57a07d1e639dc1d4a3e973158e27c53cfb4b68931d59",
+    "svg_baseline_code":  "19f39b6446377ea4c0ea9de8a327489d974656e6",
+    "svg_instant_elements":  100000,
+    "svg_window_elements":  0,
+    "svg_peak_elements":  100000,
+    "svg_peak_title_elements":  100000
+}

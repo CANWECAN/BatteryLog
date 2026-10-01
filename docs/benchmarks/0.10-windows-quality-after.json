@@ -1,0 +1,53 @@
+{
+  "cases": [
+    {
+      "aborted": false,
+      "browser_version": "154.0.4258.48",
+      "document_height_px": 3907,
+      "dom_nodes": 925,
+      "last_page_or_scroll_s": 0.15990299999248236,
+      "live_quality_rows": 100,
+      "load_s": 0.20422020001569763,
+      "owned_edge_rss_sum_peak_bytes": 591081472,
+      "page_errors": [],
+      "range_filter_s": 0.026102599978912622,
+      "repeat": 1
+    },
+    {
+      "aborted": false,
+      "browser_version": "154.0.4258.48",
+      "document_height_px": 3907,
+      "dom_nodes": 925,
+      "last_page_or_scroll_s": 0.1578041999891866,
+      "live_quality_rows": 100,
+      "load_s": 0.19470089999958873,
+      "owned_edge_rss_sum_peak_bytes": 570085376,
+      "page_errors": [],
+      "range_filter_s": 0.019759499991778284,
+      "repeat": 2
+    },
+    {
+      "aborted": false,
+      "browser_version": "154.0.4258.48",
+      "document_height_px": 3907,
+      "dom_nodes": 925,
+      "last_page_or_scroll_s": 0.1510827000020072,
+      "live_quality_rows": 100,
+      "load_s": 0.1945863000000827,
+      "owned_edge_rss_sum_peak_bytes": 569675776,
+      "page_errors": [],
+      "range_filter_s": 0.0217871000058949,
+      "repeat": 3
+    }
+  ],
+  "code_head": "0d2d200f8451577a434f6d81f3b2c86cb5c2b946",
+  "code_tree": "74d51a92ed46533b87a0e9ea0c879b78db6c9eab",
+  "generation_s": 1.5736675999942236,
+  "method": "Offline fresh Edge; 1440x1000; 1 baseline and 3 after repeats; no plots to isolate table; 200 ms sampling; working-set sum is not unique RAM; stop at 4 GiB sum or <1 GiB available",
+  "quality_events": 100000,
+  "raw_result_unchanged": true,
+  "report_bytes": 11902103,
+  "source_bytes": 3188927,
+  "source_rows": 200000,
+  "stage": "after"
+}

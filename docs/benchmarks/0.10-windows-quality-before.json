@@ -1,0 +1,25 @@
+{
+  "cases": [
+    {
+      "aborted": false,
+      "browser_version": "154.0.4258.48",
+      "document_height_px": 4321589,
+      "dom_nodes": 700186,
+      "last_page_or_scroll_s": 0.495294600026682,
+      "live_quality_rows": 100000,
+      "load_s": 7.612679999991087,
+      "owned_edge_rss_sum_peak_bytes": 3829014528,
+      "page_errors": [],
+      "range_filter_s": null,
+      "repeat": 1
+    }
+  ],
+  "generation_s": 1.538690100016538,
+  "method": "Offline fresh Edge; 1440x1000; 1 baseline and 3 after repeats; no plots to isolate table; 200 ms sampling; working-set sum is not unique RAM; stop at 4 GiB sum or <1 GiB available",
+  "quality_events": 100000,
+  "raw_result_unchanged": false,
+  "report_bytes": 10896802,
+  "source_bytes": 3188927,
+  "source_rows": 200000,
+  "stage": "before"
+}
