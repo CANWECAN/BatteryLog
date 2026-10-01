@@ -47,7 +47,7 @@ class DataQualityCollector:
         missing = numeric_missing & raw_missing
         non_numeric = (numeric_missing & ~raw_missing) | boolean_values
 
-        values = numeric.to_numpy(dtype=float)
+        values = numeric.to_numpy(dtype=float, na_value=np.nan)
         non_finite = ~np.isfinite(values) & ~numeric_missing
 
         invalid_rows = (missing | non_numeric | non_finite).any(axis=1)

@@ -18,6 +18,7 @@ All notable changes to BatteryLog are documented here.
 - Add opt-in result-v8 consumer consistency checks after structural schema validation, without changing frozen schemas or adding runtime dependencies.
 - Preserve independent engineering anchors and the source-distribution test corpus; validate the installed service/CLI and MF4 path/handle parity for both wheel and sdist builds.
 - Check declared minimum runtime dependencies on Python 3.11 alongside the existing latest-dependency matrix.
+- Convert nullable missing measurements explicitly to NaN for data-quality classification on pandas 2.2, preserving missing-versus-boolean evidence and exclusion behavior.
 - Correct Linux worker RSS measurement and record end-to-end/event-pressure and report-stage observations with explicit limitations.
 - Remove partial HTML/JSON temporary files when an output write fails, preserving successful bytes and atomic replacement.
 
