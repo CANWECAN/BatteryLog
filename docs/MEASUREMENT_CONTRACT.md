@@ -1,6 +1,6 @@
 # Measurement adapter contract
 
-This documents the existing measurement boundary used by early 0.10 development.
+This documents the existing measurement boundary used by BatteryLog 0.10.
 It does not add a config/result schema, infer battery topology, or convert units.
 `MeasurementLoader` remains a structural protocol yielding pandas DataFrames;
 the analysis engine is the authority for canonical mapping, required-value

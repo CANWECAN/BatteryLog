@@ -135,8 +135,8 @@ def _analyze_file(
             "max_cell_voltage_v": result["max_cell_voltage_v"],
             "max_delta_v": result["max_delta_v"],
             "max_temperature_c": result["max_temperature_c"],
-            "result_json": f"{relative}/result.json",
-            "report_html": f"{relative}/report.html",
+            "result_json": f"files/{relative}/result.json",
+            "report_html": f"files/{relative}/report.html",
             "error": None,
         }
 
@@ -187,7 +187,7 @@ def analyze_directory(
             relative = items[index]["source"]
             try:
                 items[index] = _analyze_file(
-                    source, target_root / relative, service, config_evidence, relative
+                    source, target_root / "files" / relative, service, config_evidence, relative
                 )
             except (ImportError, OSError, TypeError, ValueError) as exc:
                 items[index]["status"] = "ERROR"

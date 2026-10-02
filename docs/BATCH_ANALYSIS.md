@@ -1,4 +1,4 @@
-# Batch analysis (0.10 development)
+# Batch analysis
 
 Analyze a directory of CSV/MDF/MF4 logs with one effective configuration:
 
@@ -20,13 +20,15 @@ Batch mode always creates per-file JSON and HTML reports; `--report` and
 
 For `measurements/session/a.csv`, a recursive batch writes:
 
-- `results/run-001/session/a.csv/result.json`: the unchanged result-v8 payload.
-- `results/run-001/session/a.csv/report.html`: the existing standalone evidence report.
+- `results/run-001/files/session/a.csv/result.json`: the unchanged result-v8 payload.
+- `results/run-001/files/session/a.csv/report.html`: the existing standalone evidence report.
 - `results/run-001/summary.csv`: one row for every selected file.
 
 Keeping the original filename, including its suffix, as a directory avoids
 collisions between `a.csv` and `a.mf4`. Relative paths also distinguish duplicate
 basenames in different input subdirectories.
+All measurement reports live under `files/`, so a source named `summary.csv`
+cannot collide with the batch summary at the output root.
 
 The CSV includes status, row/exclusion counts, violation/data-quality event
 counts, maximum cell voltage, cell delta and temperature, source SHA-256, output
@@ -89,4 +91,4 @@ writing itself fails, the error propagates and no partial CSV is published.
 
 This first version is sequential and does not resume or overwrite an old run.
 Normal single-file commands, engineering rules, config-v6 and result-v8 are
-unchanged. Batch analysis is a development feature; no release is published.
+unchanged.

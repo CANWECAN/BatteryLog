@@ -4,55 +4,45 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
-- Added explicit CSV/MDF/MF4 unit normalization to a new canonical CSV with a separate source/output SHA-256 conversion record. Preserve strict numeric and timestamp validation, require declared units, match MDF sensor metadata, and leave engineering analysis/config-v6/result-v8 unchanged.
+## 0.10.0 - 2026-10-02
 
-- Added read-only CSV/MDF/MF4 channel inspection through `--inspect` and `inspect_measurement`, preserving available channel names when selection fails. Reuse analysis mapping, required-channel and MDF unit policies; explicitly separate metadata checks from sample validation and engineering results.
+### Measurement workflows
 
-- Added sequential directory analysis for CSV/MDF/MF4 measurements with per-file JSON/HTML evidence, a CSV summary, optional recursive discovery and one captured configuration. File errors remain distinct from engineering FAIL; interrupted runs preserve completed reports and identify unprocessed files. Existing result-v8 and single-file commands are unchanged.
+- Add sequential directory analysis for CSV/MDF/MF4 measurements with per-file JSON/HTML evidence under `files/`, a CSV summary, optional recursive discovery and one captured configuration. File errors remain distinct from engineering FAIL; interruption preserves completed reports and identifies unprocessed files.
+- Add read-only channel inspection through `--inspect` and `inspect_measurement`, retaining available channel names when selection fails. Metadata checks are separate from sample validation and engineering results.
+- Add explicit unit normalization to a new canonical CSV and a separate source/output SHA-256 conversion record. Require declared units, match MDF sensor metadata, preserve strict numeric/timestamp validation and perform no engineering evaluation during preparation.
+- Prevent source names such as `summary.csv` from colliding with batch output files.
 
-### 0.10 development scope
+### Analysis integration and validation
 
-- Prepare the analysis architecture and measurement contracts for future service and desktop-launcher integration. The desktop GUI and new engineering rules are outside this development checkpoint.
-- Mark the development checkout as `0.10.0.dev0` in package and citation metadata so it is distinguishable from the published `0.9.2` artifacts.
-- Preserve config schema v6 and frozen result schema v8; no new threshold, comparison, grouping, or validation-status policy is introduced.
-- Development builds are not release candidates; development tags remain rejected by the release check.
-
-### Integrated 0.10 development foundation
-
-- Add a config-bound `AnalysisService` for path, caller-owned binary handle and measurement-loader analysis, returning the canonical result with optional report geometry from the same pass. The CLI uses this service; existing Python APIs remain supported.
+- Add a config-bound `AnalysisService` for paths, caller-owned binary handles and measurement loaders, returning the canonical result and optional report geometry from one pass. The CLI uses this service; existing Python APIs remain supported.
 - Document physical units, time alignment, adapter lifetime, complete-stack responsibility and provenance at the measurement boundary.
-- Add opt-in result-v8 consumer consistency checks after structural schema validation, without changing frozen schemas or adding runtime dependencies.
-- Preserve independent engineering anchors and the source-distribution test corpus; validate the installed service/CLI and MF4 path/handle parity for both wheel and sdist builds.
-- Check declared minimum runtime dependencies on Python 3.11 alongside the existing latest-dependency matrix.
-- Convert nullable missing measurements explicitly to NaN for data-quality classification on pandas 2.2, preserving missing-versus-boolean evidence and exclusion behavior.
-- Correct Linux worker RSS measurement and record end-to-end/event-pressure and report-stage observations with explicit limitations.
-- Remove partial HTML/JSON temporary files when an output write fails, preserving successful bytes and atomic replacement.
-- Close streaming chunk iterators after analysis, including failures with retained tracebacks, so CSV readers and MDF contexts are released while caller-owned input handles remain open.
-- Reject boolean measurements in mixed categorical adapter columns, preserving their non-numeric evidence separately from missing values.
-- Remove partial HTML/JSON temporary files when output writing is interrupted, then propagate the interruption without replacing an existing destination.
+- Add opt-in result-v8 consumer consistency checks after structural schema validation, without new runtime dependencies.
+- Strengthen independent serialized engineering anchors and verify that source distributions preserve the complete test corpus.
+- Preserve config schema v6 and result schema v8, engineering thresholds, comparison policy, event grouping and validation-status semantics.
 
-- Reject complex and datetime/timedelta required measurements before pandas numeric coercion, preventing silently truncated complex values and implicit temporal-unit conversion; preserve strict/exclude evidence and real numeric adapter inputs.
-- Correct the Windows temporary-file handle type annotation and run package-wide mypy in the existing Windows CI job.
+### Reliability
 
-- Retain all large-report event records in embedded data while displaying 100 events per page, with offline rule/signal/time filters, page navigation and sticky headers. Canonical JSON and engineering decisions are unchanged; JavaScript-disabled and current-page printing behavior are explicit.
+- Classify nullable missing measurements consistently on supported pandas 2.2 and reject booleans in mixed categorical adapter columns.
+- Reject complex, datetime/timedelta and array-valued required measurements before numeric coercion; reject duplicate canonical scalar signals.
+- Close streaming chunk iterators after success or failure, including retained tracebacks, while preserving caller-owned input handles.
+- Remove partial HTML/JSON temporary files after failed or interrupted writes without replacing an existing destination.
+- Correct Linux benchmark RSS accounting and retain explicit limits on MF4 memory and report/PDF workload measurements.
 
-- Extend the offline report pager to data-quality events, preserving complete source-row/signal evidence and using independent code/signal/row filters. Source data row numbers remain one-based; charts, canonical JSON and overall status are unchanged.
+### Evidence reports
 
-- Bound the optional MF4 dependency to `canmatrix>=1.2,<1.3`: canmatrix 1.3.0 makes the asammdf 8.8.27 `CanMatrix` import a module and fails before analysis. Preserve the working 1.2 API until upstream compatibility is verified.
+- Retain complete violation and data-quality event evidence in offline HTML while displaying 100 events per page, with independent filters, page navigation, sticky headers and usable keyboard focus at page boundaries.
+- Allow native inspection of measurement plots without violation overlays on screen. Status and event evidence remain unchanged; printing retains overlays.
+- Write HTML sections without allocating an additional whole-report copy, preserving rendered bytes.
+- Keep chart captions and axes together in A4 print output. Printing includes the current table page; large PDF exports can remain expensive.
 
-### Analysis architecture
+### Packaging and compatibility
 
-- Share rule evaluation, signal/input validation, measurement preparation, result assembly, and measurement summaries between whole-frame and streaming analysis.
-- Isolate streaming event accumulation and enforce package-wide mypy in Linux CI.
-- Add fixed serialized semantic anchors and byte-identical JSON assertions to the major whole-frame/streaming property suites so common implementation drift is not hidden by differential equality alone.
+- Check minimum runtime dependencies on Python 3.11 and package-wide typing on Linux and Windows.
+- Bound the optional MF4 dependency to `canmatrix>=1.2,<1.3` to preserve the working asammdf 8.8.27 API.
+- Validate installed CLI/service, preparation/inspection/batch workflows and real MF4 paths for both wheel and sdist artifacts outside the checkout.
 
-### Reliability and report evidence
-
-- Report global source-row positions for derived arithmetic overflow in later streaming chunks.
-- Fail closed when an event duration overflows while merging otherwise finite events across chunks.
-- Preflight canonical JSON before writing HTML reports, avoiding report publication when result serialization fails.
-- Preserve temperature-spread extrema through report-series downsampling and validate retained spread evidence in the renderer.
-- Canonicalize zero-valued public aggregate metrics to positive zero so whole-frame and streaming JSON bytes agree.
+Unit declarations remain the caller's responsibility. Normalization uses binary64 arithmetic and does not infer units, topology or calibration. Multi-group MDF extraction has no interpolation, and no fixed end-to-end process-memory bound is promised. The desktop GUI remains outside this release.
 
 ## 0.9.2 - 2026-09-29
 

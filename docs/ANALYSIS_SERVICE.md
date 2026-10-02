@@ -1,4 +1,4 @@
-# Shared analysis service (early 0.10 development)
+# Shared analysis service
 
 `AnalysisService` accepts one effective `ValidationConfig`. CLI callers resolve
 YAML and overrides before constructing it; application callers can use the
@@ -53,8 +53,7 @@ No migration is required. New callers can avoid manually unpacking a config
 into separate analysis options by using this service. Frozen config-v6 and
 result-v8, comparison, polarity, grouping and status semantics are unchanged.
 
-This is the service foundation, not completion of 0.10 or a desktop launcher.
-Opt-in [result-consumer checks](RESULT_VALIDATION.md) and resource
-characterization now have development implementations. Their acceptance,
-representative large-log limits and integration review remain open before
-release. Validate an exact integration candidate before publication.
+The service is available in 0.10 alongside opt-in
+[result-consumer checks](RESULT_VALIDATION.md). It does not provide a desktop GUI.
+[MDF resource measurements](MF4_BENCHMARK.md) do not establish a fixed process-memory
+bound; representative vendor files may require additional memory and disk space.

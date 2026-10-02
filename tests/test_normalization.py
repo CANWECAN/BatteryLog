@@ -278,6 +278,76 @@ def test_cli_mapping_config_evidence_and_separate_normalization_result(tmp_path,
     assert json.loads(capsys.readouterr().out)["validation_status"] == "FAIL"
 
 
+def test_vendor_preparation_inspection_and_recursive_batch_keep_distinct_outcomes(tmp_path, capsys):
+    source = _source(tmp_path, "clock,U_01,T_01\n1000,3500,298.15\n2000,4500,328.15\n")
+    original = source.read_bytes()
+    config = tmp_path / "mapping.yaml"
+    config.write_text(
+        "schema_version: 6\nsignals:\n  timestamp: clock\n  cell_voltage:\n"
+        "    pattern: 'U_(?P<index>\\d+)'\n  temperature:\n    pattern: 'T_(?P<index>\\d+)'\n"
+        "limits:\n  cell_voltage:\n    max_v: 4.2\n",
+        encoding="utf-8",
+    )
+    prepared = tmp_path / "prepared/session"
+    assert run([str(source), "--inspect", "--config", str(config)]) == 0
+    assert json.loads(capsys.readouterr().out)["analysis_performed"] is False
+    assert (
+        run(
+            [
+                str(source),
+                "--normalize",
+                "--config",
+                str(config),
+                "--time-unit",
+                "ms",
+                "--cell-voltage-unit",
+                "mV",
+                "--temperature-unit",
+                "K",
+                "--output-dir",
+                str(prepared),
+            ]
+        )
+        == 0
+    )
+    conversion = json.loads(capsys.readouterr().out)
+    assert conversion["source"]["sha256"] == hashlib.sha256(original).hexdigest()
+    assert source.read_bytes() == original
+    normalized = prepared / "normalized.csv"
+    assert run([str(normalized), "--inspect"]) == 0
+    inspection = json.loads(capsys.readouterr().out)
+    assert inspection["metadata_status"] == "OK"
+    assert inspection["analysis_performed"] is False
+    out = tmp_path / "results"
+    assert (
+        run(
+            [
+                str(prepared.parent),
+                "--batch",
+                "--recursive",
+                "--cell-max-v",
+                "4.2",
+                "--output-dir",
+                str(out),
+            ]
+        )
+        == 1
+    )
+    item = json.loads(capsys.readouterr().out)["files"][0]
+    assert item["source"] == "session/normalized.csv"
+    assert item["status"] == "FAIL"
+    assert item["source_sha256"] == conversion["normalized_sha256"]
+    result = json.loads((out / item["result_json"]).read_text())
+    assert result["rows_input"] == result["rows_analyzed"] == 2
+    assert result["max_cell_voltage_v"] == 4.5
+    assert result["max_temperature_c"] == 55.0
+    assert len(result["violations"]) == 1
+    event = result["violations"][0]
+    assert event["code"] == "CELL_OVERVOLTAGE"
+    assert event["start_time_s"] == event["end_time_s"] == event["peak_time_s"] == 2.0
+    assert item["source_sha256"] in (out / item["report_html"]).read_text()
+
+
 @pytest.mark.parametrize(
     "options",
     [

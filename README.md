@@ -2,11 +2,7 @@
 
 BatteryLog is an open-source engineering toolkit for reproducible EV battery/BMS log validation from the command line or Python.
 
-**Current release:** `v0.9.2`
-
-**Development checkout:** `0.10.0.dev0`; see [`CHANGELOG.md`](CHANGELOG.md) for changes after the current release.
-
-Development is ongoing; use the latest tagged release for published behavior.
+**Current release:** `v0.10.0`; see [`CHANGELOG.md`](CHANGELOG.md) for changes.
 
 **Status:** **Pre-1.0 engineering beta.** The validation core is stable and extensively tested; APIs and supported workflows may still evolve before 1.0.
 
@@ -17,6 +13,8 @@ Development is ongoing; use the latest tagged release for published behavior.
 - Streams large CSV logs with bounded source-row chunks
 - Optionally ingests ASAM MDF/MF4 measurement files
 - Maps vendor signal names into a canonical battery model
+- Inspects channel metadata and converts explicitly declared source units to canonical CSV
+- Analyzes directories with per-file evidence and a CSV summary
 - Applies explicit voltage, temperature, current, imbalance, spread, and pack-voltage plausibility rules
 - Fails closed on invalid required measurement data
 - Groups failing samples into structured violation events with peak evidence
@@ -59,7 +57,7 @@ Run validation from YAML and generate JSON + HTML evidence:
 
 Completed analyses also emit canonical JSON to stdout.
 
-Development builds also support directory analysis with per-file JSON/HTML and one CSV summary:
+Analyze a directory with per-file JSON/HTML and one CSV summary:
 
 ```sh
 batterylog measurements --batch --config validation.yaml --output-dir results/run-001
@@ -76,7 +74,7 @@ batterylog capture.mf4 --inspect --config validation.yaml
 See [input inspection](docs/INPUT_INSPECTION.md) for metadata scope and exit codes.
 An `OK` inventory checks channel metadata only; engineering analysis still needs to run.
 
-Development builds can also prepare a new canonical CSV from explicitly declared source units:
+Prepare a new canonical CSV from explicitly declared source units:
 
 ```sh
 batterylog source.csv --normalize --time-unit ms --cell-voltage-unit mV \

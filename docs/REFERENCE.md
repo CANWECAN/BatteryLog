@@ -391,7 +391,7 @@ This allows CI/HIL pipelines to distinguish a true PASS, validation failure, une
 
 ## Python API
 
-Early 0.10 development adds a [shared analysis service](ANALYSIS_SERVICE.md)
+BatteryLog 0.10 adds a [shared analysis service](ANALYSIS_SERVICE.md)
 that accepts one effective `ValidationConfig`, and documents the
 [measurement adapter contract](MEASUREMENT_CONTRACT.md). Existing APIs below
 remain supported.

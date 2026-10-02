@@ -1,4 +1,4 @@
-# Explicit unit normalization (0.10 development)
+# Explicit unit normalization
 
 Prepare one CSV/MDF/MF4 measurement in standard units, then analyze the result:
 

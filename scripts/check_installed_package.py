@@ -150,7 +150,9 @@ with TemporaryDirectory() as directory:
 
     inputs = Path(directory) / "batch-inputs"
     inputs.mkdir()
-    (inputs / "same.csv").write_bytes(Path(sample).read_bytes())
+    prepared_csv = Path(directory) / "prepared/normalized.csv"
+    assert inspect_measurement(prepared_csv)["metadata_status"] == "OK"
+    (inputs / "summary.csv").write_bytes(prepared_csv.read_bytes())
     batch_out = Path(directory) / "batch-results"
     batch_run = subprocess.run(
         [
@@ -169,6 +171,7 @@ with TemporaryDirectory() as directory:
     batch_summary = json.loads(batch_run.stdout)
     assert batch_summary["batch_schema_version"] == 1
     assert batch_summary["files"][0]["status"] == "PASS"
+    assert batch_summary["files"][0]["result_json"] == "files/summary.csv/result.json"
     batch_result = json.loads((batch_out / batch_summary["files"][0]["result_json"]).read_text())
     jsonschema.validate(batch_result, schema)
     validate_result_semantics(batch_result)
@@ -177,5 +180,5 @@ with TemporaryDirectory() as directory:
     assert (batch_out / "summary.csv").is_file()
 
 print(
-    f"Installed BatteryLog {expected_version}: service, CLI, batch, inspection, schema, rules, HTML plots verified"
+    f"Installed BatteryLog {expected_version}: normalization/inspection/batch flow, service, CLI, schema, rules and HTML plots verified"
 )

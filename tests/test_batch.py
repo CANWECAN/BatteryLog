@@ -64,7 +64,7 @@ def test_batch_preserves_per_file_results_and_reports_complete_evidence(tmp_path
     error = summary["files"][2]
     assert "cell_1_v" in error["error"]
     assert error["result_json"] is error["report_html"] is error["rows_analyzed"] is None
-    assert not (out / bad.name).exists()
+    assert not (out / "files" / bad.name).exists()
     csv_rows = _csv(out)
     assert [row["status"] for row in csv_rows] == ["PASS", "FAIL", "ERROR"]
     assert csv_rows[2]["rows_input"] == ""
@@ -82,8 +82,29 @@ def test_discovery_is_sorted_and_preserves_duplicate_basenames(tmp_path, recursi
     summary = analyze_directory(source, out, service=_service(cell_max_v=4.2), recursive=recursive)
     names = ["nested/same.csv", "same.csv"] if recursive else ["same.csv"]
     assert [item["source"] for item in summary["files"]] == names
-    assert (out / "nested/same.csv/report.html").exists() is recursive
-    assert (out / "same.csv/report.html").is_file()
+    assert (out / "files/nested/same.csv/report.html").exists() is recursive
+    assert (out / "files/same.csv/report.html").is_file()
+
+
+@pytest.mark.parametrize("name", ["summary.csv", "summary.csv/run.csv", "files/summary.csv"])
+def test_source_names_cannot_collide_with_batch_outputs(tmp_path, name):
+    source = tmp_path / "logs"
+    measurement = _source(source, name)
+    before = measurement.read_bytes()
+    out = tmp_path / "results"
+    summary = analyze_directory(source, out, service=_service(cell_max_v=4.2), recursive=True)
+    item = summary["files"][0]
+    assert item["source"] == name
+    assert item["status"] == "PASS"
+    assert item["result_json"] == f"files/{name}/result.json"
+    assert item["report_html"] == f"files/{name}/report.html"
+    result = json.loads((out / item["result_json"]).read_text())
+    assert result["rows_input"] == 1
+    assert result["max_cell_voltage_v"] == 3.5
+    assert (out / item["report_html"]).is_file()
+    assert _csv(out)[0]["source"] == name
+    assert _csv(out)[0]["status"] == "PASS"
+    assert measurement.read_bytes() == before
 
 
 def test_missing_optional_backend_does_not_stop_csv_analysis(tmp_path, monkeypatch):
@@ -161,9 +182,9 @@ def test_failed_report_pair_is_not_published_and_later_files_continue(
     monkeypatch.setattr(batch_module, writer_name, fail_first)
     summary = analyze_directory(source, out, service=_service(cell_max_v=4.2))
     assert [item["status"] for item in summary["files"]] == ["ERROR", "PASS"]
-    assert not (out / "a.csv").exists()
-    assert (out / "b.csv/result.json").is_file()
-    assert (out / "b.csv/report.html").is_file()
+    assert not (out / "files/a.csv").exists()
+    assert (out / "files/b.csv/result.json").is_file()
+    assert (out / "files/b.csv/report.html").is_file()
     assert not list(out.rglob(".batterylog-*"))
 
 
@@ -187,7 +208,7 @@ def test_source_change_prevents_publishing_report_pair(tmp_path, monkeypatch):
     summary = analyze_directory(source, out, service=_service(cell_max_v=4.2))
     assert [item["status"] for item in summary["files"]] == ["ERROR", "PASS"]
     assert "changed during analysis" in summary["files"][0]["error"]
-    assert not (out / "a.csv").exists()
+    assert not (out / "files/a.csv").exists()
 
 
 def test_interrupt_keeps_completed_reports_and_explicit_pending_rows(tmp_path, monkeypatch):
@@ -209,10 +230,10 @@ def test_interrupt_keeps_completed_reports_and_explicit_pending_rows(tmp_path, m
     with pytest.raises(KeyboardInterrupt):
         analyze_directory(source, out, service=_service(cell_max_v=4.2))
     assert [row["status"] for row in _csv(out)] == ["PASS", "NOT_PROCESSED", "NOT_PROCESSED"]
-    assert (out / "a.csv/result.json").is_file()
-    assert (out / "a.csv/report.html").is_file()
-    assert not (out / "b.csv").exists()
-    assert not (out / "c.csv").exists()
+    assert (out / "files/a.csv/result.json").is_file()
+    assert (out / "files/a.csv/report.html").is_file()
+    assert not (out / "files/b.csv").exists()
+    assert not (out / "files/c.csv").exists()
     assert not list(out.rglob(".batterylog-*"))
 
 
@@ -352,7 +373,7 @@ def test_summary_write_failure_preserves_reports_and_removes_partial_csv(tmp_pat
     out = tmp_path / "results"
     with pytest.raises(OSError, match="summary failure"):
         analyze_directory(source, out, service=_service(cell_max_v=4.2))
-    assert (out / "a.csv/result.json").is_file()
-    assert (out / "a.csv/report.html").is_file()
+    assert (out / "files/a.csv/result.json").is_file()
+    assert (out / "files/a.csv/report.html").is_file()
     assert not (out / "summary.csv").exists()
     assert not list(out.glob(".summary.*"))

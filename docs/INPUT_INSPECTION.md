@@ -1,4 +1,4 @@
-# Input inspection (0.10 development)
+# Input inspection
 
 Inspect one measurement before configuring or running its analysis:
 
