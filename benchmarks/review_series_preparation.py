@@ -126,11 +126,7 @@ def main() -> None:
         "scope": "retained CORA cycle-229 branches and aligned 100k-event MF4; not full campaign",
         "cases": metadata,
     }
-    target = (
-        ROOT / "docs" / "benchmarks" / "0.10-series-preparation.json"
-        if args.stage == "after"
-        else OUT / "before.json"
-    )
+    target = OUT / "0.10-series-preparation.json" if args.stage == "after" else OUT / "before.json"
     target.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(record), flush=True)
 
