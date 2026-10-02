@@ -1,4 +1,6 @@
 from .analysis.core import analyze_battery_log
+from .analysis.service import AnalysisOutput, AnalysisService
+from .batch import BatchFileSummary, BatchSummary, analyze_directory
 from .config import (
     DataQualityConfig,
     EventDetectionConfig,
@@ -8,6 +10,12 @@ from .config import (
     ValidationLimits,
     load_validation_config,
     load_validation_limits,
+)
+from .inspection import (
+    InspectionBinding,
+    InspectionChannel,
+    InspectionResult,
+    inspect_measurement,
 )
 from .models import (
     RESULT_SCHEMA_VERSION,
@@ -28,12 +36,19 @@ from .models import (
     ValidationStatus,
     ViolationEvent,
 )
+from .normalization import NormalizationResult, UnitConversion, normalize_measurement
+from .result_validation import validate_result_semantics
+from .units import SourceUnits
 
 __all__ = [
     "RESULT_SCHEMA_VERSION",
     "AnalysisOptions",
+    "AnalysisOutput",
     "AnalysisResult",
+    "AnalysisService",
     "AppliedLimits",
+    "BatchFileSummary",
+    "BatchSummary",
     "ComparisonMode",
     "ComparisonPolicyInfo",
     "CurrentDirection",
@@ -43,17 +58,27 @@ __all__ = [
     "DataQualityInfo",
     "DataQualityMode",
     "EventDetectionConfig",
+    "InspectionBinding",
+    "InspectionChannel",
+    "InspectionResult",
+    "NormalizationResult",
     "ResultSchemaVersion",
     "RuleCode",
     "SignalMapping",
     "SignalMappingInfo",
     "SignalMappingMode",
     "SignalPattern",
+    "SourceUnits",
+    "UnitConversion",
     "ValidationConfig",
     "ValidationLimits",
     "ValidationStatus",
     "ViolationEvent",
     "analyze_battery_log",
+    "analyze_directory",
+    "inspect_measurement",
     "load_validation_config",
     "load_validation_limits",
+    "normalize_measurement",
+    "validate_result_semantics",
 ]

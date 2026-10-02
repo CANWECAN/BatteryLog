@@ -10,6 +10,15 @@ from tempfile import TemporaryDirectory
 
 import jsonschema
 
+from batterylog import (
+    AnalysisService,
+    SourceUnits,
+    ValidationConfig,
+    ValidationLimits,
+    inspect_measurement,
+    normalize_measurement,
+    validate_result_semantics,
+)
 from batterylog.analysis.report_series import ReportSeriesCollector
 
 expected_version, sample = sys.argv[1:]
@@ -39,6 +48,47 @@ assert legacy_v4["properties"]["schema_version"]["const"] == 4
 assert legacy_v3["properties"]["schema_version"]["const"] == 3
 assert legacy_v2["properties"]["schema_version"]["const"] == 2
 with TemporaryDirectory() as directory:
+    normalized = normalize_measurement(
+        sample, Path(directory) / "prepared", units=SourceUnits("s", "V", "degC")
+    )
+    assert normalized["analysis_performed"] is False
+    assert (
+        AnalysisService().analyze_path(Path(directory) / "prepared/normalized.csv").result
+        == AnalysisService().analyze_path(sample).result
+    )
+    normalized_cli = subprocess.run(
+        [
+            str(Path(sys.executable).with_name("batterylog")),
+            str(Path(sample).resolve()),
+            "--normalize",
+            "--time-unit",
+            "s",
+            "--cell-voltage-unit",
+            "V",
+            "--temperature-unit",
+            "degC",
+            "--output-dir",
+            str(Path(directory) / "prepared-cli"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(normalized_cli.stdout)["rows_written"] == normalized["rows_written"]
+    inspection = inspect_measurement(sample)
+    assert inspection["metadata_status"] == "OK"
+    assert inspection["analysis_performed"] is False
+    inspected = subprocess.run(
+        [
+            str(Path(sys.executable).with_name("batterylog")),
+            str(Path(sample).resolve()),
+            "--inspect",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(inspected.stdout) == inspection
     report = Path(directory) / "report.html"
     completed = subprocess.run(
         [
@@ -55,7 +105,20 @@ with TemporaryDirectory() as directory:
     )
     result = json.loads(completed.stdout)
     jsonschema.validate(result, schema)
+    validate_result_semantics(result)
     assert result["validation_status"] == "PASS"
+    service_output = AnalysisService(
+        ValidationConfig(limits=ValidationLimits(cell_max_v=5.0))
+    ).analyze_path(sample, report_max_points=20)
+    assert service_output.result == result
+    assert service_output.report_series is not None
+    assert service_output.report_series.source_rows == result["rows_analyzed"]
+    with Path(sample).open("rb") as handle:
+        file_output = AnalysisService(
+            ValidationConfig(limits=ValidationLimits(cell_max_v=5.0))
+        ).analyze_file(handle, source_name=Path(sample).name, report_max_points=20)
+        assert not handle.closed
+        assert file_output == service_output
     html = report.read_text(encoding="utf-8")
     assert html.count('class="timeseries-chart"') == 3
     assert "Cell-voltage envelope" in html
@@ -81,7 +144,41 @@ with TemporaryDirectory() as directory:
     assert mismatch_run.returncode == 1
     mismatch_result = json.loads(mismatch_run.stdout)
     jsonschema.validate(mismatch_result, schema)
+    validate_result_semantics(mismatch_result)
     assert mismatch_result["rules_evaluated"] == ["PACK_VOLTAGE_CELL_SUM_MISMATCH"]
     assert mismatch_result["violations"][0]["signed_error_v"] == 0.25
 
-print(f"Installed BatteryLog {expected_version}: CLI, schema, rules, and HTML plots verified")
+    inputs = Path(directory) / "batch-inputs"
+    inputs.mkdir()
+    prepared_csv = Path(directory) / "prepared/normalized.csv"
+    assert inspect_measurement(prepared_csv)["metadata_status"] == "OK"
+    (inputs / "summary.csv").write_bytes(prepared_csv.read_bytes())
+    batch_out = Path(directory) / "batch-results"
+    batch_run = subprocess.run(
+        [
+            str(Path(sys.executable).with_name("batterylog")),
+            str(inputs),
+            "--batch",
+            "--cell-max-v",
+            "5",
+            "--output-dir",
+            str(batch_out),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    batch_summary = json.loads(batch_run.stdout)
+    assert batch_summary["batch_schema_version"] == 1
+    assert batch_summary["files"][0]["status"] == "PASS"
+    assert batch_summary["files"][0]["result_json"] == "files/summary.csv/result.json"
+    batch_result = json.loads((batch_out / batch_summary["files"][0]["result_json"]).read_text())
+    jsonschema.validate(batch_result, schema)
+    validate_result_semantics(batch_result)
+    assert batch_result == result
+    assert (batch_out / batch_summary["files"][0]["report_html"]).is_file()
+    assert (batch_out / "summary.csv").is_file()
+
+print(
+    f"Installed BatteryLog {expected_version}: normalization/inspection/batch flow, service, CLI, schema, rules and HTML plots verified"
+)

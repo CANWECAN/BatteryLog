@@ -15,11 +15,14 @@ from batterylog.models import (
 )
 
 from .core import analyze_battery_log
+from .service import AnalysisOutput, AnalysisService
 
 __all__ = [
     "RESULT_SCHEMA_VERSION",
     "AnalysisOptions",
+    "AnalysisOutput",
     "AnalysisResult",
+    "AnalysisService",
     "AppliedLimits",
     "ComparisonMode",
     "ComparisonPolicyInfo",

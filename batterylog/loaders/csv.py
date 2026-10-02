@@ -56,6 +56,13 @@ def _read_header_from_bytes(data: bytes) -> list[str]:
 
 
 def _read_header_from_binary_file(handle: BinaryIO) -> list[str]:
+    header = _validate_header(_read_csv_header(handle))
+    _validate_data_row_widths(handle)
+    return header
+
+
+def _read_csv_header(handle: BinaryIO) -> list[str]:
+    """Read only the first CSV record; leave validation to the caller."""
     handle.seek(0)
     text = io.TextIOWrapper(handle, encoding="utf-8-sig", newline="")
     try:
@@ -64,12 +71,10 @@ def _read_header_from_binary_file(handle: BinaryIO) -> list[str]:
             header = next(reader)
         except StopIteration as exc:
             raise ValueError("Battery log is empty") from exc
-        header = _validate_header(header)
     finally:
         text.detach()
         handle.seek(0)
 
-    _validate_data_row_widths(handle)
     return header
 
 

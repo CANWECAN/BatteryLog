@@ -1,4 +1,5 @@
 import json
+import runpy
 import subprocess
 import sys
 from pathlib import Path
@@ -11,17 +12,48 @@ asammdf = pytest.importorskip("asammdf", exc_type=ImportError)
 from asammdf import MDF, Signal
 
 from batterylog import (
+    AnalysisService,
     DataQualityConfig,
     SignalMapping,
     SignalPattern,
+    SourceUnits,
+    ValidationConfig,
     ValidationLimits,
     analyze_battery_log,
+    analyze_directory,
+    inspect_measurement,
+    normalize_measurement,
 )
 from batterylog.__main__ import run
 from batterylog.analysis.streaming import analyze_measurement_loader
 from batterylog.loaders import MdfPathLoader
+from batterylog.loaders import mf4 as mf4_module
+from batterylog.reporting import render_json_result
 
 ROOT = Path(__file__).parents[1]
+
+
+@pytest.mark.parametrize("layout", ["single-group", "multi-group"])
+@pytest.mark.parametrize("scenario", ["steady", "event-pressure"])
+def test_benchmark_sources_have_independent_event_counts(tmp_path, layout, scenario) -> None:
+    benchmark = runpy.run_path(str(ROOT / "benchmarks/benchmark_mf4_analysis.py"))
+    path = tmp_path / "benchmark.mf4"
+    benchmark["_write_synthetic_mf4"](
+        path,
+        rows=5,
+        cells=2,
+        temperatures=1,
+        layout=layout,
+        scenario=scenario,
+    )
+    result = analyze_battery_log(path, limits=LIMITS)
+    assert result["rows_analyzed"] == 5
+    assert result["rows_excluded"] == 0
+    assert result["validation_status"] == ("PASS" if scenario == "steady" else "FAIL")
+    expected = 3 if scenario == "event-pressure" else 0
+    assert sum(e["code"] == "CELL_OVERVOLTAGE" for e in result["violations"]) == expected
+    assert sum(e["code"] == "CELL_IMBALANCE_HIGH" for e in result["violations"]) == expected
+
 
 LIMITS = ValidationLimits(
     cell_min_v=2.8,
@@ -50,6 +82,247 @@ def _save_mdf(path: Path, groups: list[list[Signal]]) -> None:
         mdf.save(path, overwrite=True)
     finally:
         mdf.close()
+
+
+@pytest.mark.parametrize("layout", ["single-group", "multi-group"])
+@pytest.mark.parametrize("mapped", [False, True])
+def test_real_mf4_normalization_matches_independent_csv(tmp_path, monkeypatch, layout, mapped):
+    from batterylog import normalization as normalization_module
+
+    monkeypatch.setattr(normalization_module, "DEFAULT_MDF_CHUNK_RAM_BYTES", 48)
+    source = tmp_path / "source.mf4"
+    timestamps = np.array([10.0, 11.0])
+    names = (
+        ("U_01", "T_01", "I_Pack", "U_Pack")
+        if mapped
+        else ("cell_1_v", "temp_1_c", "pack_current_a", "pack_voltage_v")
+    )
+    voltage = Signal(np.array([3500.0, 4000.0]), timestamps, name=names[0], unit="mV")
+    temperature = Signal(np.array([298.15, 300.15]), timestamps, name=names[1], unit="K")
+    current = Signal(np.array([-1000.0, 2000.0]), timestamps, name=names[2], unit="mA")
+    pack = Signal(np.array([3500.0, 4000.0]), timestamps, name=names[3], unit="mV")
+    _save_mdf(
+        source,
+        [[voltage, temperature, current, pack]]
+        if layout == "single-group"
+        else [[voltage, current, pack], [temperature]],
+    )
+    config = (
+        ValidationConfig(
+            signals=SignalMapping(
+                timestamp="virtual_clock",
+                cell_voltage=SignalPattern(r"U_(?P<index>\d+)"),
+                temperature=SignalPattern(r"T_(?P<index>\d+)"),
+                pack_current="I_Pack",
+                pack_voltage="U_Pack",
+            )
+        )
+        if mapped
+        else ValidationConfig()
+    )
+    original = source.read_bytes()
+    result = normalize_measurement(
+        source, tmp_path / "out", units=SourceUnits("s", "mV", "K", "mA", "mV"), config=config
+    )
+    reference = tmp_path / "reference.csv"
+    reference.write_text(
+        "timestamp_s,cell_1_v,temp_1_c,pack_current_a,pack_voltage_v\n10,3.5,25,-1,3.5\n11,4,27,2,4\n",
+        encoding="utf-8",
+    )
+    service = AnalysisService(ValidationConfig(limits=ValidationLimits(cell_max_v=3.8)))
+    assert (
+        service.analyze_path(tmp_path / "out/normalized.csv").result
+        == service.analyze_path(reference).result
+    )
+    assert result["rows_written"] == 2
+    assert source.read_bytes() == original
+    with pytest.raises(ValueError, match="unit"):
+        AnalysisService(config).analyze_path(source)
+
+
+@pytest.mark.parametrize(
+    "defect", ["wrong-unit", "missing-unit", "upper-prefix", "nan", "boolean", "time-unit"]
+)
+def test_real_mf4_normalization_rejects_bad_metadata_or_values(tmp_path, defect):
+    source = tmp_path / "bad.mf4"
+    timestamps = np.array([0.0, 1.0])
+    unit = {"wrong-unit": "V", "missing-unit": "", "upper-prefix": "MV"}.get(defect, "mV")
+    values = (
+        np.array([3500.0, np.nan])
+        if defect == "nan"
+        else np.array([True, False])
+        if defect == "boolean"
+        else np.array([3500.0, 3500.0])
+    )
+    _save_mdf(
+        source,
+        [
+            [
+                Signal(values, timestamps, name="cell_1_v", unit=unit),
+                Signal(np.array([298.15, 298.15]), timestamps, name="temp_c", unit="K"),
+            ]
+        ],
+    )
+    units = SourceUnits("ms" if defect == "time-unit" else "s", "mV", "K")
+    with pytest.raises(ValueError):
+        normalize_measurement(source, tmp_path / "out", units=units)
+    assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize("layout", ["single-group", "multi-group"])
+@pytest.mark.parametrize("voltage_unit", ["V", "mV"])
+def test_real_mf4_inspection_checks_metadata_without_decoding(
+    tmp_path, monkeypatch, capsys, layout, voltage_unit
+):
+    source = tmp_path / "inspect.mf4"
+    timestamps = np.array([0.0, 1.0])
+    voltage = Signal(np.array([3.5, np.nan]), timestamps, name="cell_1_v", unit=voltage_unit)
+    temperature = Signal(np.array([25.0, 25.0]), timestamps, name="temp_c", unit="degC")
+    _save_mdf(
+        source, [[voltage, temperature]] if layout == "single-group" else [[voltage], [temperature]]
+    )
+    original = source.read_bytes()
+    backend, exception = mf4_module._load_asammdf()
+    exits = []
+
+    class MetadataOnlyMDF(backend):
+        def select(self, *args, **kwargs):
+            raise AssertionError("inspection must not decode samples")
+
+        get_master = select
+        iter_to_dataframe = select
+
+        def __exit__(self, *args):
+            super().__exit__(*args)
+            exits.append(self)
+
+    monkeypatch.setattr(mf4_module, "_load_asammdf", lambda: (MetadataOnlyMDF, exception))
+    result = inspect_measurement(source)
+    expected = "OK" if voltage_unit == "V" else "ISSUES"
+    assert result["metadata_status"] == expected
+    assert result["analysis_performed"] is False
+    assert {item["name"] for item in result["channels"]} >= {"time", "cell_1_v", "temp_c"}
+    cell = next(item for item in result["channels"] if item["name"] == "cell_1_v")
+    assert cell["unit"] == voltage_unit
+    assert run([str(source), "--inspect"]) == (0 if voltage_unit == "V" else 4)
+    assert json.loads(capsys.readouterr().out) == result
+    assert len(exits) == 2
+    assert source.read_bytes() == original
+    monkeypatch.setattr(mf4_module, "_load_asammdf", lambda: (backend, exception))
+    with pytest.raises(ValueError, match="missing|unit"):
+        AnalysisService().analyze_path(source)
+
+
+@pytest.mark.parametrize("entrypoint", ["path", "file"])
+@pytest.mark.parametrize("report_max_points", [None, 20])
+def test_real_mf4_context_exits_after_analysis_failure(
+    tmp_path, monkeypatch, entrypoint, report_max_points
+):
+    source = tmp_path / "invalid.mf4"
+    timestamps = np.array([0.0, 1.0])
+    _save_mdf(
+        source,
+        [
+            [
+                Signal(np.array([3.5, np.nan]), timestamps, name="cell_1_v", unit="V"),
+                Signal(np.array([25.0, 25.0]), timestamps, name="temp_c", unit="degC"),
+            ]
+        ],
+    )
+    backend, exception = mf4_module._load_asammdf()
+    exits = []
+
+    class TrackedMDF(backend):
+        def __exit__(self, exc_type, exc, tb):
+            super().__exit__(exc_type, exc, tb)
+            exits.append(self)
+
+    monkeypatch.setattr(mf4_module, "_load_asammdf", lambda: (TrackedMDF, exception))
+    with source.open("rb") as handle:
+        with pytest.raises(ValueError, match="cell_1_v") as error:
+            if entrypoint == "path":
+                AnalysisService().analyze_path(source, report_max_points=report_max_points)
+            else:
+                AnalysisService().analyze_file(
+                    handle, source_name=source.name, report_max_points=report_max_points
+                )
+        assert error.value.__traceback__ is not None
+        assert len(exits) == 1
+        assert not handle.closed
+
+
+@pytest.mark.parametrize("chunk_ram_bytes", [64, 1024 * 1024])
+def test_real_mf4_matches_independent_all_rule_boundary_golden(
+    tmp_path: Path, chunk_ram_bytes: int
+) -> None:
+    timestamps = np.array([0.0, 1.0])
+    channels = [
+        ("pack_current_a", "A", [10.0, -15.0]),
+        ("pack_voltage_v", "V", [7.0, 8.75]),
+        ("cell_1_v", "V", [3.0, 4.25]),
+        ("cell_2_v", "V", [4.0, 4.25]),
+        ("temp_1_c", "degC", [-20.0, 50.0]),
+        ("temp_2_c", "degC", [-10.0, 50.0]),
+    ]
+    source = tmp_path / "boundary-golden.mf4"
+    _save_mdf(
+        source,
+        [
+            [
+                Signal(np.array(values), timestamps, name=name, unit=unit)
+                for name, unit, values in channels
+            ]
+        ],
+    )
+    limits = ValidationLimits(
+        cell_min_v=3.0,
+        cell_max_v=4.25,
+        imbalance_max_v=1.0,
+        temperature_min_c=-20.0,
+        temperature_max_c=50.0,
+        temperature_spread_max_c=10.0,
+        pack_charge_max_a=10.0,
+        pack_discharge_max_a=15.0,
+        pack_current_positive_direction="charge",
+        pack_voltage_cell_sum_max_delta_v=0.25,
+    )
+    expected = (ROOT / "tests/golden/semantic_all_rules_pass.json").read_text(encoding="utf-8")
+    result = analyze_measurement_loader(
+        MdfPathLoader(source, chunk_ram_bytes=chunk_ram_bytes), limits=limits
+    )
+
+    # The oracle is fixed JSON, not equivalent CSV analyzed by the same kernel.
+    assert render_json_result(result) == expected
+
+
+def test_real_mf4_batch_matches_single_file_results_and_csv(tmp_path):
+    from batterylog import AnalysisService, ValidationConfig
+
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    source = inputs / "measurement.mf4"
+    timestamps = np.array([0.0, 1.0])
+    _save_mdf(
+        source,
+        [
+            [
+                Signal(np.array([3.5, 4.5]), timestamps, name="cell_1_v", unit="V"),
+                Signal(np.array([25.0, 25.0]), timestamps, name="temp_c", unit="degC"),
+            ]
+        ],
+    )
+    (inputs / "measurement.csv").write_text(
+        "timestamp_s,cell_1_v,temp_c\n0,3.5,25\n1,4.5,25\n", encoding="utf-8"
+    )
+    out = tmp_path / "results"
+    service = AnalysisService(ValidationConfig(limits=ValidationLimits(cell_max_v=4.2)))
+    summary = analyze_directory(inputs, out, service=service)
+
+    assert [item["status"] for item in summary["files"]] == ["FAIL", "FAIL"]
+    results = [json.loads((out / item["result_json"]).read_text()) for item in summary["files"]]
+    assert results[0] == results[1] == service.analyze_path(source).result
+    assert results[0]["violations"][0]["sample_count"] == 1
+    assert all((out / item["report_html"]).is_file() for item in summary["files"])
 
 
 def _canonical_signals(frame: pd.DataFrame) -> list[Signal]:
@@ -96,6 +369,58 @@ def _canonical_signals(frame: pd.DataFrame) -> list[Signal]:
         ]
     )
     return signals
+
+
+@pytest.mark.parametrize("entrypoint", ["path", "file", "loader"])
+@pytest.mark.parametrize("report_max_points", [None, 14])
+def test_real_mf4_service_matches_fixed_golden(tmp_path, entrypoint, report_max_points) -> None:
+    path = tmp_path / "generated.mf4"
+    timestamps = np.array([0.0, 1.0])
+    _save_mdf(
+        path,
+        [
+            [
+                Signal(np.array([3.8, 4.3]), timestamps, name="cell_1_v", unit="V"),
+                Signal(np.array([3.7, 3.9]), timestamps, name="cell_2_v", unit="V"),
+                Signal(np.array([25.0, 56.0]), timestamps, name="temp_1_c", unit="degC"),
+                Signal(np.array([24.0, 50.0]), timestamps, name="temp_2_c", unit="degC"),
+            ]
+        ],
+    )
+    # The writer normalizes its output suffix; rename an existing fixture to
+    # exercise case-insensitive source dispatch without guessing the save name.
+    path = path.rename(tmp_path / "service.MF4")
+    service = AnalysisService(
+        ValidationConfig(
+            limits=ValidationLimits(
+                imbalance_max_v=0.08,
+                cell_max_v=4.2,
+                temperature_max_c=55.0,
+            )
+        )
+    )
+    if entrypoint == "path":
+        output = service.analyze_path(path, report_max_points=report_max_points)
+    elif entrypoint == "file":
+        with path.open("rb") as handle:
+            handle.seek(7)
+            output = service.analyze_file(
+                handle, source_name=path.name, report_max_points=report_max_points
+            )
+            assert not handle.closed
+    else:
+        output = service.analyze_loader(
+            MdfPathLoader(path, chunk_ram_bytes=64), report_max_points=report_max_points
+        )
+
+    expected = (ROOT / "tests/golden/semantic_multi_rule_fail.json").read_text("utf-8")
+    assert render_json_result(output.result) == expected
+    if report_max_points is None:
+        assert output.report_series is None
+    else:
+        assert output.report_series is not None
+        assert output.report_series.source_rows == 2
+        assert len(output.report_series.points) == 2
 
 
 def test_real_mf4_matches_equivalent_csv(tmp_path: Path) -> None:
@@ -438,12 +763,20 @@ def test_real_mf4_cli_report_uses_file_backed_snapshot(tmp_path: Path, capsys) -
     assert "Cell-voltage envelope" in html
 
 
-def test_mf4_benchmark_smoke_exercises_analysis_and_report_paths(tmp_path: Path) -> None:
+@pytest.mark.parametrize("layout", ["single-group", "multi-group"])
+@pytest.mark.parametrize("scenario", ["steady", "event-pressure"])
+def test_mf4_benchmark_smoke_exercises_analysis_and_report_paths(
+    tmp_path: Path, layout: str, scenario: str
+) -> None:
     json_path = tmp_path / "benchmark.json"
     completed = subprocess.run(
         [
             sys.executable,
             str(ROOT / "benchmarks" / "benchmark_mf4_analysis.py"),
+            "--layout",
+            layout,
+            "--scenario",
+            scenario,
             "--rows",
             "40",
             "80",
@@ -482,7 +815,14 @@ def test_mf4_benchmark_smoke_exercises_analysis_and_report_paths(tmp_path: Path)
         (80, "report"),
     }
     for case in cases:
-        assert case["status"] == "PASS"
+        assert case["status"] == ("FAIL" if scenario == "event-pressure" else "PASS")
+        assert case["layout"] == layout
+        assert case["scenario"] == scenario
+        assert case["events_by_rule"] == (
+            {"CELL_OVERVOLTAGE": case["rows"] // 2, "CELL_IMBALANCE_HIGH": case["rows"] // 2}
+            if scenario == "event-pressure"
+            else {}
+        )
         assert case["cells"] == 4
         assert case["temperature_sensors"] == 2
         assert case["elapsed_s"] > 0.0

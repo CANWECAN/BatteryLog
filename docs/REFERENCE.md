@@ -207,6 +207,11 @@ The result also contains `rules_evaluated`, so downstream reports can show exact
 
 ## Result schema
 
+For independent result producers, apply structural validation first, then the
+opt-in [`validate_result_semantics()` checks](RESULT_VALIDATION.md). The helper
+checks rule/policy coherence and row/data-quality accounting; it does not
+recompute measurement evidence or validate every event arithmetic relationship.
+
 Machine-readable analysis results include their own `schema_version`. The current **result schema is 8**.
 
 The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v8.json`](../batterylog/schema/result-v8.json) and is included in the Python distribution package. The frozen v7, v6, v5, v4, v3, and v2 artifacts remain packaged for earlier consumers.
@@ -364,6 +369,8 @@ JSON remains the canonical stdout output for completed analyses, including when 
 
 The HTML report contains the validation status, dataset summary, measured extrema, deterministic inline SVG time-series plots, effective limits, evaluated rules, signal-mapping provenance, violation events, BatteryLog version, result-schema version, UTC generation timestamp, and SHA-256 provenance for the input log and optional YAML config. The plots cover the cell-voltage min/max envelope, cell-voltage delta, temperature min/max envelope, an optional temperature-spread chart when that rule is configured, an optional pack-current chart when pack current is present, and pack-voltage/cell-sum and absolute-mismatch charts when pack voltage is present. Configured limit lines come from the effective `limits_applied` result, while shaded violation intervals and worst-case markers come from the existing structured violation events.
 
+Reports with more than 100 violation events use a self-contained event browser: all event records remain embedded in the file while the table displays 100 at a time. Filter by rule, exact signal or an overlapping time interval, then navigate the matching pages. Time filtering uses original event timestamps; existing displayed numeric precision is unchanged. Filters affect the event table only; charts and the overall validation status retain the complete analysis. JavaScript is required for paging/filtering; with it disabled, the first 100 events and an explicit notice remain visible. Printing includes the displayed page only. Canonical JSON output remains the complete machine-readable result. The data-quality table uses the same independent browser when it has more than 100 events, with exact code/signal and overlapping source-row filters. Source data row numbers are one-based (the CSV header is excluded). Both tables retain their complete embedded records and their own filter/page state. When keyboard paging disables the focused boundary button, focus moves to the labelled table region; Shift+Tab returns to an enabled page control. This limits table DOM size, not total report or browser memory; SVG evidence still grows with event count. Reports with plot data and engineering events offer a checked-by-default Show violation overlays checkbox. Clearing it hides only event markers/windows on screen, with an explicit notice; measurements, limits, status and event tables are unchanged. This chart control works without JavaScript. Printing restores all overlays regardless of checkbox state. The control does not reduce serialized evidence or event-scaled DOM/memory growth.
+
 Report and JSON output paths are not allowed to overwrite the input log or validation config, and the JSON and HTML output paths must be distinct.
 
 ## Process exit codes
@@ -383,6 +390,11 @@ Compared with the 0.6.x line, runtime/data/config/report errors move from exit c
 This allows CI/HIL pipelines to distinguish a true PASS, validation failure, unevaluated dataset, malformed command line, and runtime/input failure without parsing the JSON payload.
 
 ## Python API
+
+BatteryLog 0.10 adds a [shared analysis service](ANALYSIS_SERVICE.md)
+that accepts one effective `ValidationConfig`, and documents the
+[measurement adapter contract](MEASUREMENT_CONTRACT.md). Existing APIs below
+remain supported.
 
 ```python
 from batterylog import EventDetectionConfig, ValidationLimits, analyze_battery_log
@@ -415,6 +427,7 @@ result = analyze_battery_log(
     "test.csv",
     limits=config.limits,
     event_detection=config.event_detection,
+    data_quality=config.data_quality,
     signal_mapping=config.signals,
 )
 ```

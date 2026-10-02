@@ -29,10 +29,11 @@ from .evaluation import active_rule_codes, evaluate_rules
 from .input_validation import (
     SignalLayout,
     canonicalize_analysis_frame,
+    coerce_required_numeric,
     raise_invalid_numeric_value,
     valid_timestamp_values,
 )
-from .preparation import prepare_measurements
+from .preparation import PreparedMeasurements, prepare_measurements
 from .report_series import (
     DEFAULT_REPORT_SERIES_MAX_POINTS,
     ReportSeries,
@@ -46,6 +47,47 @@ from .summary import (
     merge_measurement_summaries,
     summarize_prepared_measurements,
 )
+
+
+def _collect_prepared_report_series(
+    prepared: PreparedMeasurements,
+    collector: ReportSeriesCollector,
+    *,
+    row_offset: int,
+) -> None:
+    """Select analyzed measurements for display without re-evaluating rules."""
+    valid_numeric = prepared.valid_numeric
+    if not len(valid_numeric):
+        return
+
+    valid_rows = prepared.valid_rows
+    inputs = prepared.rule_inputs
+    current_col = inputs.pack_current_col
+    voltage_col = inputs.pack_voltage_col
+    collector.consume_chunk(
+        row_offset=row_offset,
+        timestamps=valid_numeric["timestamp_s"].to_numpy(dtype=float, copy=False),
+        cell_min=inputs.cell_min.loc[valid_rows].to_numpy(dtype=float, copy=False),
+        cell_max=inputs.cell_max.loc[valid_rows].to_numpy(dtype=float, copy=False),
+        cell_delta=inputs.delta_v.loc[valid_rows].to_numpy(dtype=float, copy=False),
+        temperature_min=inputs.temperature_min.loc[valid_rows].to_numpy(dtype=float, copy=False),
+        temperature_max=inputs.temperature_max.loc[valid_rows].to_numpy(dtype=float, copy=False),
+        pack_current=(
+            valid_numeric[current_col].to_numpy(dtype=float, copy=False)
+            if current_col is not None
+            else None
+        ),
+        pack_voltage=(
+            valid_numeric[voltage_col].to_numpy(dtype=float, copy=False)
+            if voltage_col is not None
+            else None
+        ),
+        cell_sum=(
+            inputs.cell_sum.loc[valid_rows].to_numpy(dtype=float, copy=False)
+            if inputs.cell_sum is not None
+            else None
+        ),
+    )
 
 
 def _analyze_battery_chunks(
@@ -89,123 +131,96 @@ def _analyze_battery_chunks(
 
     measurement_summary = MeasurementSummary()
 
-    for frame in chunks:
-        if frame.empty:
-            continue
+    iterator = iter(chunks)
+    try:
+        for frame in iterator:
+            if frame.empty:
+                continue
 
-        frame, layout = canonicalize_analysis_frame(frame, signal_mapping, resolved_limits)
-        cell_cols = layout.cell_cols
-        temp_cols = layout.temp_cols
-        pack_current_col = layout.pack_current_col
-        pack_voltage_col = layout.pack_voltage_col
-        pack_cols = layout.pack_cols
+            frame, layout = canonicalize_analysis_frame(frame, signal_mapping, resolved_limits)
+            cell_cols = layout.cell_cols
+            temp_cols = layout.temp_cols
+            pack_current_col = layout.pack_current_col
+            pack_voltage_col = layout.pack_voltage_col
+            pack_cols = layout.pack_cols
 
-        if expected_layout is None:
-            expected_layout = layout
-        elif layout != expected_layout:
-            raise ValueError("Canonical signal columns changed between measurement chunks")
+            if expected_layout is None:
+                expected_layout = layout
+            elif layout != expected_layout:
+                raise ValueError("Canonical signal columns changed between measurement chunks")
 
-        chunk_row_offset = rows_input
-        numeric = frame[layout.numeric_cols].apply(pd.to_numeric, errors="coerce")
-        if data_quality_collector is None:
-            raise_invalid_numeric_value(
-                frame,
-                numeric,
-                row_offset=chunk_row_offset,
-            )
-            invalid_rows = pd.Series(False, index=numeric.index, dtype=bool)
-        else:
-            invalid_values = data_quality_collector.consume_chunk(
-                frame,
-                numeric,
-                row_offset=chunk_row_offset,
-            )
-            invalid_rows = pd.Series(invalid_values, index=numeric.index, dtype=bool)
+            chunk_row_offset = rows_input
+            numeric = coerce_required_numeric(frame[layout.numeric_cols])
+            if data_quality_collector is None:
+                raise_invalid_numeric_value(
+                    frame,
+                    numeric,
+                    row_offset=chunk_row_offset,
+                )
+                invalid_rows = pd.Series(False, index=numeric.index, dtype=bool)
+            else:
+                invalid_values = data_quality_collector.consume_chunk(
+                    frame,
+                    numeric,
+                    row_offset=chunk_row_offset,
+                )
+                invalid_rows = pd.Series(invalid_values, index=numeric.index, dtype=bool)
 
-        ordering_timestamps = valid_timestamp_values(frame, numeric)
-        if not ordering_timestamps.is_monotonic_increasing:
-            raise ValueError("timestamp_s must be non-decreasing")
-        if len(ordering_timestamps):
-            first_timestamp = float(ordering_timestamps.iloc[0])
-            if previous_timestamp is not None and first_timestamp < previous_timestamp:
+            ordering_timestamps = valid_timestamp_values(frame, numeric)
+            if not ordering_timestamps.is_monotonic_increasing:
                 raise ValueError("timestamp_s must be non-decreasing")
-            previous_timestamp = float(ordering_timestamps.iloc[-1])
+            if len(ordering_timestamps):
+                first_timestamp = float(ordering_timestamps.iloc[0])
+                if previous_timestamp is not None and first_timestamp < previous_timestamp:
+                    raise ValueError("timestamp_s must be non-decreasing")
+                previous_timestamp = float(ordering_timestamps.iloc[-1])
 
-        rows_input += len(frame)
-        chunk_rows_excluded = int(invalid_rows.sum())
-        rows_excluded += chunk_rows_excluded
-        prepared = prepare_measurements(
-            numeric,
-            invalid_rows,
-            pack_cols=pack_cols,
-            cell_cols=cell_cols,
-            temp_cols=temp_cols,
-            pack_current_col=pack_current_col,
-            pack_voltage_col=pack_voltage_col,
-            row_offset=chunk_row_offset,
-        )
-        valid_rows = prepared.valid_rows
-        valid_numeric = prepared.valid_numeric
-        rule_inputs = prepared.rule_inputs
-        timestamps = rule_inputs.timestamps
-        cell_max = rule_inputs.cell_max
-        cell_min = rule_inputs.cell_min
-        delta_v = rule_inputs.delta_v
-        row_max_temp = rule_inputs.temperature_max
-        row_min_temp = rule_inputs.temperature_min
-        cell_sum = rule_inputs.cell_sum
-        valid_timestamps = valid_numeric["timestamp_s"]
+            rows_input += len(frame)
+            chunk_rows_excluded = int(invalid_rows.sum())
+            rows_excluded += chunk_rows_excluded
+            prepared = prepare_measurements(
+                numeric,
+                invalid_rows,
+                pack_cols=pack_cols,
+                cell_cols=cell_cols,
+                temp_cols=temp_cols,
+                pack_current_col=pack_current_col,
+                pack_voltage_col=pack_voltage_col,
+                row_offset=chunk_row_offset,
+            )
+            rule_inputs = prepared.rule_inputs
+            timestamps = rule_inputs.timestamps
 
-        valid_cell_max = cell_max.loc[valid_rows]
-        valid_cell_min = cell_min.loc[valid_rows]
-        valid_delta_v = delta_v.loc[valid_rows]
-        valid_row_max_temp = row_max_temp.loc[valid_rows]
-        valid_row_min_temp = row_min_temp.loc[valid_rows]
+            if report_series_collector is not None:
+                _collect_prepared_report_series(
+                    prepared,
+                    report_series_collector,
+                    row_offset=rows_analyzed,
+                )
 
-        if report_series_collector is not None and len(valid_numeric):
-            report_series_collector.consume_chunk(
-                row_offset=rows_analyzed,
-                timestamps=valid_timestamps.to_numpy(dtype=float, copy=False),
-                cell_min=valid_cell_min.to_numpy(dtype=float, copy=False),
-                cell_max=valid_cell_max.to_numpy(dtype=float, copy=False),
-                cell_delta=valid_delta_v.to_numpy(dtype=float, copy=False),
-                temperature_min=valid_row_min_temp.to_numpy(dtype=float, copy=False),
-                temperature_max=valid_row_max_temp.to_numpy(dtype=float, copy=False),
-                pack_current=(
-                    valid_numeric[pack_current_col].to_numpy(dtype=float, copy=False)
-                    if pack_current_col is not None
-                    else None
-                ),
-                pack_voltage=(
-                    valid_numeric[pack_voltage_col].to_numpy(dtype=float, copy=False)
-                    if pack_voltage_col is not None
-                    else None
-                ),
-                cell_sum=(
-                    cell_sum.loc[valid_rows].to_numpy(dtype=float, copy=False)
-                    if cell_sum is not None
-                    else None
-                ),
+            measurement_summary = merge_measurement_summaries(
+                measurement_summary,
+                summarize_prepared_measurements(prepared),
             )
 
-        measurement_summary = merge_measurement_summaries(
-            measurement_summary,
-            summarize_prepared_measurements(prepared),
-        )
-
-        max_gap_s = resolved_event_detection.max_gap_s
-        for evaluation in evaluate_rules(
-            rule_inputs,
-            resolved_limits,
-            max_gap_s=max_gap_s,
-        ):
-            event_accumulator.consume(
-                evaluation,
-                timestamps=timestamps,
+            max_gap_s = resolved_event_detection.max_gap_s
+            for evaluation in evaluate_rules(
+                rule_inputs,
+                resolved_limits,
                 max_gap_s=max_gap_s,
-            )
+            ):
+                event_accumulator.consume(
+                    evaluation,
+                    timestamps=timestamps,
+                    max_gap_s=max_gap_s,
+                )
 
-        rows_analyzed += len(valid_numeric)
+            rows_analyzed += len(prepared.valid_numeric)
+
+    finally:
+        close = getattr(iterator, "close", None)
+        if close is not None:
+            close()
 
     if rows_input == 0:
         raise ValueError("Battery log contains no data rows")

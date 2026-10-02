@@ -23,9 +23,9 @@ Defaults:
 - both standard analysis and full HTML evidence-report modes
 - three fresh child-process repeats per size/mode
 - process RSS sampled every 10 ms with `psutil`
-- OS-native process peak RSS captured as a high-water mark (`peak_wset` on Windows; `resource.ru_maxrss` on POSIX)
+- OS-native process peak RSS captured as a high-water mark (`peak_wset` on Windows; `/proc` `VmHWM` on Linux; `resource.ru_maxrss` on other POSIX systems)
 
-Synthetic MF4 generation runs in the parent process. Each measured analysis/report workload runs in a fresh child process, so the generator's allocations do not contaminate the measured RSS baseline or peak.
+Synthetic MF4 generation runs in the parent process. Each measured analysis/report workload runs in a fresh child process. Linux uses the worker address-space high-water mark to avoid inherited pre-exec `ru_maxrss`; other POSIX fallback behavior has not been validated. The defaults remain single-group, steady values. `--layout multi-group` and `--scenario event-pressure` exercise additional cases. Source revision and tree identifiers are recorded when available.
 
 The standard-analysis worker calls the public path-based analysis API. The report worker executes the CLI report path, including the file-backed evidence snapshot, hashing, MF4 ingestion, report-series collection, and HTML generation.
 

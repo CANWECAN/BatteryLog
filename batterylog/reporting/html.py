@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from html import escape
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -5,6 +6,13 @@ from tempfile import NamedTemporaryFile
 from batterylog.analysis.report_series import ReportSeries
 from batterylog.models import AnalysisResult
 
+from .event_browser import (
+    EVENT_PAGE_SIZE,
+    quality_cells,
+    render_event_browser,
+    render_quality_browser,
+    violation_cells,
+)
 from .evidence import ReportMetadata
 from .plots import render_report_plots
 
@@ -154,45 +162,26 @@ def _signal_mapping_rows(result: AnalysisResult) -> str:
 
 def _data_quality_rows(result: AnalysisResult) -> str:
     rows: list[str] = []
-    for event in result["data_quality"]["events"]:
-        signals = ", ".join(event["signals"])
+    for event in result["data_quality"]["events"][:EVENT_PAGE_SIZE]:
+        cells = quality_cells(event)
         rows.append(
             "<tr>"
-            f"<td><code>{escape(event['code'])}</code></td>"
-            f"<td>{event['start_row']}</td>"
-            f"<td>{event['end_row']}</td>"
-            f"<td>{event['affected_values']}</td>"
-            f"<td>{escape(signals)}</td>"
-            "</tr>"
+            f"<td><code>{escape(cells[0])}</code></td>"
+            + "".join(f"<td>{escape(value)}</td>" for value in cells[1:])
+            + "</tr>"
         )
     return "".join(rows)
 
 
 def _violation_rows(result: AnalysisResult) -> str:
     rows: list[str] = []
-    for event in result["violations"]:
-        signals = ", ".join(event["signals"])
-        chain = (
-            f"pack {event['pack_voltage_v']:.12g} V; "
-            f"cell sum {event['cell_voltage_sum_v']:.12g} V; "
-            f"signed error {event['signed_error_v']:.12g} V"
-            if event["code"] == "PACK_VOLTAGE_CELL_SUM_MISMATCH"
-            else "—"
-        )
+    for event in result["violations"][:EVENT_PAGE_SIZE]:
+        cells = violation_cells(event)
         rows.append(
             "<tr>"
-            f"<td><code>{escape(event['code'])}</code></td>"
-            f"<td>{event['start_time_s']:.12g}</td>"
-            f"<td>{event['end_time_s']:.12g}</td>"
-            f"<td>{event['peak_time_s']:.12g}</td>"
-            f"<td>{event['measured_value']:.12g} {escape(event['unit'])}</td>"
-            f"<td>{event['limit_value']:.12g} {escape(event['unit'])}</td>"
-            f"<td>{event['sample_count']}</td>"
-            f"<td>{event['duration_s']:.12g}</td>"
-            f"<td>{event['peak_excursion']:.12g} {escape(event['unit'])}</td>"
-            f"<td>{escape(signals)}</td>"
-            f"<td>{escape(chain)}</td>"
-            "</tr>"
+            f"<td><code>{escape(cells[0])}</code></td>"
+            + "".join(f"<td>{escape(value)}</td>" for value in cells[1:])
+            + "</tr>"
         )
     return "".join(rows)
 
@@ -284,6 +273,15 @@ def render_html_report(
     metadata: ReportMetadata | None = None,
     series: ReportSeries | None = None,
 ) -> str:
+    return "".join(_iter_html_report(result, metadata=metadata, series=series))
+
+
+def _iter_html_report(
+    result: AnalysisResult,
+    *,
+    metadata: ReportMetadata | None = None,
+    series: ReportSeries | None = None,
+) -> Iterator[str]:
     status = result["validation_status"]
     rules = ", ".join(result["rules_evaluated"]) or "None"
     data_quality_rows = _data_quality_rows(result)
@@ -294,7 +292,17 @@ def render_html_report(
         if data_quality_rows
         else "<p>No required-data quality defects were recorded.</p>"
     )
+    quality_controls, quality_scripts = (
+        render_quality_browser(result["data_quality"]["events"])
+        if len(result["data_quality"]["events"]) > EVENT_PAGE_SIZE
+        else ("", "")
+    )
     violations = _violation_rows(result)
+    event_controls, event_scripts = (
+        render_event_browser(result["violations"])
+        if len(result["violations"]) > EVENT_PAGE_SIZE
+        else ("", "")
+    )
     violation_section = (
         f"<table><thead><tr><th>Code</th><th>Start (s)</th><th>End (s)</th>"
         f"<th>Worst (s)</th><th>Measured</th><th>Limit</th><th>Samples</th>"
@@ -303,9 +311,7 @@ def render_html_report(
         if violations
         else "<p>No violation events were recorded.</p>"
     )
-    plot_section = render_report_plots(result, series) if series is not None else ""
-
-    return f"""<!doctype html>
+    yield f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -322,6 +328,20 @@ header, section {{ margin-bottom: 28px; }}
 table {{ width: 100%; border-collapse: collapse; }}
 th, td {{ border-bottom: 1px solid #8886; padding: 9px; text-align: left; vertical-align: top; }}
 code {{ font-family: ui-monospace, Consolas, monospace; }}
+.event-table, .quality-table {{ max-height: 70vh; overflow: auto; scroll-padding-top: 3rem; }}
+.event-table:focus-visible, .quality-table:focus-visible {{ outline: 2px solid #2563eb; }}
+.event-table thead th, .quality-table thead th {{ position: sticky; top: 0; background: Canvas; z-index: 2; }}
+.event-filters, .event-pages {{ display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }}
+.event-filters[hidden], .event-pages[hidden] {{ display: none; }}
+.event-filters label {{ display: flex; flex-direction: column; gap: 4px; }}
+.event-filters input {{ width: 120px; }}
+button, select, input {{ font: inherit; }}
+.event-error {{ color: #b91c1c; }}
+@media print {{
+  .event-table, .quality-table {{ max-height: none; overflow: visible; }}
+  .event-table thead th, .quality-table thead th {{ position: static; }}
+  .event-filters, .event-pages {{ display: none; }}
+}}
 .small {{ opacity: 0.8; }}
 .plot-card {{ border: 1px solid #8886; border-radius: 8px; padding: 12px; margin: 16px 0; overflow-x: auto; }}
 .plot-card figcaption {{ display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }}
@@ -346,12 +366,26 @@ code {{ font-family: ui-monospace, Consolas, monospace; }}
 .violation-instant {{ stroke: #dc2626; stroke-width: 1.5; stroke-opacity: 0.65; vector-effect: non-scaling-stroke; }}
 .violation-peak {{ fill: #dc2626; stroke: white; stroke-width: 1.5; vector-effect: non-scaling-stroke; }}
 .plot-note {{ margin-top: -4px; }}
+.plot-overlay-warning {{ display: none; border-left: 3px solid #d97706; padding-left: 12px; }}
+@media screen {{
+  #plot-overlays:not(:checked) ~ .plot-card .violation-window,
+  #plot-overlays:not(:checked) ~ .plot-card .violation-instant,
+  #plot-overlays:not(:checked) ~ .plot-card .violation-peak {{ display: none; }}
+  #plot-overlays:not(:checked) ~ .plot-overlay-warning {{ display: block; }}
+}}
+@media print {{
+  .plot-controls, .plot-overlay-warning {{ display: none; }}
+  .plot-card {{ break-inside: avoid; }}
+  .timeseries-chart {{ min-width: 0; }}
+}}
 </style>
 </head>
 <body>
 <header>
 <h1>Battery Validation Report</h1>
 <p class="small">Generated by BatteryLog.</p>
+<nav aria-label="Report sections"><a href="#measured-extrema">Measured extrema</a> ·
+<a href="#data-quality">Data quality</a> · <a href="#violation-events">Violation events</a></nav>
 </header>
 <section class="status">
 <strong>{escape(status)}</strong>
@@ -373,24 +407,39 @@ code {{ font-family: ui-monospace, Consolas, monospace; }}
 <div class="card"><strong>Violation events</strong><br>{len(result["violations"])}</div>
 </div>
 </section>
-<section>
+<section id="measured-extrema">
 <h2>Measured extrema</h2>
 <table><tbody>{_measured_metric_rows(result)}</tbody></table>
 </section>
-{plot_section}
+"""
+    if series is not None:
+        yield render_report_plots(result, series)
+    yield f"""
 <section>
 <h2>Validation configuration</h2>
 <p>Rules evaluated: <code>{escape(rules)}</code></p>
 <table><tbody>{_limits_rows(result)}{_analysis_options_rows(result)}{_comparison_policy_rows(result)}{_signal_mapping_rows(result)}</tbody></table>
 </section>
-<section>
+<section id="data-quality">
 <h2>Data quality</h2>
 <p>Mode: <code>{escape(result["data_quality"]["mode"])}</code></p>
+{quality_controls}
+<div id="quality-table" class="quality-table" role="region" aria-label="Data-quality events" tabindex="0">
 {data_quality_section}
+</div>
+"""
+    yield quality_scripts
+    yield f"""
 </section>
-<section>
+<section id="violation-events">
 <h2>Violation events</h2>
+{event_controls}
+<div id="event-table" class="event-table" role="region" aria-label="Violation events" tabindex="0">
 {violation_section}
+</div>
+"""
+    yield event_scripts
+    yield """
 </section>
 </body>
 </html>
@@ -405,7 +454,6 @@ def write_html_report(
     series: ReportSeries | None = None,
 ) -> Path:
     path = Path(output_path)
-    content = render_html_report(result, metadata=metadata, series=series)
 
     temp_path: Path | None = None
     try:
@@ -417,11 +465,12 @@ def write_html_report(
             suffix=".tmp",
             delete=False,
         ) as handle:
-            handle.write(content)
             temp_path = Path(handle.name)
+            for section in _iter_html_report(result, metadata=metadata, series=series):
+                handle.write(section)
 
         temp_path.replace(path)
-    except Exception:
+    except BaseException:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
         raise

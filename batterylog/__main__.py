@@ -1,10 +1,12 @@
 import argparse
+import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from .analysis.core import analyze_battery_log
-from .analysis.streaming import analyze_battery_file_with_report_series
+from .analysis.report_series import DEFAULT_REPORT_SERIES_MAX_POINTS
+from .analysis.service import AnalysisService
+from .batch import BatchSummary, analyze_directory
 from .config import (
     EventDetectionConfig,
     ValidationConfig,
@@ -13,7 +15,9 @@ from .config import (
     load_validation_config_bytes,
     override_event_detection,
 )
+from .inspection import inspect_measurement
 from .models import AnalysisResult
+from .normalization import normalize_measurement
 from .reporting import (
     build_report_metadata,
     capture_file_snapshot,
@@ -23,6 +27,7 @@ from .reporting import (
     write_json_result,
 )
 from .reporting.evidence import capture_file_backed_snapshot
+from .units import SourceUnits
 
 EXIT_PASS = 0
 EXIT_VALIDATION_FAIL = 1
@@ -33,7 +38,41 @@ EXIT_RUNTIME_ERROR = 4
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Analyze EV battery test data.")
-    parser.add_argument("path", help="Path to a battery CSV or MDF/MF4 measurement")
+    parser.add_argument("path", help="Measurement path, or input directory with --batch")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--batch", action="store_true", help="Analyze a directory of measurements")
+    mode.add_argument(
+        "--inspect", action="store_true", help="List channels and check metadata without analysis"
+    )
+    mode.add_argument(
+        "--normalize", action="store_true", help="Prepare canonical CSV plus conversion evidence"
+    )
+    parser.add_argument(
+        "--time-unit", choices=["s", "ms", "us"], help="Declared source time unit for normalization"
+    )
+    parser.add_argument(
+        "--cell-voltage-unit", choices=["V", "mV"], help="Declared source cell-voltage unit"
+    )
+    parser.add_argument(
+        "--temperature-unit", choices=["degC", "K"], help="Declared source temperature unit"
+    )
+    parser.add_argument(
+        "--pack-current-unit",
+        choices=["A", "mA"],
+        help="Declared unit when pack current is selected",
+    )
+    parser.add_argument(
+        "--pack-voltage-unit",
+        choices=["V", "mV"],
+        help="Declared unit when pack voltage is selected",
+    )
+    parser.add_argument(
+        "--output-dir",
+        help="New output directory for batch reports or normalized CSV and conversion.json",
+    )
+    parser.add_argument(
+        "--recursive", action="store_true", help="Include batch input subdirectories"
+    )
     parser.add_argument(
         "--config",
         help="Path to a YAML validation configuration",
@@ -280,10 +319,50 @@ def _validation_exit_code(result: AnalysisResult) -> int:
     raise ValueError(f"Unsupported validation status: {status!r}")
 
 
+def _batch_exit_code(summary: BatchSummary) -> int:
+    statuses = {item["status"] for item in summary["files"]}
+    if statuses & {"ERROR", "NOT_PROCESSED"}:
+        return EXIT_RUNTIME_ERROR
+    if "FAIL" in statuses:
+        return EXIT_VALIDATION_FAIL
+    if "NOT_EVALUATED" in statuses:
+        return EXIT_NOT_EVALUATED
+    return EXIT_PASS
+
+
 def run(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
+        if args.inspect and (args.report or args.json_out):
+            parser.error(
+                "--inspect emits metadata on stdout; --report and --json-out require analysis"
+            )
+        unit_options = (
+            args.time_unit,
+            args.cell_voltage_unit,
+            args.temperature_unit,
+            args.pack_current_unit,
+            args.pack_voltage_unit,
+        )
+        if args.normalize:
+            if not args.output_dir or not all(unit_options[:3]):
+                parser.error(
+                    "--normalize requires --output-dir, --time-unit, --cell-voltage-unit and --temperature-unit"
+                )
+            if args.report or args.json_out or args.recursive:
+                parser.error(
+                    "--normalize prepares one file; report and recursive options require analysis"
+                )
+        elif any(unit_options):
+            parser.error("Source unit options require --normalize")
+        if args.batch:
+            if not args.output_dir:
+                parser.error("--batch requires --output-dir")
+            if args.report or args.json_out:
+                parser.error("--batch writes per-file reports; use --output-dir")
+        elif not args.normalize and (args.output_dir or args.recursive):
+            parser.error("--output-dir and --recursive require --batch")
     except SystemExit as exc:
         return int(exc.code or EXIT_PASS)
 
@@ -292,6 +371,59 @@ def run(argv: Sequence[str] | None = None) -> int:
         report_path = Path(args.report).resolve() if args.report else None
         json_out_path = Path(args.json_out).resolve() if args.json_out else None
         config_path = Path(args.config).resolve() if args.config else None
+
+        if args.normalize:
+            config_snapshot = (
+                capture_file_snapshot(config_path) if config_path is not None else None
+            )
+            base_config = (
+                load_validation_config_bytes(config_snapshot.data, source_name=str(config_path))
+                if config_snapshot is not None
+                else ValidationConfig()
+            )
+            normalized = normalize_measurement(
+                input_path,
+                args.output_dir,
+                units=SourceUnits(
+                    args.time_unit,
+                    args.cell_voltage_unit,
+                    args.temperature_unit,
+                    args.pack_current_unit,
+                    args.pack_voltage_unit,
+                ),
+                config=_resolve_cli_config(args, base=base_config),
+                config_evidence=config_snapshot.evidence if config_snapshot is not None else None,
+            )
+            sys.stdout.write(
+                json.dumps(normalized, indent=2, sort_keys=True, allow_nan=False) + "\n"
+            )
+            return EXIT_PASS
+
+        if args.inspect:
+            inspection = inspect_measurement(input_path, config=_resolve_cli_config(args))
+            sys.stdout.write(
+                json.dumps(inspection, indent=2, sort_keys=True, allow_nan=False) + "\n"
+            )
+            return EXIT_PASS if inspection["metadata_status"] == "OK" else EXIT_RUNTIME_ERROR
+
+        if args.batch:
+            config_snapshot = (
+                capture_file_snapshot(config_path) if config_path is not None else None
+            )
+            base_config = (
+                load_validation_config_bytes(config_snapshot.data, source_name=str(config_path))
+                if config_snapshot is not None
+                else ValidationConfig()
+            )
+            summary = analyze_directory(
+                input_path,
+                args.output_dir,
+                service=AnalysisService(_resolve_cli_config(args, base=base_config)),
+                recursive=args.recursive,
+                config_evidence=config_snapshot.evidence if config_snapshot is not None else None,
+            )
+            sys.stdout.write(json.dumps(summary, indent=2, sort_keys=True, allow_nan=False) + "\n")
+            return _batch_exit_code(summary)
 
         if _paths_refer_to_same_file(report_path, input_path):
             raise ValueError("Report output path must not overwrite the input log")
@@ -318,14 +450,12 @@ def run(argv: Sequence[str] | None = None) -> int:
                     else ValidationConfig()
                 )
                 validation_config = _resolve_cli_config(args, base=base_config)
-                result, report_series = analyze_battery_file_with_report_series(
+                output = AnalysisService(validation_config).analyze_file(
                     source_snapshot.handle,
                     source_name=input_path.name,
-                    limits=validation_config.limits,
-                    event_detection=validation_config.event_detection,
-                    data_quality=validation_config.data_quality,
-                    signal_mapping=validation_config.signals,
+                    report_max_points=DEFAULT_REPORT_SERIES_MAX_POINTS,
                 )
+                result = output.result
 
                 verify_file_unchanged(input_path, source_snapshot.evidence)
                 if config_path is not None and config_snapshot is not None:
@@ -340,17 +470,11 @@ def run(argv: Sequence[str] | None = None) -> int:
                     result,
                     report_path,
                     metadata=metadata,
-                    series=report_series,
+                    series=output.report_series,
                 )
         else:
             validation_config = _resolve_cli_config(args)
-            result = analyze_battery_log(
-                input_path,
-                limits=validation_config.limits,
-                event_detection=validation_config.event_detection,
-                data_quality=validation_config.data_quality,
-                signal_mapping=validation_config.signals,
-            )
+            result = AnalysisService(validation_config).analyze_path(input_path).result
             json_text = render_json_result(result)
 
         if json_out_path is not None:

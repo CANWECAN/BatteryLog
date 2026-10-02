@@ -33,11 +33,11 @@ def write_json_result(
             suffix=".tmp",
             delete=False,
         ) as handle:
-            handle.write(content.encode("utf-8"))
             temp_path = Path(handle.name)
+            handle.write(content.encode("utf-8"))
 
         temp_path.replace(path)
-    except Exception:
+    except BaseException:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
         raise
