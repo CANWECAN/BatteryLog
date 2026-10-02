@@ -9,10 +9,12 @@ def run(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Open the BatteryLog desktop launcher.")
     parser.parse_args(argv)
     try:
-        from .desktop_ui import launch
+        import tkinter  # noqa: F401 - verify the optional dependency before importing the UI
     except ImportError:
         print("error: Desktop mode requires Python with Tkinter/Tcl/Tk support.", file=sys.stderr)
         return 4
+    from .desktop_ui import launch
+
     return launch()
 
 

@@ -80,9 +80,13 @@ class DesktopJob:
                 self._process.kill()
             return None
         assert self._stderr is not None
-        self._stderr.seek(0)
-        error = self._stderr.read(8192).decode("utf-8", errors="replace").strip()
-        self._stderr.close()
+        try:
+            with self._stderr:
+                self._stderr.seek(0)
+                error = self._stderr.read(8192).decode("utf-8", errors="replace").strip()
+        except OSError as exc:
+            code = 4
+            error = f"Cannot read process diagnostics: {exc}"
         if self._cancel_at is not None:
             outcome = DesktopOutcome("CANCELLED", "Analysis cancelled. No report was published.")
         elif code not in {0, 1, 3}:

@@ -223,3 +223,26 @@ def test_cancel_kills_real_worker_that_ignores_terminate(monkeypatch, tmp_path):
     outcome = finish(job)
     assert outcome.status == "CANCELLED"
     assert not job.directory.exists()
+
+
+def test_diagnostic_read_failure_is_an_error_and_cleans_outputs(monkeypatch, tmp_path):
+    fake_worker(monkeypatch)
+    job = DesktopJob(SAMPLE, tmp_path)
+    original = job._stderr
+
+    class BrokenLog:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            original.close()
+
+        def seek(self, offset):
+            raise OSError("diagnostic disk error")
+
+    job._stderr = BrokenLog()
+    outcome = job.poll()
+    assert outcome.status == "ERROR"
+    assert "diagnostic disk error" in outcome.message
+    assert original.closed
+    assert not job.directory.exists()

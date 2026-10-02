@@ -92,6 +92,6 @@ For Linux without a desktop:
 BATTERYLOG_REQUIRE_DESKTOP_TESTS=1 xvfb-run -a python -m pytest -q tests/test_desktop_ui.py
 ```
 
-The main Linux CI matrix requires these desktop tests; ordinary headless environments skip
+The main Linux CI matrix and minimum-runtime job require these desktop tests; ordinary headless environments skip
 only the display-dependent widget tests. Wheel/sdist smoke checks verify the installed GUI
 help entry point outside the source checkout.

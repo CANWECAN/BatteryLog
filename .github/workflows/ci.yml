@@ -44,7 +44,10 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]" "numpy==1.26.0" "pandas==2.2.0" "PyYAML==6.0"
       - run: python -m pip check
-      - run: python -m pytest -q --cov=batterylog --cov-report=term-missing --cov-fail-under=95
+      - name: Run tests including real desktop widgets
+        env:
+          BATTERYLOG_REQUIRE_DESKTOP_TESTS: "1"
+        run: xvfb-run -a python -m pytest -q --cov=batterylog --cov-report=term-missing --cov-fail-under=95
 
   windows:
     runs-on: windows-latest

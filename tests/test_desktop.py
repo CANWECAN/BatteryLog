@@ -25,7 +25,7 @@ def test_missing_tk_has_actionable_error(monkeypatch, capsys):
     original = builtins.__import__
 
     def missing(name, *args, **kwargs):
-        if name == "desktop_ui":
+        if name == "tkinter":
             raise ImportError("No module named tkinter")
         return original(name, *args, **kwargs)
 
@@ -37,6 +37,7 @@ def test_missing_tk_has_actionable_error(monkeypatch, capsys):
 def test_entry_point_propagates_gui_exit(monkeypatch):
     from types import SimpleNamespace
 
+    monkeypatch.setitem(sys.modules, "tkinter", SimpleNamespace())
     monkeypatch.setitem(sys.modules, "batterylog.desktop_ui", SimpleNamespace(launch=lambda: 0))
     monkeypatch.setattr(sys, "argv", ["batterylog-gui"])
     with pytest.raises(SystemExit) as exc:
