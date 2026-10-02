@@ -8,6 +8,8 @@ All notable changes to BatteryLog are documented here.
 - Add strict config-v7 model parameters and result-v9 model outcomes/measurement chains. Legacy-only analysis retains frozen result-v8. Insufficient or censored requested model observations prevent overall PASS.
 - Select and validate an explicitly named dimensionless balancing status from CSV/MF4 without interpolation. Preserve missing status as NOT_EVALUATED.
 - Add model outcomes to HTML and event totals to batch summaries. Document semantics, limitations and a small five-model synthetic example.
+- Add an initial `batterylog-gui` single-file desktop launcher with measurement/configuration/output selection, cancellable CLI analysis and report opening. Preserve engineering/evidence semantics and publish HTML/JSON together only after completed analysis; remove owned partial outputs after errors or cancellation.
+- Keep the desktop dependency optional: CLI/Python usage and desktop help work without Tkinter or a graphical session.
 
 ## 0.10.0 - 2026-10-02
 
