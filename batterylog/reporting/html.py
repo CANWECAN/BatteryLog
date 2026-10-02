@@ -375,6 +375,8 @@ button, select, input {{ font: inherit; }}
 }}
 @media print {{
   .plot-controls, .plot-overlay-warning {{ display: none; }}
+  .plot-card {{ break-inside: avoid; }}
+  .timeseries-chart {{ min-width: 0; }}
 }}
 </style>
 </head>
