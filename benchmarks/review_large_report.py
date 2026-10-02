@@ -1,4 +1,4 @@
-"""Windows-only offline Edge diagnostic; see docs/0.10_REPORT_NAVIGATION_REVIEW.md."""
+"""Windows-only offline Edge diagnostic; observations stay under dist."""
 
 import json
 import runpy
@@ -183,6 +183,6 @@ payload = {
     "method": "Fresh offline headless Edge; 1440x1000; 3 repeats; RSS is summed owned-process working set, not unique physical memory; 200 ms samples; stop at 4 GiB sum or <1 GiB global available RAM",
     "cases": cases,
 }
-(root / "docs" / "benchmarks" / "0.10-windows-100k-after.json").write_text(
+(out / "0.10-windows-100k-after.json").write_text(
     json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
 )
