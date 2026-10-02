@@ -76,6 +76,16 @@ batterylog capture.mf4 --inspect --config validation.yaml
 See [input inspection](docs/INPUT_INSPECTION.md) for metadata scope and exit codes.
 An `OK` inventory checks channel metadata only; engineering analysis still needs to run.
 
+Development builds can also prepare a new canonical CSV from explicitly declared source units:
+
+```sh
+batterylog source.csv --normalize --time-unit ms --cell-voltage-unit mV \
+  --temperature-unit K --output-dir prepared/run-001
+```
+
+See [unit normalization](docs/UNIT_NORMALIZATION.md) for supported units, conversion evidence
+and the subsequent analysis step.
+
 ## Input model
 
 Canonical CSV input starts with a numeric, non-decreasing timestamp plus indexed cell-voltage and temperature channels:

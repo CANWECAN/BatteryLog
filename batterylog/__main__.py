@@ -17,6 +17,7 @@ from .config import (
 )
 from .inspection import inspect_measurement
 from .models import AnalysisResult
+from .normalization import normalize_measurement
 from .reporting import (
     build_report_metadata,
     capture_file_snapshot,
@@ -26,6 +27,7 @@ from .reporting import (
     write_json_result,
 )
 from .reporting.evidence import capture_file_backed_snapshot
+from .units import SourceUnits
 
 EXIT_PASS = 0
 EXIT_VALIDATION_FAIL = 1
@@ -42,8 +44,31 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument(
         "--inspect", action="store_true", help="List channels and check metadata without analysis"
     )
+    mode.add_argument(
+        "--normalize", action="store_true", help="Prepare canonical CSV plus conversion evidence"
+    )
     parser.add_argument(
-        "--output-dir", help="New output directory for batch reports and summary.csv"
+        "--time-unit", choices=["s", "ms", "us"], help="Declared source time unit for normalization"
+    )
+    parser.add_argument(
+        "--cell-voltage-unit", choices=["V", "mV"], help="Declared source cell-voltage unit"
+    )
+    parser.add_argument(
+        "--temperature-unit", choices=["degC", "K"], help="Declared source temperature unit"
+    )
+    parser.add_argument(
+        "--pack-current-unit",
+        choices=["A", "mA"],
+        help="Declared unit when pack current is selected",
+    )
+    parser.add_argument(
+        "--pack-voltage-unit",
+        choices=["V", "mV"],
+        help="Declared unit when pack voltage is selected",
+    )
+    parser.add_argument(
+        "--output-dir",
+        help="New output directory for batch reports or normalized CSV and conversion.json",
     )
     parser.add_argument(
         "--recursive", action="store_true", help="Include batch input subdirectories"
@@ -313,12 +338,30 @@ def run(argv: Sequence[str] | None = None) -> int:
             parser.error(
                 "--inspect emits metadata on stdout; --report and --json-out require analysis"
             )
+        unit_options = (
+            args.time_unit,
+            args.cell_voltage_unit,
+            args.temperature_unit,
+            args.pack_current_unit,
+            args.pack_voltage_unit,
+        )
+        if args.normalize:
+            if not args.output_dir or not all(unit_options[:3]):
+                parser.error(
+                    "--normalize requires --output-dir, --time-unit, --cell-voltage-unit and --temperature-unit"
+                )
+            if args.report or args.json_out or args.recursive:
+                parser.error(
+                    "--normalize prepares one file; report and recursive options require analysis"
+                )
+        elif any(unit_options):
+            parser.error("Source unit options require --normalize")
         if args.batch:
             if not args.output_dir:
                 parser.error("--batch requires --output-dir")
             if args.report or args.json_out:
                 parser.error("--batch writes per-file reports; use --output-dir")
-        elif args.output_dir or args.recursive:
+        elif not args.normalize and (args.output_dir or args.recursive):
             parser.error("--output-dir and --recursive require --batch")
     except SystemExit as exc:
         return int(exc.code or EXIT_PASS)
@@ -328,6 +371,33 @@ def run(argv: Sequence[str] | None = None) -> int:
         report_path = Path(args.report).resolve() if args.report else None
         json_out_path = Path(args.json_out).resolve() if args.json_out else None
         config_path = Path(args.config).resolve() if args.config else None
+
+        if args.normalize:
+            config_snapshot = (
+                capture_file_snapshot(config_path) if config_path is not None else None
+            )
+            base_config = (
+                load_validation_config_bytes(config_snapshot.data, source_name=str(config_path))
+                if config_snapshot is not None
+                else ValidationConfig()
+            )
+            normalized = normalize_measurement(
+                input_path,
+                args.output_dir,
+                units=SourceUnits(
+                    args.time_unit,
+                    args.cell_voltage_unit,
+                    args.temperature_unit,
+                    args.pack_current_unit,
+                    args.pack_voltage_unit,
+                ),
+                config=_resolve_cli_config(args, base=base_config),
+                config_evidence=config_snapshot.evidence if config_snapshot is not None else None,
+            )
+            sys.stdout.write(
+                json.dumps(normalized, indent=2, sort_keys=True, allow_nan=False) + "\n"
+            )
+            return EXIT_PASS
 
         if args.inspect:
             inspection = inspect_measurement(input_path, config=_resolve_cli_config(args))

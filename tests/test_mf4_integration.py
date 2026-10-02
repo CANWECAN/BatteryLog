@@ -16,11 +16,13 @@ from batterylog import (
     DataQualityConfig,
     SignalMapping,
     SignalPattern,
+    SourceUnits,
     ValidationConfig,
     ValidationLimits,
     analyze_battery_log,
     analyze_directory,
     inspect_measurement,
+    normalize_measurement,
 )
 from batterylog.__main__ import run
 from batterylog.analysis.streaming import analyze_measurement_loader
@@ -80,6 +82,91 @@ def _save_mdf(path: Path, groups: list[list[Signal]]) -> None:
         mdf.save(path, overwrite=True)
     finally:
         mdf.close()
+
+
+@pytest.mark.parametrize("layout", ["single-group", "multi-group"])
+@pytest.mark.parametrize("mapped", [False, True])
+def test_real_mf4_normalization_matches_independent_csv(tmp_path, monkeypatch, layout, mapped):
+    from batterylog import normalization as normalization_module
+
+    monkeypatch.setattr(normalization_module, "DEFAULT_MDF_CHUNK_RAM_BYTES", 48)
+    source = tmp_path / "source.mf4"
+    timestamps = np.array([10.0, 11.0])
+    names = (
+        ("U_01", "T_01", "I_Pack", "U_Pack")
+        if mapped
+        else ("cell_1_v", "temp_1_c", "pack_current_a", "pack_voltage_v")
+    )
+    voltage = Signal(np.array([3500.0, 4000.0]), timestamps, name=names[0], unit="mV")
+    temperature = Signal(np.array([298.15, 300.15]), timestamps, name=names[1], unit="K")
+    current = Signal(np.array([-1000.0, 2000.0]), timestamps, name=names[2], unit="mA")
+    pack = Signal(np.array([3500.0, 4000.0]), timestamps, name=names[3], unit="mV")
+    _save_mdf(
+        source,
+        [[voltage, temperature, current, pack]]
+        if layout == "single-group"
+        else [[voltage, current, pack], [temperature]],
+    )
+    config = (
+        ValidationConfig(
+            signals=SignalMapping(
+                timestamp="virtual_clock",
+                cell_voltage=SignalPattern(r"U_(?P<index>\d+)"),
+                temperature=SignalPattern(r"T_(?P<index>\d+)"),
+                pack_current="I_Pack",
+                pack_voltage="U_Pack",
+            )
+        )
+        if mapped
+        else ValidationConfig()
+    )
+    original = source.read_bytes()
+    result = normalize_measurement(
+        source, tmp_path / "out", units=SourceUnits("s", "mV", "K", "mA", "mV"), config=config
+    )
+    reference = tmp_path / "reference.csv"
+    reference.write_text(
+        "timestamp_s,cell_1_v,temp_1_c,pack_current_a,pack_voltage_v\n10,3.5,25,-1,3.5\n11,4,27,2,4\n",
+        encoding="utf-8",
+    )
+    service = AnalysisService(ValidationConfig(limits=ValidationLimits(cell_max_v=3.8)))
+    assert (
+        service.analyze_path(tmp_path / "out/normalized.csv").result
+        == service.analyze_path(reference).result
+    )
+    assert result["rows_written"] == 2
+    assert source.read_bytes() == original
+    with pytest.raises(ValueError, match="unit"):
+        AnalysisService(config).analyze_path(source)
+
+
+@pytest.mark.parametrize(
+    "defect", ["wrong-unit", "missing-unit", "upper-prefix", "nan", "boolean", "time-unit"]
+)
+def test_real_mf4_normalization_rejects_bad_metadata_or_values(tmp_path, defect):
+    source = tmp_path / "bad.mf4"
+    timestamps = np.array([0.0, 1.0])
+    unit = {"wrong-unit": "V", "missing-unit": "", "upper-prefix": "MV"}.get(defect, "mV")
+    values = (
+        np.array([3500.0, np.nan])
+        if defect == "nan"
+        else np.array([True, False])
+        if defect == "boolean"
+        else np.array([3500.0, 3500.0])
+    )
+    _save_mdf(
+        source,
+        [
+            [
+                Signal(values, timestamps, name="cell_1_v", unit=unit),
+                Signal(np.array([298.15, 298.15]), timestamps, name="temp_c", unit="K"),
+            ]
+        ],
+    )
+    units = SourceUnits("ms" if defect == "time-unit" else "s", "mV", "K")
+    with pytest.raises(ValueError):
+        normalize_measurement(source, tmp_path / "out", units=units)
+    assert not (tmp_path / "out").exists()
 
 
 @pytest.mark.parametrize("layout", ["single-group", "multi-group"])

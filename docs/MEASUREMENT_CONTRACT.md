@@ -30,6 +30,11 @@ unit conversion is unsupported. Current-rule configuration must declare which
 direction positive source current represents; result evidence preserves the
 source sign, including signed current limits.
 
+Development builds provide a separate [explicit normalization step](UNIT_NORMALIZATION.md)
+that writes a canonical CSV and conversion record from declared source units.
+The ordinary analysis adapter still requires the units above and does not infer
+or automatically convert them. Preparation and engineering analysis are separate operations.
+
 ## Values and row alignment
 
 Adapters yield scalar real-number measurements, or preserve invalid/missing

@@ -15,10 +15,12 @@ from asammdf import MDF, Signal
 
 from batterylog import (
     AnalysisService,
+    SourceUnits,
     ValidationConfig,
     ValidationLimits,
     analyze_battery_log,
     inspect_measurement,
+    normalize_measurement,
     validate_result_semantics,
 )
 from batterylog.__main__ import run
@@ -33,6 +35,23 @@ with TemporaryDirectory() as tmp:
     source = root / "artifact-smoke.mf4"
     report = root / "artifact-smoke.html"
     timestamps = np.array([10.0, 11.0, 12.0])
+    raw_source = root / "millivolts.mf4"
+    with MDF(version="4.10") as raw_mdf:
+        raw_mdf.append(
+            [
+                Signal(np.array([3500.0, 4000.0, 3500.0]), timestamps, name="cell_1_v", unit="mV"),
+                Signal(np.array([298.15, 300.15, 298.15]), timestamps, name="temp_c", unit="K"),
+            ],
+            common_timebase=True,
+        )
+        raw_mdf.save(raw_source, overwrite=True)
+    normalized = normalize_measurement(
+        raw_source, root / "prepared", units=SourceUnits("s", "mV", "K")
+    )
+    normalized_result = AnalysisService().analyze_path(root / "prepared/normalized.csv").result
+    assert normalized["rows_written"] == 3
+    assert normalized_result["max_cell_voltage_v"] == 4.0
+    assert normalized_result["max_temperature_c"] == 27.0
 
     mdf = MDF(version="4.10")
     try:

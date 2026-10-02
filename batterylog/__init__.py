@@ -36,7 +36,9 @@ from .models import (
     ValidationStatus,
     ViolationEvent,
 )
+from .normalization import NormalizationResult, UnitConversion, normalize_measurement
 from .result_validation import validate_result_semantics
+from .units import SourceUnits
 
 __all__ = [
     "RESULT_SCHEMA_VERSION",
@@ -59,12 +61,15 @@ __all__ = [
     "InspectionBinding",
     "InspectionChannel",
     "InspectionResult",
+    "NormalizationResult",
     "ResultSchemaVersion",
     "RuleCode",
     "SignalMapping",
     "SignalMappingInfo",
     "SignalMappingMode",
     "SignalPattern",
+    "SourceUnits",
+    "UnitConversion",
     "ValidationConfig",
     "ValidationLimits",
     "ValidationStatus",
@@ -74,5 +79,6 @@ __all__ = [
     "inspect_measurement",
     "load_validation_config",
     "load_validation_limits",
+    "normalize_measurement",
     "validate_result_semantics",
 ]

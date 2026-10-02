@@ -12,9 +12,11 @@ import jsonschema
 
 from batterylog import (
     AnalysisService,
+    SourceUnits,
     ValidationConfig,
     ValidationLimits,
     inspect_measurement,
+    normalize_measurement,
     validate_result_semantics,
 )
 from batterylog.analysis.report_series import ReportSeriesCollector
@@ -46,6 +48,33 @@ assert legacy_v4["properties"]["schema_version"]["const"] == 4
 assert legacy_v3["properties"]["schema_version"]["const"] == 3
 assert legacy_v2["properties"]["schema_version"]["const"] == 2
 with TemporaryDirectory() as directory:
+    normalized = normalize_measurement(
+        sample, Path(directory) / "prepared", units=SourceUnits("s", "V", "degC")
+    )
+    assert normalized["analysis_performed"] is False
+    assert (
+        AnalysisService().analyze_path(Path(directory) / "prepared/normalized.csv").result
+        == AnalysisService().analyze_path(sample).result
+    )
+    normalized_cli = subprocess.run(
+        [
+            str(Path(sys.executable).with_name("batterylog")),
+            str(Path(sample).resolve()),
+            "--normalize",
+            "--time-unit",
+            "s",
+            "--cell-voltage-unit",
+            "V",
+            "--temperature-unit",
+            "degC",
+            "--output-dir",
+            str(Path(directory) / "prepared-cli"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(normalized_cli.stdout)["rows_written"] == normalized["rows_written"]
     inspection = inspect_measurement(sample)
     assert inspection["metadata_status"] == "OK"
     assert inspection["analysis_performed"] is False

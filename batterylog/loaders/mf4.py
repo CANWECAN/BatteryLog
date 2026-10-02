@@ -15,6 +15,7 @@ from batterylog.signals import (
     find_canonical_signal_columns,
     resolve_signal_mapping,
 )
+from batterylog.units import SourceUnits
 
 DEFAULT_MDF_CHUNK_RAM_BYTES = 64 * 1024 * 1024
 _MDF_SUFFIXES = frozenset({".mf4", ".mdf"})
@@ -85,6 +86,7 @@ def _unique_occurrence(mdf: Any, name: str) -> tuple[int, int]:
 def _resolve_mdf_selection(
     mdf: Any,
     signal_mapping: SignalMapping | None,
+    source_units: SourceUnits | None = None,
 ) -> tuple[str, list[str], list[tuple[str, int, int]]]:
     channel_names = [str(name) for name in mdf.channels_db if str(name)]
 
@@ -125,7 +127,15 @@ def _resolve_mdf_selection(
     for name in source_names:
         group, index = _unique_occurrence(mdf, name)
         unit = mdf.get_channel_unit(name=name, group=group, index=index)
-        _validate_engineering_unit(name=name, unit=unit, kind=source_kinds[name])
+        kind = source_kinds[name]
+        declared = source_units.for_mdf_kind(kind) if source_units is not None else None
+        if declared in {"mV", "mA", "K"}:
+            if not isinstance(unit, str) or unit.strip() != declared:
+                raise ValueError(
+                    f"MDF channel {name!r} has unit {unit!r}; declared source unit is {declared!r}"
+                )
+        else:
+            _validate_engineering_unit(name=name, unit=unit, kind=kind)
         channel_specs.append((name, group, index))
 
     return timestamp_source, source_names, channel_specs
@@ -229,6 +239,7 @@ def _iter_mdf_chunks(
     *,
     signal_mapping: SignalMapping | None,
     chunk_ram_bytes: int,
+    source_units: SourceUnits | None = None,
 ) -> Iterator[pd.DataFrame]:
     if (
         isinstance(chunk_ram_bytes, bool)
@@ -247,6 +258,7 @@ def _iter_mdf_chunks(
             timestamp_source, source_names, channel_specs = _resolve_mdf_selection(
                 mdf,
                 signal_mapping,
+                source_units,
             )
 
             boolean_sources = _boolean_channel_names(mdf, channel_specs)

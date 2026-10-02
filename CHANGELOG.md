@@ -4,6 +4,8 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Added explicit CSV/MDF/MF4 unit normalization to a new canonical CSV with a separate source/output SHA-256 conversion record. Preserve strict numeric and timestamp validation, require declared units, match MDF sensor metadata, and leave engineering analysis/config-v6/result-v8 unchanged.
+
 - Added read-only CSV/MDF/MF4 channel inspection through `--inspect` and `inspect_measurement`, preserving available channel names when selection fails. Reuse analysis mapping, required-channel and MDF unit policies; explicitly separate metadata checks from sample validation and engineering results.
 
 - Added sequential directory analysis for CSV/MDF/MF4 measurements with per-file JSON/HTML evidence, a CSV summary, optional recursive discovery and one captured configuration. File errors remain distinct from engineering FAIL; interrupted runs preserve completed reports and identify unprocessed files. Existing result-v8 and single-file commands are unchanged.
