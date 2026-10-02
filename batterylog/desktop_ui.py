@@ -32,6 +32,7 @@ class DesktopWindow:
         self.config = tk.StringVar(root)
         self.output = tk.StringVar(root)
         self.inputs: list[ttk.Entry | ttk.Button] = []
+        self.entries: list[ttk.Entry] = []
         for row, (label, variable) in enumerate(
             [
                 ("Measurement", self.measurement),
@@ -46,6 +47,7 @@ class DesktopWindow:
             button = ttk.Button(frame, text="Browse…", command=partial(self.browse, row))
             button.grid(row=row, column=2, padx=(8, 0))
             self.inputs.extend([entry, button])
+            self.entries.append(entry)
         ttk.Label(
             frame,
             text="Without configured limits, the result is NOT_EVALUATED. No default limits are added.",
@@ -108,6 +110,9 @@ class DesktopWindow:
             variable = self.output
         if selected:
             variable.set(selected)
+            entry = self.entries[row - 1]
+            entry.icursor(tk.END)
+            entry.xview_moveto(1.0)
 
     def start(self) -> None:
         if self.job is not None:
