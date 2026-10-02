@@ -7,7 +7,8 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from batterylog import ValidationLimits
+from batterylog import DataQualityConfig, ValidationLimits
+from batterylog.analysis.core import _analyze_battery_frame
 from batterylog.analysis.report_series import (
     ReportSeriesCollector,
     ReportSeriesPoint,
@@ -480,3 +481,70 @@ def test_report_series_preserves_temperature_spread_peak_distinct_from_temperatu
     assert expected_peak == 80.0
     assert retained_peak == expected_peak
     assert 10 in {point.row_index for point in series.points}
+
+
+@pytest.mark.parametrize("chunk_rows", [1, 2, 4])
+@pytest.mark.parametrize(
+    ("with_current", "with_voltage"), [(False, False), (True, False), (False, True), (True, True)]
+)
+def test_report_series_selects_only_valid_measurements_with_optional_pack_signals(
+    chunk_rows: int, with_current: bool, with_voltage: bool
+) -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0],
+            "cell_1_v": [3.5, 3.75, 4.0, 4.25, 3.5, 4.25, 3.5],
+            "cell_2_v": [3.5, 3.5, 3.5, 3.5, 3.25, 3.5, 3.5],
+            "temp_1_c": [np.nan, 24.0, np.nan, np.nan, 28.0, 32.0, np.nan],
+            "temp_2_c": [18.0, 18.0, 18.0, 18.0, 16.0, 20.0, 18.0],
+        },
+        index=[f"source-{index}" for index in range(7)],
+    )
+    if with_current:
+        frame["pack_current_a"] = [0.0, 8.0, 0.0, 0.0, -8.0, 4.0, 0.0]
+    if with_voltage:
+        frame["pack_voltage_v"] = [7.0, 7.5, 7.0, 7.0, 7.0, 8.0, 7.0]
+    original = frame.copy(deep=True)
+    quality = DataQualityConfig(mode="exclude_invalid_rows")
+    result, series = analyze_measurement_loader_with_report_series(
+        _ChunkedLoader(frame, chunk_rows), data_quality=quality, max_points=24
+    )
+    assert result == _analyze_battery_frame(frame, data_quality=quality)
+    assert (result["rows_input"], result["rows_analyzed"], result["rows_excluded"]) == (7, 3, 4)
+    assert series.source_rows == 3 and not series.is_downsampled
+    expected = [
+        (0, 0.5, 3.5, 3.75, 0.25, 18.0, 24.0, 8.0, 7.5, 7.25),
+        (1, 2.0, 3.25, 3.5, 0.25, 16.0, 28.0, -8.0, 7.0, 6.75),
+        (2, 2.5, 3.5, 4.25, 0.75, 20.0, 32.0, 4.0, 8.0, 7.75),
+    ]
+    assert series.points == tuple(
+        ReportSeriesPoint(
+            row_index=row,
+            timestamp_s=time,
+            cell_min_v=low,
+            cell_max_v=high,
+            cell_delta_v=delta,
+            temperature_min_c=cold,
+            temperature_max_c=hot,
+            pack_current_a=current if with_current else None,
+            pack_voltage_v=voltage if with_voltage else None,
+            cell_voltage_sum_v=total if with_voltage else None,
+        )
+        for row, time, low, high, delta, cold, hot, current, voltage, total in expected
+    )
+    pd.testing.assert_frame_equal(frame, original)
+
+
+@pytest.mark.parametrize("chunk_rows", [1, 2, 3])
+def test_report_series_stays_empty_when_all_measurements_are_excluded(chunk_rows: int) -> None:
+    frame = pd.DataFrame(
+        {"timestamp_s": [0.0, 1.0, 2.0], "cell_1_v": [np.nan] * 3, "temp_c": [25.0] * 3}
+    )
+    quality = DataQualityConfig(mode="exclude_invalid_rows")
+    result, series = analyze_measurement_loader_with_report_series(
+        _ChunkedLoader(frame, chunk_rows), data_quality=quality
+    )
+    assert result == _analyze_battery_frame(frame, data_quality=quality)
+    assert result["validation_status"] == "FAIL"
+    assert result["rows_analyzed"] == 0 and result["rows_excluded"] == 3
+    assert series.source_rows == 0 and series.points == ()

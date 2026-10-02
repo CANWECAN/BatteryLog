@@ -33,7 +33,7 @@ from .input_validation import (
     raise_invalid_numeric_value,
     valid_timestamp_values,
 )
-from .preparation import prepare_measurements
+from .preparation import PreparedMeasurements, prepare_measurements
 from .report_series import (
     DEFAULT_REPORT_SERIES_MAX_POINTS,
     ReportSeries,
@@ -47,6 +47,47 @@ from .summary import (
     merge_measurement_summaries,
     summarize_prepared_measurements,
 )
+
+
+def _collect_prepared_report_series(
+    prepared: PreparedMeasurements,
+    collector: ReportSeriesCollector,
+    *,
+    row_offset: int,
+) -> None:
+    """Select analyzed measurements for display without re-evaluating rules."""
+    valid_numeric = prepared.valid_numeric
+    if not len(valid_numeric):
+        return
+
+    valid_rows = prepared.valid_rows
+    inputs = prepared.rule_inputs
+    current_col = inputs.pack_current_col
+    voltage_col = inputs.pack_voltage_col
+    collector.consume_chunk(
+        row_offset=row_offset,
+        timestamps=valid_numeric["timestamp_s"].to_numpy(dtype=float, copy=False),
+        cell_min=inputs.cell_min.loc[valid_rows].to_numpy(dtype=float, copy=False),
+        cell_max=inputs.cell_max.loc[valid_rows].to_numpy(dtype=float, copy=False),
+        cell_delta=inputs.delta_v.loc[valid_rows].to_numpy(dtype=float, copy=False),
+        temperature_min=inputs.temperature_min.loc[valid_rows].to_numpy(dtype=float, copy=False),
+        temperature_max=inputs.temperature_max.loc[valid_rows].to_numpy(dtype=float, copy=False),
+        pack_current=(
+            valid_numeric[current_col].to_numpy(dtype=float, copy=False)
+            if current_col is not None
+            else None
+        ),
+        pack_voltage=(
+            valid_numeric[voltage_col].to_numpy(dtype=float, copy=False)
+            if voltage_col is not None
+            else None
+        ),
+        cell_sum=(
+            inputs.cell_sum.loc[valid_rows].to_numpy(dtype=float, copy=False)
+            if inputs.cell_sum is not None
+            else None
+        ),
+    )
 
 
 def _analyze_battery_chunks(
@@ -147,48 +188,14 @@ def _analyze_battery_chunks(
                 pack_voltage_col=pack_voltage_col,
                 row_offset=chunk_row_offset,
             )
-            valid_rows = prepared.valid_rows
-            valid_numeric = prepared.valid_numeric
             rule_inputs = prepared.rule_inputs
             timestamps = rule_inputs.timestamps
-            cell_max = rule_inputs.cell_max
-            cell_min = rule_inputs.cell_min
-            delta_v = rule_inputs.delta_v
-            row_max_temp = rule_inputs.temperature_max
-            row_min_temp = rule_inputs.temperature_min
-            cell_sum = rule_inputs.cell_sum
-            valid_timestamps = valid_numeric["timestamp_s"]
 
-            valid_cell_max = cell_max.loc[valid_rows]
-            valid_cell_min = cell_min.loc[valid_rows]
-            valid_delta_v = delta_v.loc[valid_rows]
-            valid_row_max_temp = row_max_temp.loc[valid_rows]
-            valid_row_min_temp = row_min_temp.loc[valid_rows]
-
-            if report_series_collector is not None and len(valid_numeric):
-                report_series_collector.consume_chunk(
+            if report_series_collector is not None:
+                _collect_prepared_report_series(
+                    prepared,
+                    report_series_collector,
                     row_offset=rows_analyzed,
-                    timestamps=valid_timestamps.to_numpy(dtype=float, copy=False),
-                    cell_min=valid_cell_min.to_numpy(dtype=float, copy=False),
-                    cell_max=valid_cell_max.to_numpy(dtype=float, copy=False),
-                    cell_delta=valid_delta_v.to_numpy(dtype=float, copy=False),
-                    temperature_min=valid_row_min_temp.to_numpy(dtype=float, copy=False),
-                    temperature_max=valid_row_max_temp.to_numpy(dtype=float, copy=False),
-                    pack_current=(
-                        valid_numeric[pack_current_col].to_numpy(dtype=float, copy=False)
-                        if pack_current_col is not None
-                        else None
-                    ),
-                    pack_voltage=(
-                        valid_numeric[pack_voltage_col].to_numpy(dtype=float, copy=False)
-                        if pack_voltage_col is not None
-                        else None
-                    ),
-                    cell_sum=(
-                        cell_sum.loc[valid_rows].to_numpy(dtype=float, copy=False)
-                        if cell_sum is not None
-                        else None
-                    ),
                 )
 
             measurement_summary = merge_measurement_summaries(
@@ -208,7 +215,7 @@ def _analyze_battery_chunks(
                     max_gap_s=max_gap_s,
                 )
 
-            rows_analyzed += len(valid_numeric)
+            rows_analyzed += len(prepared.valid_numeric)
 
     finally:
         close = getattr(iterator, "close", None)
