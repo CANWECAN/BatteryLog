@@ -226,3 +226,18 @@ def test_worker_error_allows_retry_with_corrected_measurement(ui, tmp_path):
         assert ui.run_button.instate(["!disabled"])
     assert ui.report and ui.report.is_file()
     assert len(list(tmp_path.glob("batterylog-*"))) == 1
+
+
+def test_browsed_long_path_keeps_filename_visible(ui, monkeypatch):
+    from batterylog import desktop_ui
+
+    selected = "/" + "long-directory/" * 20 + "measurement.csv"
+    monkeypatch.setattr(desktop_ui.filedialog, "askopenfilename", lambda **kwargs: selected)
+    ui.root.deiconify()
+    ui.root.update_idletasks()
+    ui.browse(1)
+    ui.root.update_idletasks()
+    entry = ui.entries[0]
+    assert ui.measurement.get() == selected
+    assert entry.index("insert") == len(selected)
+    assert entry.xview()[1] == 1.0
