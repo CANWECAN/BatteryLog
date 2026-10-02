@@ -6,10 +6,14 @@ from pathlib import Path
 
 import pytest
 
+if os.environ.get("BATTERYLOG_REQUIRE_DESKTOP_TESTS") == "1":
+    import tkinter as tk
+else:
+    tk = pytest.importorskip("tkinter")
+
 
 @pytest.fixture
 def ui():
-    tk = pytest.importorskip("tkinter")
     from batterylog.desktop_ui import DesktopWindow
 
     try:
@@ -171,3 +175,54 @@ def test_launch_enters_real_event_loop(monkeypatch):
 
     monkeypatch.setattr(tk, "Tk", closing_root)
     assert desktop_ui.launch() == 0
+
+
+def test_cancel_button_stops_real_process_and_restores_form(ui, tmp_path, monkeypatch):
+    import subprocess
+    import sys
+
+    from batterylog import desktop_job
+
+    original = subprocess.Popen
+
+    def waiting_worker(command, **kwargs):
+        return original([sys.executable, "-c", "import time; time.sleep(60)"], **kwargs)
+
+    monkeypatch.setattr(desktop_job.subprocess, "Popen", waiting_worker)
+    ui.measurement.set(str(Path(__file__).parents[1] / "examples/sample_battery_log.csv"))
+    ui.output.set(str(tmp_path))
+    ui.start()
+    directory = ui.job.directory
+    ui.cancel_button.invoke()
+    deadline = time.monotonic() + 5
+    while ui.job is not None and time.monotonic() < deadline:
+        ui.root.update()
+        time.sleep(0.02)
+    assert ui.job is None
+    assert ui.status.get().startswith("CANCELLED\n")
+    assert ui.run_button.instate(["!disabled"])
+    assert ui.open_button.instate(["disabled"])
+    assert all(widget.instate(["!disabled"]) for widget in ui.inputs)
+    assert not directory.exists()
+
+
+def test_worker_error_allows_retry_with_corrected_measurement(ui, tmp_path):
+    broken = tmp_path / "broken.csv"
+    broken.write_text("timestamp_s,temp_c\n0,25\n")
+    ui.measurement.set(str(broken))
+    ui.output.set(str(tmp_path))
+    for source, status in [
+        (broken, "ERROR"),
+        (Path(__file__).parents[1] / "examples/sample_battery_log.csv", "NOT_EVALUATED"),
+    ]:
+        ui.measurement.set(str(source))
+        ui.run_button.invoke()
+        deadline = time.monotonic() + 30
+        while ui.job is not None and time.monotonic() < deadline:
+            ui.root.update()
+            time.sleep(0.02)
+        assert ui.job is None
+        assert ui.status.get().startswith(f"{status}\n")
+        assert ui.run_button.instate(["!disabled"])
+    assert ui.report and ui.report.is_file()
+    assert len(list(tmp_path.glob("batterylog-*"))) == 1
