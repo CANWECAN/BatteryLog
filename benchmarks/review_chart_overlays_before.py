@@ -40,7 +40,7 @@ with sync_playwright() as pw:
         }
     finally:
         browser.close()
-(root / "docs/benchmarks/0.10-chart-overlay-before.json").write_text(
+(out / "0.10-chart-overlay-before.json").write_text(
     json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
 )
 print(json.dumps(payload), flush=True)

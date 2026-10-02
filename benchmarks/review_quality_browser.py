@@ -31,7 +31,10 @@ def check_keyboard_paging(page, prefix, total):
             )
             region.focus()
         observations.append(
-            {"action": action, "count": page.locator("#" + prefix + "-count").inner_text()}
+            {
+                "action": action,
+                "count": page.locator("#" + prefix + "-count").inner_text(),
+            }
         )
     assert page.locator("#" + prefix + "-table tbody tr").count() == 100
     return observations
@@ -175,9 +178,12 @@ with sync_playwright() as pw:
             context.close()
     finally:
         browser.close()
-(root / "docs" / "benchmarks" / "0.10-quality-focused-checks.json").write_text(
+(out / "0.10-quality-focused-checks.json").write_text(
     json.dumps(
-        {"fixture": "presentation-only custom rows, not an analysis workload", "cases": cases},
+        {
+            "fixture": "presentation-only custom rows, not an analysis workload",
+            "cases": cases,
+        },
         indent=2,
         sort_keys=True,
     )

@@ -6,7 +6,7 @@ BatteryLog is an open-source engineering toolkit for reproducible EV battery/BMS
 
 **Development checkout:** `0.10.0.dev0`; see [`CHANGELOG.md`](CHANGELOG.md) for changes after the current release.
 
-0.10 remains in early development. Open acceptance gates are recorded in [`docs/0.10_DEVELOPMENT.md`](docs/0.10_DEVELOPMENT.md); the assembled development build is documented in [`docs/0.10_INTEGRATION.md`](docs/0.10_INTEGRATION.md).
+Development is ongoing; use the latest tagged release for published behavior.
 
 **Status:** **Pre-1.0 engineering beta.** The validation core is stable and extensively tested; APIs and supported workflows may still evolve before 1.0.
 

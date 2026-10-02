@@ -174,6 +174,6 @@ payload = {
     "method": "Offline fresh Edge; 1440x1000; 1 baseline and 3 after repeats; no plots to isolate table; 200 ms sampling; working-set sum is not unique RAM; stop at 4 GiB sum or <1 GiB available",
     "cases": cases,
 }
-(root / "docs" / "benchmarks" / f"0.10-windows-quality-{stage}.json").write_text(
+(out / f"0.10-windows-quality-{stage}.json").write_text(
     json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
 )

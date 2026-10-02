@@ -6,6 +6,8 @@ from importlib.metadata import version
 from pathlib import Path
 
 root = Path.cwd()
+out = root / "dist" / "mf4-dependency-review"
+out.mkdir(parents=True, exist_ok=True)
 stage = sys.argv[1]
 if stage == "1.3":
     sys.path.insert(0, str(root / "dist" / "quality-review" / "canmatrix-13"))
@@ -24,7 +26,7 @@ try:
 except TypeError as exc:
     record.update(import_ok=False, error=str(exc))
 assert record["import_ok"] == (stage == "1.2"), record
-(root / "docs" / "benchmarks" / ("0.10-mf4-dependency-" + stage + ".json")).write_text(
+(out / ("0.10-mf4-dependency-" + stage + ".json")).write_text(
     json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
 )
 print(json.dumps(record), flush=True)
