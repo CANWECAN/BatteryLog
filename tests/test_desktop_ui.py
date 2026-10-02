@@ -1,0 +1,173 @@
+"""Real Tcl/Tk widget tests; use xvfb-run on Linux without a desktop session."""
+
+import os
+import time
+from pathlib import Path
+
+import pytest
+
+
+@pytest.fixture
+def ui():
+    tk = pytest.importorskip("tkinter")
+    from batterylog.desktop_ui import DesktopWindow
+
+    try:
+        root = tk.Tk()
+    except tk.TclError as exc:
+        if os.environ.get("BATTERYLOG_REQUIRE_DESKTOP_TESTS") == "1":
+            pytest.fail(f"Required desktop tests cannot open Tk: {exc}")
+        pytest.skip(f"No graphical session: {exc}")
+    root.withdraw()
+    window = DesktopWindow(root)
+    yield window
+    if window.job is not None:
+        window.job.cancel()
+        deadline = time.monotonic() + 5
+        while window.job.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.02)
+    try:
+        root.destroy()
+    except tk.TclError:
+        pass
+
+
+@pytest.mark.parametrize("limit,status", [(None, "NOT_EVALUATED"), (50, "PASS"), (40, "FAIL")])
+def test_real_analysis_ui_stays_responsive_and_opens_report(
+    ui, tmp_path, monkeypatch, limit, status
+):
+    from batterylog import desktop_ui
+
+    sample = Path(__file__).parents[1] / "examples/sample_battery_log.csv"
+    ui.measurement.set(str(sample))
+    ui.output.set(str(tmp_path))
+    if limit is not None:
+        config = tmp_path / "validation.yaml"
+        config.write_text(f"limits:\n  temperature:\n    max_c: {limit}\n")
+        ui.config.set(str(config))
+    ui.run_button.invoke()
+    assert ui.run_button.instate(["disabled"])
+    assert ui.open_button.instate(["disabled"])
+    ticks = []
+    ui.root.after(1, lambda: ticks.append(True))
+    deadline = time.monotonic() + 30
+    while ui.job is not None and time.monotonic() < deadline:
+        ui.root.update()
+        time.sleep(0.02)
+    assert ui.job is None
+    assert ticks
+    assert ui.status.get().startswith(f"{status}\n")
+    assert ui.run_button.instate(["!disabled"])
+    assert ui.cancel_button.instate(["disabled"])
+    assert ui.open_button.instate(["!disabled"])
+    opened = []
+    monkeypatch.setattr(desktop_ui.webbrowser, "open", lambda uri: opened.append(uri) or True)
+    ui.open_button.invoke()
+    assert opened == [ui.report.as_uri()]
+    ui.report.unlink()
+    ui.open_button.invoke()
+    assert "no longer available" in ui.status.get()
+
+
+def test_invalid_input_can_be_corrected_and_stale_report_is_disabled(ui, tmp_path):
+    ui.report = tmp_path / "old.html"
+    ui.open_button.configure(state="normal")
+    ui.start()
+    assert ui.status.get().startswith("ERROR\n")
+    assert ui.open_button.instate(["disabled"])
+    assert ui.job is None
+    ui.measurement.set(str(tmp_path / "missing.csv"))
+    ui.output.set(str(tmp_path))
+    ui.start()
+    assert ui.status.get().startswith("ERROR\n")
+    assert ui.run_button.instate(["!disabled"])
+
+
+def test_browse_cancel_preserves_selection_and_each_picker_uses_correct_field(ui, monkeypatch):
+    from batterylog import desktop_ui
+
+    selected = iter(["", "/measurement.csv", "/validation.yaml"])
+    monkeypatch.setattr(desktop_ui.filedialog, "askopenfilename", lambda **kwargs: next(selected))
+    monkeypatch.setattr(desktop_ui.filedialog, "askdirectory", lambda **kwargs: "/results")
+    ui.measurement.set("previous.csv")
+    ui.browse(1)
+    assert ui.measurement.get() == "previous.csv"
+    ui.browse(1)
+    ui.browse(2)
+    ui.browse(3)
+    assert (ui.measurement.get(), ui.config.get(), ui.output.get()) == (
+        "/measurement.csv",
+        "/validation.yaml",
+        "/results",
+    )
+
+
+def test_close_with_active_job_can_be_declined_or_cancelled(ui, monkeypatch):
+    from batterylog import desktop_ui
+    from batterylog.desktop_job import DesktopOutcome
+
+    class Job:
+        cancelled = False
+
+        def cancel(self):
+            self.cancelled = True
+
+        def poll(self):
+            return DesktopOutcome("CANCELLED", "Cancelled") if self.cancelled else None
+
+    job = Job()
+    ui.job = job
+    ui.start()  # A second run must not replace the active process.
+    assert ui.job is job
+    monkeypatch.setattr(desktop_ui.messagebox, "askyesno", lambda *a, **kw: False)
+    ui.close()
+    assert not job.cancelled and not ui.closing
+    ui.poll()
+    monkeypatch.setattr(desktop_ui.messagebox, "askyesno", lambda *a, **kw: True)
+    ui.close()
+    assert job.cancelled and ui.closing
+    ui.poll()
+    assert ui.job is None
+
+
+def test_browser_failure_shows_manual_path(ui, tmp_path, monkeypatch):
+    from batterylog import desktop_ui
+
+    ui.report = tmp_path / "report.html"
+    ui.report.touch()
+    monkeypatch.setattr(desktop_ui.webbrowser, "open", lambda uri: False)
+    ui.open_report()
+    assert "manually" in ui.status.get()
+    assert str(ui.report) in ui.status.get()
+    ui.report = None
+    ui.open_report()
+    ui.close()
+
+
+def test_launch_handles_headless_session(monkeypatch, capsys):
+    from batterylog import desktop_ui
+
+    def fail():
+        raise desktop_ui.tk.TclError("no display")
+
+    monkeypatch.setattr(desktop_ui.tk, "Tk", fail)
+    assert desktop_ui.launch() == 4
+    assert "graphical session" in capsys.readouterr().err
+
+
+def test_launch_enters_real_event_loop(monkeypatch):
+    from batterylog import desktop_ui
+
+    tk = pytest.importorskip("tkinter")
+    original = tk.Tk
+
+    def closing_root():
+        try:
+            root = original()
+        except tk.TclError as exc:
+            pytest.skip(str(exc))
+        root.after(10, root.destroy)
+        return root
+
+    monkeypatch.setattr(tk, "Tk", closing_root)
+    assert desktop_ui.launch() == 0
