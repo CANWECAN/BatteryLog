@@ -233,10 +233,18 @@ def test_browsed_long_path_keeps_filename_visible(ui, monkeypatch):
 
     selected = "/" + "long-directory/" * 20 + "measurement.csv"
     monkeypatch.setattr(desktop_ui.filedialog, "askopenfilename", lambda **kwargs: selected)
+    ui.root.geometry("860x420")
     ui.root.deiconify()
-    ui.root.update_idletasks()
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        ui.root.update()
+        if ui.entries[0].winfo_ismapped() and ui.entries[0].winfo_width() > 1:
+            break
+        time.sleep(0.01)
+    assert ui.entries[0].winfo_ismapped()
+    assert ui.entries[0].winfo_width() > 1
     ui.browse(1)
-    ui.root.update_idletasks()
+    ui.root.update()
     entry = ui.entries[0]
     assert ui.measurement.get() == selected
     assert entry.index("insert") == len(selected)
