@@ -29,9 +29,14 @@ def _source(tmp_path, text=DATA):
 
 
 @pytest.mark.parametrize("chunk_rows", [1, 2, 100])
-def test_converted_csv_matches_independent_values_and_analysis(tmp_path, monkeypatch, chunk_rows):
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_converted_csv_matches_independent_values_and_analysis(
+    tmp_path, monkeypatch, chunk_rows, newline
+):
     monkeypatch.setattr(module, "DEFAULT_CSV_CHUNK_ROWS", chunk_rows)
     source = _source(tmp_path)
+    source.write_bytes(DATA.replace("\n", newline).encode("utf-8"))
+    source_bytes = source.read_bytes()
     destination = tmp_path / "prepared"
     result = normalize_measurement(source, destination, units=UNITS)
     output = destination / "normalized.csv"
@@ -49,10 +54,10 @@ def test_converted_csv_matches_independent_values_and_analysis(tmp_path, monkeyp
     pd.testing.assert_frame_equal(actual, expected)
     assert result["rows_written"] == 2
     assert result["analysis_performed"] is False
-    assert result["source"]["sha256"] == hashlib.sha256(DATA.encode()).hexdigest()
+    assert result["source"]["sha256"] == hashlib.sha256(source_bytes).hexdigest()
     assert result["normalized_sha256"] == hashlib.sha256(output.read_bytes()).hexdigest()
     assert json.loads((destination / "conversion.json").read_text()) == result
-    assert source.read_text() == DATA
+    assert source.read_bytes() == source_bytes
     assert len(result["conversions"]) == 6
     temperature = next(item for item in result["conversions"] if item["canonical"] == "temp_c")
     assert temperature == {
