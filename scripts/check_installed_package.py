@@ -23,6 +23,13 @@ from batterylog.analysis.report_series import ReportSeriesCollector
 
 expected_version, sample = sys.argv[1:]
 assert version("batterylog") == expected_version
+gui_help = subprocess.run(
+    [str(Path(sys.executable).with_name("batterylog-gui")), "--help"],
+    check=True,
+    capture_output=True,
+    text=True,
+)
+assert "desktop launcher" in gui_help.stdout
 empty_series = ReportSeriesCollector(max_points=14).finish()
 assert empty_series.source_rows == 0
 assert empty_series.points == ()

@@ -4,6 +4,9 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Add an initial `batterylog-gui` single-file desktop launcher with measurement/configuration/output selection, cancellable CLI analysis and report opening. Preserve engineering/evidence semantics and publish HTML/JSON together only after completed analysis; remove owned partial outputs after errors or cancellation.
+- Keep the desktop dependency optional: CLI/Python usage and desktop help work without Tkinter or a graphical session.
+
 ## 0.10.0 - 2026-10-02
 
 ### Measurement workflows
