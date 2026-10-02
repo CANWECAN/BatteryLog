@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from html import escape
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -272,6 +273,15 @@ def render_html_report(
     metadata: ReportMetadata | None = None,
     series: ReportSeries | None = None,
 ) -> str:
+    return "".join(_iter_html_report(result, metadata=metadata, series=series))
+
+
+def _iter_html_report(
+    result: AnalysisResult,
+    *,
+    metadata: ReportMetadata | None = None,
+    series: ReportSeries | None = None,
+) -> Iterator[str]:
     status = result["validation_status"]
     rules = ", ".join(result["rules_evaluated"]) or "None"
     data_quality_rows = _data_quality_rows(result)
@@ -301,9 +311,7 @@ def render_html_report(
         if violations
         else "<p>No violation events were recorded.</p>"
     )
-    plot_section = render_report_plots(result, series) if series is not None else ""
-
-    return f"""<!doctype html>
+    yield f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -401,7 +409,10 @@ button, select, input {{ font: inherit; }}
 <h2>Measured extrema</h2>
 <table><tbody>{_measured_metric_rows(result)}</tbody></table>
 </section>
-{plot_section}
+"""
+    if series is not None:
+        yield render_report_plots(result, series)
+    yield f"""
 <section>
 <h2>Validation configuration</h2>
 <p>Rules evaluated: <code>{escape(rules)}</code></p>
@@ -414,7 +425,9 @@ button, select, input {{ font: inherit; }}
 <div id="quality-table" class="quality-table" role="region" aria-label="Data-quality events" tabindex="0">
 {data_quality_section}
 </div>
-{quality_scripts}
+"""
+    yield quality_scripts
+    yield f"""
 </section>
 <section id="violation-events">
 <h2>Violation events</h2>
@@ -422,7 +435,9 @@ button, select, input {{ font: inherit; }}
 <div id="event-table" class="event-table" role="region" aria-label="Violation events" tabindex="0">
 {violation_section}
 </div>
-{event_scripts}
+"""
+    yield event_scripts
+    yield """
 </section>
 </body>
 </html>
@@ -437,7 +452,6 @@ def write_html_report(
     series: ReportSeries | None = None,
 ) -> Path:
     path = Path(output_path)
-    content = render_html_report(result, metadata=metadata, series=series)
 
     temp_path: Path | None = None
     try:
@@ -450,7 +464,8 @@ def write_html_report(
             delete=False,
         ) as handle:
             temp_path = Path(handle.name)
-            handle.write(content)
+            for section in _iter_html_report(result, metadata=metadata, series=series):
+                handle.write(section)
 
         temp_path.replace(path)
     except BaseException:

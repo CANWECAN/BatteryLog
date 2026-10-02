@@ -46,7 +46,26 @@ def main() -> None:
         instrument(cli, "analyze_battery_file_with_report_series", "analysis_and_series")
     instrument(cli, "render_json_result", "json_render")
     instrument(cli, "write_html_report", "html_render_and_write")
-    instrument(html, "render_html_report", "html_render")
+    if hasattr(html, "_iter_html_report"):
+        original_sections = html._iter_html_report
+
+        def measured_sections(*args, **kwargs):
+            sections = iter(original_sections(*args, **kwargs))
+            while True:
+                started = perf_counter()
+                try:
+                    section = next(sections)
+                except StopIteration:
+                    return
+                finally:
+                    timings["html_render"] = (
+                        timings.get("html_render", 0.0) + perf_counter() - started
+                    )
+                yield section
+
+        html._iter_html_report = measured_sections
+    else:
+        instrument(html, "render_html_report", "html_render")
     instrument(html, "_violation_rows", "violation_table")
     instrument(html, "render_report_plots", "plots")
     instrument(plots, "_event_windows", "plot_event_windows")
