@@ -41,7 +41,7 @@ def canonicalize_analysis_frame(
 ) -> tuple[pd.DataFrame, SignalLayout]:
     canonical = canonicalize_battery_signals(frame, signal_mapping)
     for column in ("timestamp_s", "temp_c"):
-        if list(canonical.columns).count(column) > 1:
+        if sum(isinstance(name, str) and name == column for name in canonical.columns) > 1:
             raise ValueError(f"Duplicate canonical signal name {column!r}")
     if "timestamp_s" not in canonical.columns:
         raise ValueError("Required column 'timestamp_s' is missing")
