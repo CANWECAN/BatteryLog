@@ -1,0 +1,187 @@
+{
+  "analysis_options": {
+    "max_event_gap_s": 2.0
+  },
+  "cells_detected": 2,
+  "comparison_policy": {
+    "absolute_tolerance": 0.0,
+    "mode": "strict_with_binary64_guard",
+    "relative_tolerance": 1.7763568394002505e-15
+  },
+  "data_quality": {
+    "events": [],
+    "mode": "strict"
+  },
+  "limits_applied": {
+    "cell_max_v": 4.25,
+    "cell_min_v": 3.0,
+    "imbalance_max_v": 1.0,
+    "pack_charge_max_a": 10.0,
+    "pack_current_positive_direction": "discharge",
+    "pack_discharge_max_a": 15.0,
+    "pack_voltage_cell_sum_max_delta_v": 0.25,
+    "temperature_max_c": 50.0,
+    "temperature_min_c": -20.0,
+    "temperature_spread_max_c": 10.0
+  },
+  "max_cell_voltage_v": 3.5,
+  "max_delta_v": 1.0,
+  "max_pack_current_a": 20.0,
+  "max_pack_voltage_v": 7.5,
+  "max_temperature_c": 25.0,
+  "max_temperature_spread_c": 25.0,
+  "min_cell_voltage_v": 2.5,
+  "min_pack_current_a": -12.0,
+  "min_pack_voltage_v": 5.5,
+  "min_temperature_c": -25.0,
+  "pack_voltage_cell_sum_peak": {
+    "absolute_delta_v": 0.5,
+    "cell_voltage_sum_v": 7.0,
+    "pack_voltage_v": 7.5,
+    "signed_error_v": 0.5,
+    "timestamp_s": 1.0
+  },
+  "rows_analyzed": 6,
+  "rows_excluded": 0,
+  "rows_input": 6,
+  "rules_evaluated": [
+    "CELL_IMBALANCE_HIGH",
+    "CELL_OVERVOLTAGE",
+    "CELL_UNDERVOLTAGE",
+    "TEMPERATURE_HIGH",
+    "TEMPERATURE_LOW",
+    "TEMPERATURE_SPREAD_HIGH",
+    "PACK_CHARGE_OVERCURRENT",
+    "PACK_DISCHARGE_OVERCURRENT",
+    "PACK_VOLTAGE_CELL_SUM_MISMATCH"
+  ],
+  "schema_version": 8,
+  "signal_mapping": {
+    "cell_voltage_pattern": null,
+    "mode": "canonical",
+    "pack_current_source": "pack_current_a",
+    "pack_voltage_source": "pack_voltage_v",
+    "temperature_pattern": null,
+    "timestamp_source": "timestamp_s"
+  },
+  "temperature_sensors_detected": 2,
+  "validation_status": "FAIL",
+  "violations": [
+    {
+      "code": "PACK_CHARGE_OVERCURRENT",
+      "duration_s": 0.0,
+      "end_time_s": 1.0,
+      "limit_value": -10.0,
+      "measured_value": -12.0,
+      "peak_excursion": 2.0,
+      "peak_time_s": 1.0,
+      "sample_count": 2,
+      "signals": [
+        "pack_current_a"
+      ],
+      "start_time_s": 1.0,
+      "unit": "A"
+    },
+    {
+      "cell_voltage_sum_v": 7.0,
+      "code": "PACK_VOLTAGE_CELL_SUM_MISMATCH",
+      "duration_s": 0.0,
+      "end_time_s": 1.0,
+      "limit_value": 0.25,
+      "measured_value": 0.5,
+      "pack_voltage_v": 7.5,
+      "peak_excursion": 0.25,
+      "peak_time_s": 1.0,
+      "sample_count": 2,
+      "signals": [
+        "pack_voltage_v",
+        "cell_1_v",
+        "cell_2_v"
+      ],
+      "signed_error_v": 0.5,
+      "start_time_s": 1.0,
+      "unit": "V"
+    },
+    {
+      "code": "CELL_UNDERVOLTAGE",
+      "duration_s": 0.0,
+      "end_time_s": 10.0,
+      "limit_value": 3.0,
+      "measured_value": 2.5,
+      "peak_excursion": 0.5,
+      "peak_time_s": 10.0,
+      "sample_count": 1,
+      "signals": [
+        "cell_1_v"
+      ],
+      "start_time_s": 10.0,
+      "unit": "V"
+    },
+    {
+      "code": "PACK_DISCHARGE_OVERCURRENT",
+      "duration_s": 1.0,
+      "end_time_s": 11.0,
+      "limit_value": 15.0,
+      "measured_value": 20.0,
+      "peak_excursion": 5.0,
+      "peak_time_s": 10.0,
+      "sample_count": 2,
+      "signals": [
+        "pack_current_a"
+      ],
+      "start_time_s": 10.0,
+      "unit": "A"
+    },
+    {
+      "cell_voltage_sum_v": 6.0,
+      "code": "PACK_VOLTAGE_CELL_SUM_MISMATCH",
+      "duration_s": 1.0,
+      "end_time_s": 11.0,
+      "limit_value": 0.25,
+      "measured_value": 0.5,
+      "pack_voltage_v": 5.5,
+      "peak_excursion": 0.25,
+      "peak_time_s": 10.0,
+      "sample_count": 2,
+      "signals": [
+        "pack_voltage_v",
+        "cell_1_v",
+        "cell_2_v"
+      ],
+      "signed_error_v": -0.5,
+      "start_time_s": 10.0,
+      "unit": "V"
+    },
+    {
+      "code": "TEMPERATURE_LOW",
+      "duration_s": 1.0,
+      "end_time_s": 11.0,
+      "limit_value": -20.0,
+      "measured_value": -25.0,
+      "peak_excursion": 5.0,
+      "peak_time_s": 10.0,
+      "sample_count": 2,
+      "signals": [
+        "temp_1_c"
+      ],
+      "start_time_s": 10.0,
+      "unit": "degC"
+    },
+    {
+      "code": "TEMPERATURE_SPREAD_HIGH",
+      "duration_s": 1.0,
+      "end_time_s": 11.0,
+      "limit_value": 10.0,
+      "measured_value": 25.0,
+      "peak_excursion": 15.0,
+      "peak_time_s": 10.0,
+      "sample_count": 2,
+      "signals": [
+        "temp_2_c",
+        "temp_1_c"
+      ],
+      "start_time_s": 10.0,
+      "unit": "degC"
+    }
+  ]
+}

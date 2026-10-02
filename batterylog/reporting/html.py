@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from html import escape
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -284,6 +285,15 @@ def render_html_report(
     metadata: ReportMetadata | None = None,
     series: ReportSeries | None = None,
 ) -> str:
+    return "".join(_iter_html_report(result, metadata=metadata, series=series))
+
+
+def _iter_html_report(
+    result: AnalysisResult,
+    *,
+    metadata: ReportMetadata | None = None,
+    series: ReportSeries | None = None,
+) -> Iterator[str]:
     status = result["validation_status"]
     rules = ", ".join(result["rules_evaluated"]) or "None"
     data_quality_rows = _data_quality_rows(result)
@@ -303,9 +313,7 @@ def render_html_report(
         if violations
         else "<p>No violation events were recorded.</p>"
     )
-    plot_section = render_report_plots(result, series) if series is not None else ""
-
-    return f"""<!doctype html>
+    yield f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -346,6 +354,10 @@ code {{ font-family: ui-monospace, Consolas, monospace; }}
 .violation-instant {{ stroke: #dc2626; stroke-width: 1.5; stroke-opacity: 0.65; vector-effect: non-scaling-stroke; }}
 .violation-peak {{ fill: #dc2626; stroke: white; stroke-width: 1.5; vector-effect: non-scaling-stroke; }}
 .plot-note {{ margin-top: -4px; }}
+@media print {{
+  .plot-card {{ break-inside: avoid; }}
+  .timeseries-chart {{ min-width: 0; }}
+}}
 </style>
 </head>
 <body>
@@ -377,7 +389,10 @@ code {{ font-family: ui-monospace, Consolas, monospace; }}
 <h2>Measured extrema</h2>
 <table><tbody>{_measured_metric_rows(result)}</tbody></table>
 </section>
-{plot_section}
+"""
+    if series is not None:
+        yield render_report_plots(result, series)
+    yield f"""
 <section>
 <h2>Validation configuration</h2>
 <p>Rules evaluated: <code>{escape(rules)}</code></p>
@@ -405,7 +420,6 @@ def write_html_report(
     series: ReportSeries | None = None,
 ) -> Path:
     path = Path(output_path)
-    content = render_html_report(result, metadata=metadata, series=series)
 
     temp_path: Path | None = None
     try:
@@ -417,11 +431,12 @@ def write_html_report(
             suffix=".tmp",
             delete=False,
         ) as handle:
-            handle.write(content)
             temp_path = Path(handle.name)
+            for section in _iter_html_report(result, metadata=metadata, series=series):
+                handle.write(section)
 
         temp_path.replace(path)
-    except Exception:
+    except BaseException:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
         raise

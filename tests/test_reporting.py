@@ -527,3 +527,132 @@ def test_all_invalid_data_quality_report_uses_null_safe_extrema_and_empty_plots(
     assert "Rows excluded</strong><br>2" in html
     assert "NON_NUMERIC_REQUIRED_VALUE" in html
     assert "NON_FINITE_REQUIRED_VALUE" in html
+
+
+@pytest.mark.parametrize(
+    "writer,module_name",
+    [
+        (write_html_report, "batterylog.reporting.html"),
+        (write_json_result, "batterylog.reporting.json"),
+    ],
+)
+@pytest.mark.parametrize("existing_output", [False, True])
+@pytest.mark.parametrize("error_type", [OSError, KeyboardInterrupt])
+def test_output_writer_removes_partial_file_on_write_failure(
+    monkeypatch, tmp_path: Path, writer, module_name: str, existing_output: bool, error_type
+) -> None:
+    import importlib
+    from contextlib import contextmanager
+
+    module = importlib.import_module(module_name)
+    original_temporary_file = module.NamedTemporaryFile
+    output = tmp_path / "report.out"
+    previous = b"previous complete output"
+    if existing_output:
+        output.write_bytes(previous)
+
+    @contextmanager
+    def failing_temporary_file(**kwargs):
+        with original_temporary_file(**kwargs) as handle:
+            original_write = handle.write
+
+            def fail_write(content):
+                original_write(content[:8])
+                handle.flush()
+                raise error_type("simulated partial write")
+
+            monkeypatch.setattr(handle, "write", fail_write)
+            yield handle
+
+    monkeypatch.setattr(module, "NamedTemporaryFile", failing_temporary_file)
+    with pytest.raises(error_type, match="simulated partial write"):
+        writer(analyze_battery_log(SAMPLE), output)
+
+    assert list(tmp_path.glob(".*.tmp")) == []
+    if existing_output:
+        assert output.read_bytes() == previous
+    else:
+        assert not output.exists()
+
+
+@pytest.mark.parametrize("include_series", [False, True])
+@pytest.mark.parametrize("scenario", ["pass", "violation", "quality", "mixed"])
+def test_written_html_matches_full_renderer_with_large_tables_and_unicode(
+    tmp_path: Path, scenario: str, include_series: bool
+) -> None:
+    from dataclasses import replace
+    from io import BytesIO
+
+    from batterylog import ValidationConfig
+    from batterylog.analysis.streaming import analyze_battery_file_streaming
+
+    rows = []
+    for index in range(604):
+        voltage = 4.5 if scenario in {"violation", "mixed"} and index % 2 == 0 else 3.5
+        invalid = (scenario == "quality" and index % 2 == 0) or (
+            scenario == "mixed" and index % 4 == 0
+        )
+        rows.append(f"{index},{voltage},{'bad' if invalid else '25'}")
+    source = ("timestamp_s,cell_1_v,temp_c\n" + "\n".join(rows) + "\n").encode()
+    config = ValidationConfig(
+        limits=ValidationLimits(cell_max_v=4.2),
+        data_quality=DataQualityConfig("exclude_invalid_rows"),
+    )
+    if include_series:
+        result, series = analyze_battery_file_with_report_series(
+            BytesIO(source),
+            source_name="measurements.csv",
+            limits=config.limits,
+            data_quality=config.data_quality,
+            max_points=40,
+        )
+    else:
+        result = analyze_battery_file_streaming(
+            BytesIO(source),
+            source_name="measurements.csv",
+            limits=config.limits,
+            data_quality=config.data_quality,
+        )
+        series = None
+    if scenario in {"violation", "mixed"}:
+        assert len(result["violations"]) > 100
+    if scenario in {"quality", "mixed"}:
+        assert len(result["data_quality"]["events"]) > 100
+    metadata = replace(
+        _metadata(),
+        source=replace(_metadata().source, name="ölçüm 🚙 <sensor>.csv"),
+    )
+    expected = render_html_report(result, metadata=metadata, series=series)
+    path = tmp_path / "report.html"
+    path.write_bytes(b"previous report")
+    assert write_html_report(result, path, metadata=metadata, series=series) == path
+    assert path.read_text("utf-8") == expected
+    assert "ölçüm 🚙 &lt;sensor&gt;.csv" in expected
+    assert not list(tmp_path.glob(".*.tmp"))
+
+
+@pytest.mark.parametrize("existing_output", [False, True])
+@pytest.mark.parametrize("error_type", [ValueError, KeyboardInterrupt])
+def test_html_writer_cleans_partial_report_on_late_plot_render_failure(
+    monkeypatch, tmp_path: Path, existing_output: bool, error_type
+) -> None:
+    import batterylog.reporting.html as html_module
+
+    with SAMPLE.open("rb") as source:
+        result, series = analyze_battery_file_with_report_series(source, source_name=SAMPLE.name)
+    path = tmp_path / "report.html"
+    previous = b"previous complete report"
+    if existing_output:
+        path.write_bytes(previous)
+
+    def fail_plots(*args, **kwargs):
+        raise error_type("simulated late plot render failure")
+
+    monkeypatch.setattr(html_module, "render_report_plots", fail_plots)
+    with pytest.raises(error_type, match="simulated late plot render failure"):
+        write_html_report(result, path, series=series)
+    assert not list(tmp_path.glob(".*.tmp"))
+    if existing_output:
+        assert path.read_bytes() == previous
+    else:
+        assert not path.exists()

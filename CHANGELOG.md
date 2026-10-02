@@ -4,6 +4,21 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+### 0.9.3 maintenance development
+
+- Close failed CSV/MDF chunk readers promptly, including when an exception traceback is retained.
+- Clean partial HTML/JSON temporary files after write failures or interruption while preserving existing output.
+- Reject complex, temporal, boolean and array-valued adapter measurements through the existing required-value policy; reject duplicate scalar signals explicitly.
+- Preserve nullable-value defect evidence across supported pandas versions.
+- Bound the optional MF4 canmatrix dependency to the compatible 1.2 series.
+- Write HTML in sections and keep chart captions and axes together in printed reports.
+- Preserve temperature-spread extrema in report downsampling and preflight JSON before writing HTML evidence.
+- Guard merged-event duration overflow and canonicalize signed zero in serialized results.
+- Package the semantic fixture corpus and exercise minimum runtime dependencies in CI.
+- Keep config schema v6, result schema v8 and the existing public analysis entry points unchanged.
+
+This development build is not a published release. New service and interactive report features remain outside the maintenance scope.
+
 ## 0.9.2 - 2026-09-29
 
 ### Reliability and evidence hardening

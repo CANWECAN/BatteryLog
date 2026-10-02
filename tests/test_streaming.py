@@ -18,6 +18,48 @@ from batterylog.analysis.streaming import _analyze_battery_chunks, analyze_measu
 from batterylog.loaders import iter_battery_csv, load_battery_csv
 from batterylog.reporting import render_json_result
 
+
+@pytest.mark.parametrize("include_report", [False, True])
+def test_failed_csv_reader_closes_with_retained_traceback(monkeypatch, include_report):
+    from io import BytesIO
+
+    from batterylog.analysis.streaming import analyze_measurement_loader_with_report_series
+    from batterylog.loaders import CsvFileLoader
+
+    read_csv = pd.read_csv
+    closed = []
+    analysis_readers = []
+
+    def tracked_read_csv(*args, **kwargs):
+        reader = read_csv(*args, **kwargs)
+        if kwargs.get("chunksize") != 1:
+            return reader
+        analysis_readers.append(reader)
+        close = reader.close
+
+        def tracked_close():
+            close()
+            closed.append(reader)
+
+        monkeypatch.setattr(reader, "close", tracked_close)
+        return reader
+
+    monkeypatch.setattr(pd, "read_csv", tracked_read_csv)
+    source = BytesIO(b"timestamp_s,cell_1_v,temp_c\n0,3.5,25\n1,bad,25\n")
+    loader = CsvFileLoader(source, chunk_rows=1)
+    analyze = (
+        analyze_measurement_loader_with_report_series
+        if include_report
+        else analyze_measurement_loader
+    )
+    with pytest.raises(ValueError, match="cell_1_v") as error:
+        analyze(loader)
+    assert error.value.__traceback__ is not None
+    assert len(analysis_readers) == 1
+    assert analysis_readers[0] in closed
+    assert not source.closed
+
+
 LIMITS = ValidationLimits(
     cell_min_v=2.8,
     cell_max_v=4.2,

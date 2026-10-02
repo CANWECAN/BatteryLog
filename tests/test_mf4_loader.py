@@ -8,7 +8,10 @@ import pandas as pd
 import pytest
 
 from batterylog import SignalMapping, SignalPattern, ValidationLimits
-from batterylog.analysis.streaming import analyze_measurement_loader
+from batterylog.analysis.streaming import (
+    analyze_measurement_loader,
+    analyze_measurement_loader_with_report_series,
+)
 from batterylog.loaders import CsvFileLoader, CsvPathLoader, MdfFileLoader, MdfPathLoader
 from batterylog.loaders import mf4 as mf4_module
 from batterylog.loaders.factory import measurement_loader_for_file, measurement_loader_for_path
@@ -69,6 +72,30 @@ class FakeMDF:
 
 def _install_fake_mdf(monkeypatch: pytest.MonkeyPatch, cls=FakeMDF) -> None:
     monkeypatch.setattr(mf4_module, "_load_asammdf", lambda: (cls, FakeMdfException))
+
+
+@pytest.mark.parametrize("entrypoint", ["report", "legacy"])
+def test_mdf_context_exits_on_analysis_error_with_retained_traceback(monkeypatch, entrypoint):
+    class TrackedMDF(FakeMDF):
+        exited = False
+        frame = FakeMDF.frame.assign(temp_1_c=["bad", 56.0, 25.0])
+
+        def __exit__(self, exc_type, exc, tb):
+            type(self).exited = True
+
+    _install_fake_mdf(monkeypatch, TrackedMDF)
+    handle = BytesIO(b"")
+    loader = MdfFileLoader(handle)
+    analyze = (
+        analyze_measurement_loader_with_report_series
+        if entrypoint == "report"
+        else analyze_measurement_loader
+    )
+    with pytest.raises(ValueError, match="temp_1_c") as error:
+        analyze(loader)
+    assert error.value.__traceback__ is not None
+    assert TrackedMDF.exited
+    assert not handle.closed
 
 
 def test_loader_factory_dispatches_mdf_suffixes() -> None:

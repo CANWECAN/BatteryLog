@@ -23,7 +23,10 @@ def test_package_metadata_declares_apache_2() -> None:
     assert {"name": "Berk Ozfiliz"} in metadata["authors"]
     assert "setuptools>=77" in project["build-system"]["requires"]
     optional = project["project"]["optional-dependencies"]
-    assert optional["mf4"] == ["asammdf>=8.8,<9"]
+    assert optional["mf4"] == [
+        "asammdf>=8.8,<9",
+        "canmatrix>=1.2,<1.3",
+    ]
     assert "psutil>=5.9" in optional["dev"]
 
 

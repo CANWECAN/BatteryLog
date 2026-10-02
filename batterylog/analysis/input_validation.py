@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_object_dtype
 
 from batterylog.config import SignalMapping, ValidationLimits
 from batterylog.signals import (
@@ -39,6 +40,9 @@ def canonicalize_analysis_frame(
     limits: ValidationLimits,
 ) -> tuple[pd.DataFrame, SignalLayout]:
     canonical = canonicalize_battery_signals(frame, signal_mapping)
+    for column in ("timestamp_s", "temp_c"):
+        if sum(isinstance(name, str) and name == column for name in canonical.columns) > 1:
+            raise ValueError(f"Duplicate canonical signal name {column!r}")
     if "timestamp_s" not in canonical.columns:
         raise ValueError("Required column 'timestamp_s' is missing")
 
@@ -62,6 +66,25 @@ def canonicalize_analysis_frame(
         pack_current_col=pack_current_col,
         pack_voltage_col=pack_voltage_col,
     )
+
+
+def coerce_required_numeric(frame: pd.DataFrame) -> pd.DataFrame:
+    """Parse real measurements without coercing complex or temporal values."""
+    numeric: dict[str, pd.Series] = {}
+    for name in frame.columns:
+        values = frame[name]
+        if values.dtype.kind in "cMm":
+            numeric[name] = pd.Series(np.nan, index=frame.index, dtype=float)
+            continue
+        if is_object_dtype(values.dtype) or isinstance(values.dtype, pd.CategoricalDtype):
+            values = values.astype(object)
+            unsupported_values = values.map(
+                lambda value: isinstance(value, (complex, np.complexfloating, np.ndarray))
+            )
+            if unsupported_values.any():
+                values = values.mask(unsupported_values, np.nan)
+        numeric[name] = pd.to_numeric(values, errors="coerce")
+    return pd.DataFrame(numeric, index=frame.index)
 
 
 def _first_true_position(mask: np.ndarray) -> tuple[int, int] | None:

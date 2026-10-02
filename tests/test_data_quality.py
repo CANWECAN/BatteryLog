@@ -4,10 +4,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from batterylog import ValidationLimits
+from batterylog import ValidationConfig, ValidationLimits
 from batterylog.analysis.core import _analyze_battery_frame, analyze_battery_bytes
 from batterylog.analysis.data_quality import DataQualityCollector
-from batterylog.analysis.streaming import _analyze_battery_chunks, analyze_measurement_loader
+from batterylog.analysis.streaming import (
+    _analyze_battery_chunks,
+    analyze_measurement_loader,
+    analyze_measurement_loader_with_report_series,
+)
 from batterylog.config import DataQualityConfig
 from batterylog.loaders import CsvFileLoader
 
@@ -506,3 +510,97 @@ def test_invalid_timestamp_is_excluded_and_breaks_violation_continuity() -> None
         (0.0, 0.0),
         (2.0, 2.0),
     ]
+
+
+@pytest.mark.parametrize("dtype", ["Float64", "Int64"])
+@pytest.mark.parametrize("chunk_rows", [1, 3])
+def test_nullable_measurements_preserve_missing_evidence_through_loader(dtype, chunk_rows) -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0, 2.0],
+            "cell_1_v": pd.Series([4, pd.NA, 3], dtype=dtype),
+            "temp_1_c": [25.0, 25.0, 25.0],
+        }
+    )
+    config = ValidationConfig(
+        limits=ValidationLimits(cell_min_v=2.8, cell_max_v=4.2),
+        data_quality=DataQualityConfig("exclude_invalid_rows"),
+    )
+
+    class NullableLoader:
+        source_format = "csv"
+
+        def iter_chunks(self, *, signal_mapping):
+            for start in range(0, len(frame), chunk_rows):
+                yield frame.iloc[start : start + chunk_rows]
+
+    result, series = analyze_measurement_loader_with_report_series(
+        NullableLoader(), limits=config.limits, data_quality=config.data_quality, max_points=20
+    )
+    expected = _analyze_battery_frame(frame, limits=config.limits, data_quality=config.data_quality)
+    assert result == expected
+    assert expected["rows_input"] == 3
+    assert expected["rows_analyzed"] == 2
+    assert expected["rows_excluded"] == 1
+    assert expected["validation_status"] == "FAIL"
+    assert expected["violations"] == []
+    assert expected["data_quality"]["events"] == [
+        {
+            "code": "MISSING_REQUIRED_VALUE",
+            "start_row": 2,
+            "end_row": 2,
+            "signals": ["cell_1_v"],
+            "affected_values": 1,
+        }
+    ]
+    assert series is not None
+    assert series.source_rows == 2
+    assert [point.timestamp_s for point in series.points] == [0.0, 2.0]
+
+
+@pytest.mark.parametrize("signal", ["cell_1_v", "timestamp_s"])
+@pytest.mark.parametrize("mode", ["strict", "exclude_invalid_rows"])
+@pytest.mark.parametrize("chunk_rows", [1, 3])
+def test_mixed_categorical_boolean_preserves_invalid_and_missing_evidence(
+    signal, mode, chunk_rows
+) -> None:
+    frame = pd.DataFrame({"timestamp_s": [0, 1, 2], "cell_1_v": [3.5] * 3, "temp_c": [25] * 3})
+    normal = 1 if signal == "timestamp_s" else 3.5
+    frame[signal] = pd.Series([False, normal, None], dtype="category")
+
+    class Loader:
+        source_format = "custom"
+
+        def iter_chunks(self, *, signal_mapping):
+            for start in range(0, len(frame), chunk_rows):
+                yield frame.iloc[start : start + chunk_rows]
+
+    data_quality = DataQualityConfig(mode)
+    if mode == "strict":
+        with pytest.raises(ValueError, match=rf"data row 1 .*column '{signal}'"):
+            analyze_measurement_loader_with_report_series(
+                Loader(), data_quality=data_quality, max_points=20
+            )
+    else:
+        result, series = analyze_measurement_loader_with_report_series(
+            Loader(), data_quality=data_quality, max_points=20
+        )
+        assert (result["rows_input"], result["rows_analyzed"], result["rows_excluded"]) == (3, 1, 2)
+        assert result["data_quality"]["events"] == [
+            {
+                "code": "NON_NUMERIC_REQUIRED_VALUE",
+                "start_row": 1,
+                "end_row": 1,
+                "signals": [signal],
+                "affected_values": 1,
+            },
+            {
+                "code": "MISSING_REQUIRED_VALUE",
+                "start_row": 3,
+                "end_row": 3,
+                "signals": [signal],
+                "affected_values": 1,
+            },
+        ]
+        assert series is not None
+        assert series.source_rows == 1
