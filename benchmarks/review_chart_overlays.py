@@ -195,6 +195,6 @@ payload = {
     "method": "Fresh offline headless Edge; 1440x1000; all-seven-chart CSV with/without JS plus three 100k-MF4 runs; hide timing includes native input and computed-style verification of every overlay; working-set sum includes shared pages, 200 ms samples, not unique physical memory; stop at 4 GiB sum or <1 GiB globally available",
     "cases": cases,
 }
-(root / "docs/benchmarks/0.10-chart-overlay-after.json").write_text(
+(out / "0.10-chart-overlay-after.json").write_text(
     json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
 )

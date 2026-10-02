@@ -21,7 +21,9 @@ source_dir = root.parents[1] / "validation" / "cora-data2395" / "cycle229"
 cases = []
 imported = Path(
     subprocess.check_output(
-        [sys.executable, "-c", "import batterylog; print(batterylog.__file__)"], cwd=out, text=True
+        [sys.executable, "-c", "import batterylog; print(batterylog.__file__)"],
+        cwd=out,
+        text=True,
     ).strip()
 ).resolve()
 expected_import = Path(os.environ["PYTHONPATH"]) / "batterylog" / "__init__.py"
@@ -121,7 +123,7 @@ if stage == "after":
                 context.close()
         finally:
             browser.close()
-    (root / "docs" / "benchmarks" / "0.10-cora-cycle229-recheck.json").write_text(
+    (out / "0.10-cora-cycle229-recheck.json").write_text(
         json.dumps(
             {
                 "dataset": "CORA data2395 cycle 229, existing canonical CSV adapter",

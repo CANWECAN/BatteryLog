@@ -155,6 +155,6 @@ payload = {
     "method": "3 alternating fresh offline headless Edge loads at 1440x1000; no concurrent analysis or builds; all charts visited and captured; RSS is summed owned-process working set, includes shared pages, 200 ms sampling; stop at 4 GiB sum or <1 GiB global available RAM",
     "cases": cases,
 }
-(root / "docs" / "benchmarks" / "0.10-svg-containment-experiment.json").write_text(
+(out / "0.10-svg-containment-experiment.json").write_text(
     json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
 )

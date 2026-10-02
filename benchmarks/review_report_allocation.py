@@ -74,7 +74,9 @@ def worker(stage, operation, repeat, metric):
     html = report.read_text("utf-8")
     svgs = re.findall(r"<svg\b.*?</svg>", html, re.DOTALL)
     data = re.search(
-        r'<script id="event-data" type="application/json">(.*?)</script>', html, re.DOTALL
+        r'<script id="event-data" type="application/json">(.*?)</script>',
+        html,
+        re.DOTALL,
     )
     assert data is not None and len(json.loads(data[1])) == 100000
     record = {
@@ -110,7 +112,10 @@ def main():
     args = parser.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     if args.worker:
-        print(json.dumps(worker(args.stage, args.worker, args.repeat, args.metric)), flush=True)
+        print(
+            json.dumps(worker(args.stage, args.worker, args.repeat, args.metric)),
+            flush=True,
+        )
         return
     cases = []
     for repeat in range(1, 4):
@@ -150,8 +155,9 @@ def main():
         assert {case["report_sha256"] for case in cases} == {
             case["report_sha256"] for case in before["cases"]
         }
-        (ROOT / f"docs/benchmarks/0.10-report-allocation-{args.metric}.json").write_text(
-            json.dumps({"before": before, "after": record}, indent=2) + "\n", encoding="utf-8"
+        (OUT / f"0.10-report-allocation-{args.metric}.json").write_text(
+            json.dumps({"before": before, "after": record}, indent=2) + "\n",
+            encoding="utf-8",
         )
 
 

@@ -1,6 +1,0 @@
-{
-  "code_commit": "71b20370cf492fc342089d62f499314773fee715",
-  "install_method": "--no-deps into new target; existing venv dependencies; import checked outside checkout",
-  "python_files_match_source": 32,
-  "wheel_sha256": "17fef86bcda7b64c9e3f9fe82d39b7c276de98da82bd8dde301f4d1c133f11d1"
-}
