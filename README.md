@@ -67,6 +67,15 @@ batterylog measurements --batch --config validation.yaml --output-dir results/ru
 
 See [batch analysis](docs/BATCH_ANALYSIS.md) for discovery, output layout and error handling.
 
+List channels and check their configured selection before analysis:
+
+```sh
+batterylog capture.mf4 --inspect --config validation.yaml
+```
+
+See [input inspection](docs/INPUT_INSPECTION.md) for metadata scope and exit codes.
+An `OK` inventory checks channel metadata only; engineering analysis still needs to run.
+
 ## Input model
 
 Canonical CSV input starts with a numeric, non-decreasing timestamp plus indexed cell-voltage and temperature channels:

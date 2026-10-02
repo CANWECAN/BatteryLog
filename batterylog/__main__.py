@@ -15,6 +15,7 @@ from .config import (
     load_validation_config_bytes,
     override_event_detection,
 )
+from .inspection import inspect_measurement
 from .models import AnalysisResult
 from .reporting import (
     build_report_metadata,
@@ -36,7 +37,11 @@ EXIT_RUNTIME_ERROR = 4
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Analyze EV battery test data.")
     parser.add_argument("path", help="Measurement path, or input directory with --batch")
-    parser.add_argument("--batch", action="store_true", help="Analyze a directory of measurements")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--batch", action="store_true", help="Analyze a directory of measurements")
+    mode.add_argument(
+        "--inspect", action="store_true", help="List channels and check metadata without analysis"
+    )
     parser.add_argument(
         "--output-dir", help="New output directory for batch reports and summary.csv"
     )
@@ -304,6 +309,10 @@ def run(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
+        if args.inspect and (args.report or args.json_out):
+            parser.error(
+                "--inspect emits metadata on stdout; --report and --json-out require analysis"
+            )
         if args.batch:
             if not args.output_dir:
                 parser.error("--batch requires --output-dir")
@@ -319,6 +328,13 @@ def run(argv: Sequence[str] | None = None) -> int:
         report_path = Path(args.report).resolve() if args.report else None
         json_out_path = Path(args.json_out).resolve() if args.json_out else None
         config_path = Path(args.config).resolve() if args.config else None
+
+        if args.inspect:
+            inspection = inspect_measurement(input_path, config=_resolve_cli_config(args))
+            sys.stdout.write(
+                json.dumps(inspection, indent=2, sort_keys=True, allow_nan=False) + "\n"
+            )
+            return EXIT_PASS if inspection["metadata_status"] == "OK" else EXIT_RUNTIME_ERROR
 
         if args.batch:
             config_snapshot = (

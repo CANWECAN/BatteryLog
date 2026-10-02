@@ -20,6 +20,7 @@ from batterylog import (
     ValidationLimits,
     analyze_battery_log,
     analyze_directory,
+    inspect_measurement,
 )
 from batterylog.__main__ import run
 from batterylog.analysis.streaming import analyze_measurement_loader
@@ -79,6 +80,50 @@ def _save_mdf(path: Path, groups: list[list[Signal]]) -> None:
         mdf.save(path, overwrite=True)
     finally:
         mdf.close()
+
+
+@pytest.mark.parametrize("layout", ["single-group", "multi-group"])
+@pytest.mark.parametrize("voltage_unit", ["V", "mV"])
+def test_real_mf4_inspection_checks_metadata_without_decoding(
+    tmp_path, monkeypatch, capsys, layout, voltage_unit
+):
+    source = tmp_path / "inspect.mf4"
+    timestamps = np.array([0.0, 1.0])
+    voltage = Signal(np.array([3.5, np.nan]), timestamps, name="cell_1_v", unit=voltage_unit)
+    temperature = Signal(np.array([25.0, 25.0]), timestamps, name="temp_c", unit="degC")
+    _save_mdf(
+        source, [[voltage, temperature]] if layout == "single-group" else [[voltage], [temperature]]
+    )
+    original = source.read_bytes()
+    backend, exception = mf4_module._load_asammdf()
+    exits = []
+
+    class MetadataOnlyMDF(backend):
+        def select(self, *args, **kwargs):
+            raise AssertionError("inspection must not decode samples")
+
+        get_master = select
+        iter_to_dataframe = select
+
+        def __exit__(self, *args):
+            super().__exit__(*args)
+            exits.append(self)
+
+    monkeypatch.setattr(mf4_module, "_load_asammdf", lambda: (MetadataOnlyMDF, exception))
+    result = inspect_measurement(source)
+    expected = "OK" if voltage_unit == "V" else "ISSUES"
+    assert result["metadata_status"] == expected
+    assert result["analysis_performed"] is False
+    assert {item["name"] for item in result["channels"]} >= {"time", "cell_1_v", "temp_c"}
+    cell = next(item for item in result["channels"] if item["name"] == "cell_1_v")
+    assert cell["unit"] == voltage_unit
+    assert run([str(source), "--inspect"]) == (0 if voltage_unit == "V" else 4)
+    assert json.loads(capsys.readouterr().out) == result
+    assert len(exits) == 2
+    assert source.read_bytes() == original
+    monkeypatch.setattr(mf4_module, "_load_asammdf", lambda: (backend, exception))
+    with pytest.raises(ValueError, match="missing|unit"):
+        AnalysisService().analyze_path(source)
 
 
 @pytest.mark.parametrize("entrypoint", ["path", "file"])

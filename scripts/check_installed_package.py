@@ -14,6 +14,7 @@ from batterylog import (
     AnalysisService,
     ValidationConfig,
     ValidationLimits,
+    inspect_measurement,
     validate_result_semantics,
 )
 from batterylog.analysis.report_series import ReportSeriesCollector
@@ -45,6 +46,20 @@ assert legacy_v4["properties"]["schema_version"]["const"] == 4
 assert legacy_v3["properties"]["schema_version"]["const"] == 3
 assert legacy_v2["properties"]["schema_version"]["const"] == 2
 with TemporaryDirectory() as directory:
+    inspection = inspect_measurement(sample)
+    assert inspection["metadata_status"] == "OK"
+    assert inspection["analysis_performed"] is False
+    inspected = subprocess.run(
+        [
+            str(Path(sys.executable).with_name("batterylog")),
+            str(Path(sample).resolve()),
+            "--inspect",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(inspected.stdout) == inspection
     report = Path(directory) / "report.html"
     completed = subprocess.run(
         [
@@ -133,5 +148,5 @@ with TemporaryDirectory() as directory:
     assert (batch_out / "summary.csv").is_file()
 
 print(
-    f"Installed BatteryLog {expected_version}: service, CLI, batch, schema, rules, HTML plots verified"
+    f"Installed BatteryLog {expected_version}: service, CLI, batch, inspection, schema, rules, HTML plots verified"
 )

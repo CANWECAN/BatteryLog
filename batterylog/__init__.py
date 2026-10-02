@@ -11,6 +11,12 @@ from .config import (
     load_validation_config,
     load_validation_limits,
 )
+from .inspection import (
+    InspectionBinding,
+    InspectionChannel,
+    InspectionResult,
+    inspect_measurement,
+)
 from .models import (
     RESULT_SCHEMA_VERSION,
     AnalysisOptions,
@@ -50,6 +56,9 @@ __all__ = [
     "DataQualityInfo",
     "DataQualityMode",
     "EventDetectionConfig",
+    "InspectionBinding",
+    "InspectionChannel",
+    "InspectionResult",
     "ResultSchemaVersion",
     "RuleCode",
     "SignalMapping",
@@ -62,6 +71,7 @@ __all__ = [
     "ViolationEvent",
     "analyze_battery_log",
     "analyze_directory",
+    "inspect_measurement",
     "load_validation_config",
     "load_validation_limits",
     "validate_result_semantics",

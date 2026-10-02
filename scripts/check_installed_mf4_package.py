@@ -18,6 +18,7 @@ from batterylog import (
     ValidationConfig,
     ValidationLimits,
     analyze_battery_log,
+    inspect_measurement,
     validate_result_semantics,
 )
 from batterylog.__main__ import run
@@ -61,6 +62,16 @@ with TemporaryDirectory() as tmp:
         mdf.save(source, overwrite=True)
     finally:
         mdf.close()
+
+    inspection = inspect_measurement(source)
+    assert inspection["metadata_status"] == "OK"
+    assert inspection["time_basis"] == "mdf_master"
+    assert inspection["analysis_performed"] is False
+    inspected_stdout = io.StringIO()
+    with redirect_stdout(inspected_stdout):
+        inspected_code = run([str(source), "--inspect"])
+    assert inspected_code == 0
+    assert json.loads(inspected_stdout.getvalue()) == inspection
 
     result = analyze_battery_log(
         source,
@@ -137,5 +148,5 @@ with TemporaryDirectory() as tmp:
     assert (batch_out / "summary.csv").is_file()
 
 print(
-    f"Installed BatteryLog {expected_version}: MF4 extra, service/path/handle parity, schema/semantics and HTML plots verified"
+    f"Installed BatteryLog {expected_version}: MF4 extra, inspection, service/path/handle parity, schema/semantics and HTML plots verified"
 )
