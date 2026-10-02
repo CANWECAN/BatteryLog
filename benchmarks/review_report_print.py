@@ -197,7 +197,11 @@ with sync_playwright() as pw:
             doc = pymupdf.open(pdf)
             text = "\n".join(p.get_text() for p in doc)
             chart_pages = [i for i, p in enumerate(doc) if "Time-series plots" in p.get_text()]
-            caption_pages = [i + 1 for i, p in enumerate(doc) if p.search_for("Temperature spread")]
+            caption_pages = [
+                i + 1
+                for i, p in enumerate(doc)
+                if "Temperature spread" in p.get_text().splitlines()
+            ]
             spread_tick_pages = [i + 1 for i, p in enumerate(doc) if p.search_for("91.8 degC")]
             if stage == "after" and name == "seven-charts":
                 assert caption_pages == spread_tick_pages and len(caption_pages) == 1
