@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-02",
+  "reference_head": "5df999134d4062c932dc733c1dc0fc41b7a78e2e",
+  "code_commit": "d1a7d6ff43f1f02f22c5e0d2dc8328c6e728706a",
+  "code_tree": "4334b003c6d25ac73ff0f1620a1a15f8da531fb6",
+  "runtime_diff": {
+    "file": "batterylog/reporting/html.py",
+    "added_lines": 23,
+    "removed_lines": 8,
+    "new_dependencies": 0,
+    "new_public_api": 0
+  },
+  "added_cases": {
+    "full_renderer_and_file_parity_large_tables_unicode": 8,
+    "late_render_failure_atomic_cleanup": 4,
+    "total": 12
+  },
+  "local_suite": {
+    "passed": 1393,
+    "skipped": 1,
+    "warnings": 4,
+    "seconds": 61.57,
+    "coverage_statements": 2460,
+    "coverage_missing": 34,
+    "coverage_percent": 98.62,
+    "command": "python -m pytest -q --cov=batterylog --cov-report=term-missing",
+    "skip_reason": "Linux-only behavior",
+    "warnings_reason": "Expected NumPy overflow cases"
+  },
+  "checks": {
+    "ruff_format_files": 109,
+    "ruff_check": "passed",
+    "mypy_source_files": 32,
+    "pip_check": "passed",
+    "git_diff_check": "passed",
+    "wheel_and_sdist_build": "passed",
+    "installed_mf4_smoke": "passed"
+  },
+  "pressure_report": {
+    "events": 100000,
+    "charts": 3,
+    "bytes": 56960822,
+    "svg_bytes": 38191847,
+    "embedded_event_json_bytes": 18733409,
+    "sha256": "01b31c64f7af667ad5ee109ddf80f6a3d97c2342cf8dcabc5a1ca291e72fc563",
+    "all_24_memory_cases_equal_bytes": true
+  },
+  "write_medians_bytes": {
+    "before_report_heap_peak": 397365328,
+    "after_report_heap_peak": 143848791,
+    "heap_reduction_percent": 63.7993602199737,
+    "before_sampled_python_rss_peak": 367280128,
+    "after_sampled_python_rss_peak": 292515840,
+    "rss_reduction_percent": 20.356202881741538
+  },
+  "scope": "Report-render/write stage, preloaded retained MF4 snapshot, fresh processes; heap and RSS measured separately. No browser-memory or full-CLI peak claim. The public full-string renderer retains its allocation cost. Config v6/result v8 unchanged."
+}

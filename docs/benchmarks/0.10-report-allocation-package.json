@@ -1,0 +1,9 @@
+{
+  "code_commit": "d1a7d6ff43f1f02f22c5e0d2dc8328c6e728706a",
+  "code_tree": "4334b003c6d25ac73ff0f1620a1a15f8da531fb6",
+  "wheel_sha256": "30fa1c35b72530d29c1b7b2ad9d99dcc796d3e270ec1f0a2031474fc37a24bf2",
+  "sdist_sha256": "55e8c4ec5413de6838b490055653bf43c30adb8a3c098f8432e071fc0d8bb022",
+  "python_files_equal_source": 32,
+  "sdist_reporting_tests_equal_source": true,
+  "local_dependency_isolation": "fresh target install --no-deps; existing venv dependencies reused"
+}
