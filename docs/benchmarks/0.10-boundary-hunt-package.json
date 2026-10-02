@@ -1,8 +1,8 @@
 {
-  "code_commit": "a642976da59ca00f32d7f5f16defca57a93eb2a8",
-  "code_tree": "b2b5d1c39470f6ae3b025dfab8918bae6df80577",
-  "wheel_sha256": "9362b2e54d6eb17bb04341e40676a111bd7167155950405008f4e883b8ca5d96",
-  "sdist_sha256": "3b2b742b6f9090fdede2a3079b865cd2eb444023a49bbb85b0306d4313347ccf",
+  "code_commit": "ebaaaa3eb46d244b0ec877ef441e82d0cd161d31",
+  "code_tree": "a71f45ca01c2b82e198dce6d29b117da4d7f4109",
+  "wheel_sha256": "81e37503e4f2d91d50919e533b0d54de2d732af4a089a67030ccba2d7828971b",
+  "sdist_sha256": "9cbc7898d72f39fea4d300c27f233081e81bcabf592d867f221829e29f0e6ffc",
   "python_files_equal_source": 32,
   "sdist_measurement_tests_equal_source": true,
   "local_dependency_isolation": "fresh target install --no-deps; existing venv dependencies reused"

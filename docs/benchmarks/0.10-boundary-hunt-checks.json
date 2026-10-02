@@ -1,7 +1,7 @@
 {
   "date": "2026-10-02",
   "reference_head": "8a0e19425d98d702694020a1e909618bf5add3ab",
-  "code_commit": "a642976da59ca00f32d7f5f16defca57a93eb2a8",
+  "code_commit": "ebaaaa3eb46d244b0ec877ef441e82d0cd161d31",
   "baseline_reproduction": {
     "command": "python -m pytest tests/test_measurement_types.py -k 'numpy_array_wrappers or duplicate_canonical_scalar_columns' -q --no-cov",
     "failed": 42,
@@ -20,15 +20,18 @@
     "total": 51
   },
   "final_local_suite": {
-    "command": "python -m pytest -q",
+    "command": "python -m pytest -q --cov=batterylog --cov-report=term-missing",
     "passed": 1381,
     "skipped": 1,
     "warnings": 4,
-    "seconds": 35.04,
+    "seconds": 61.27,
     "exit_code": 0,
     "skip_reason": "Linux-only behavior",
     "warnings_reason": "Expected NumPy overflow scenario",
-    "coverage_collected": false
+    "coverage_collected": true,
+    "coverage_percent": 98.61,
+    "coverage_statements": 2451,
+    "coverage_missing": 34
   },
   "earlier_coverage_run": {
     "passed": 1380,
@@ -38,7 +41,7 @@
     "note": "Before the final metadata compatibility test was added; no runtime change afterward"
   },
   "checks": {
-    "ruff_format_files": 107,
+    "ruff_format_files": 108,
     "ruff_check": "passed",
     "mypy_source_files": 32,
     "mypy_flags": "--follow-imports=silent --ignore-missing-imports",
@@ -55,5 +58,32 @@
     "expected_timestamp_order_errors": 3,
     "note": "Three diagnostic values at the middle row are greater than the final timestamp; their rejection is expected, not a product defect."
   },
-  "scope": "Custom DataFrame adapter boundaries; duplicate CSV headers are already rejected. No incorrect engineering PASS reproduced. Config v6/result v8 unchanged."
+  "scope": "Custom DataFrame adapter boundaries; duplicate CSV headers are already rejected. No incorrect engineering PASS reproduced. Config v6/result v8 unchanged.",
+  "initial_ci": {
+    "run_id": 37000456068,
+    "head": "993702af7fb51d7b496291c96fcd595ca54ad7e5",
+    "minimum_runtime": {
+      "numpy": "1.26.0",
+      "pandas": "2.2.0",
+      "failed": 1,
+      "passed": 1350,
+      "skipped": 1,
+      "warnings": 5,
+      "test": "test_implicit_mapping_ignores_unselected_metadata_with_a_missing_column_label",
+      "error": "TypeError: boolean value of NA is ambiguous",
+      "cause": "New list.count duplicate guard compared unselected pd.NA metadata label to strings",
+      "correction": "Count only string column names; retain metadata compatibility test"
+    }
+  },
+  "initial_local_suite": {
+    "command": "python -m pytest -q",
+    "passed": 1381,
+    "skipped": 1,
+    "warnings": 4,
+    "seconds": 35.04,
+    "exit_code": 0,
+    "skip_reason": "Linux-only behavior",
+    "warnings_reason": "Expected NumPy overflow scenario",
+    "coverage_collected": false
+  }
 }

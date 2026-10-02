@@ -61,8 +61,8 @@
       "svg_sha256": "5f6c16839c7cbc69297e778fffa5751c660e7dd17f9cd26378bdef267e5e9fd6"
     }
   ],
-  "import_root": "C:\\Users\\berko\\Berk-Automotive-Lab\\products\\BatteryLog-boundary-hunt\\dist\\boundary-hunt\\installed-wheel",
-  "input_validation_source_sha256": "e5ae322a76ec5411070717d74320346e5592c2c3090e3cd61db5ae5fbeb9595e",
+  "import_root": "C:\\Users\\berko\\Berk-Automotive-Lab\\products\\BatteryLog-boundary-hunt\\dist\\boundary-hunt\\installed-wheel-final",
+  "input_validation_source_sha256": "264cdaabd89e86659baf47c4bd514cc70ad14aa42d6d498c4bba608d86b2cf40",
   "reference_head": "8a0e19425d98d702694020a1e909618bf5add3ab",
   "scope": "retained CORA cycle-229 branches and aligned 100k-event MF4; not full campaign",
   "stage": "after"
