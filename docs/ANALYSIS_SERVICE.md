@@ -57,4 +57,4 @@ This is the service foundation, not completion of 0.10 or a desktop launcher.
 Opt-in [result-consumer checks](RESULT_VALIDATION.md) and resource
 characterization now have development implementations. Their acceptance,
 representative large-log limits and integration review remain open before
-release; see [the integration build](0.10_INTEGRATION.md).
+release. Validate an exact integration candidate before publication.
