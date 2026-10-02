@@ -144,9 +144,10 @@ class DesktopWindow:
             self.root.after(150, self.poll)
             return
         self.job = None
-        if self.closing:
+        if self.closing and outcome.status == "CANCELLED":
             self.root.destroy()
             return
+        self.closing = False
         self.report = outcome.report
         self.set_status(
             f"{outcome.status}\n{outcome.message}" + (f"\n{self.report}" if self.report else "")
