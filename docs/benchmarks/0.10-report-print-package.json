@@ -1,0 +1,9 @@
+{
+  "source_commit": "2820bf32a28fdcee7e769d2941c43c38abe55798",
+  "source_tree": "4dd4ae0fcd2dfe95cfef2530e9e4d13abb4dc27e",
+  "wheel_sha256": "cbef400eb99baf49b4807bee2374474a95e19c363f8994a9a861286e73310ac3",
+  "sdist_sha256": "502805069f4d60a88f2f92c68031475484d2ba5b5569872338b8075cc21bef86",
+  "wheel_and_sdist_python_sources_equal": 32,
+  "install_method": "Fresh --target with --no-deps; existing readiness venv dependencies reused",
+  "coverage_percent": 98.6178861788618
+}

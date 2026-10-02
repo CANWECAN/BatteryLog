@@ -1,0 +1,47 @@
+{
+  "installed_import": "C:\\Users\\berko\\Berk-Automotive-Lab\\products\\BatteryLog-print-review\\dist\\print-review\\installed-wheel-final\\batterylog\\__init__.py",
+  "version": "0.10.0.dev0",
+  "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "pymupdf_version": "1.28.2",
+  "caption_and_axis_same_page_after": true,
+  "pdfs": [
+    {
+      "name": "seven-charts",
+      "stage": "before",
+      "pdf_sha256": "47cff35b3c55387109f718c1797306721ea2e53848828e0c5a028630b62de30b",
+      "text_code_occurrences_including_summary": {
+        "CELL_IMBALANCE_HIGH": 2,
+        "CELL_OVERVOLTAGE": 2
+      }
+    },
+    {
+      "name": "100k-mf4",
+      "stage": "before",
+      "pdf_sha256": "e2475e13fe51a381c1cd1bd1111ea9f024816913abf991bc10b6a4d4c560a817",
+      "text_code_occurrences_including_summary": {
+        "CELL_IMBALANCE_HIGH": 52,
+        "CELL_OVERVOLTAGE": 52
+      }
+    },
+    {
+      "name": "seven-charts",
+      "stage": "after",
+      "pdf_sha256": "02a9f560e14e85600b01d433011234a3d5fdcf46142f52ae46278d1c09586af3",
+      "text_code_occurrences_including_summary": {
+        "CELL_IMBALANCE_HIGH": 2,
+        "CELL_OVERVOLTAGE": 2
+      }
+    },
+    {
+      "name": "100k-mf4",
+      "stage": "after",
+      "pdf_sha256": "39b5e78295b82cd66327044b8c290785b9b6a31ca4346bbf915f49489412da2f",
+      "text_code_occurrences_including_summary": {
+        "CELL_IMBALANCE_HIGH": 52,
+        "CELL_OVERVOLTAGE": 52
+      }
+    }
+  ],
+  "method": "Four fresh offline Edge sessions; A4 portrait, 10 mm margins; final before/after sessions sequential without concurrent tests/builds. RSS is 200 ms owned Edge working-set sum including shared pages and PNG diagnostic phase, not unique physical memory or a performance benchmark."
+}

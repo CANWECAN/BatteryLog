@@ -1,0 +1,173 @@
+[
+  {
+    "name": "seven-charts",
+    "stage": "after",
+    "html_sha256": "4277ef60bde25b88e17577e6828a70ce23f4d6e54e75190dcb60ea5b1f59cfba",
+    "browser": "154.0.4258.48",
+    "pdf_bytes": 110051,
+    "pdf_pages": 5,
+    "pdf_s": 0.21461769999586977,
+    "chart_count": 7,
+    "print_geometry": [
+      {
+        "kind": "plot-card",
+        "width": 652,
+        "scroll": 652,
+        "overflow": "auto"
+      },
+      {
+        "kind": "plot-card",
+        "width": 652,
+        "scroll": 652,
+        "overflow": "auto"
+      },
+      {
+        "kind": "plot-card",
+        "width": 652,
+        "scroll": 652,
+        "overflow": "auto"
+      },
+      {
+        "kind": "plot-card",
+        "width": 652,
+        "scroll": 652,
+        "overflow": "auto"
+      },
+      {
+        "kind": "plot-card",
+        "width": 652,
+        "scroll": 652,
+        "overflow": "auto"
+      },
+      {
+        "kind": "plot-card",
+        "width": 652,
+        "scroll": 652,
+        "overflow": "auto"
+      },
+      {
+        "kind": "plot-card",
+        "width": 652,
+        "scroll": 652,
+        "overflow": "auto"
+      },
+      {
+        "kind": "quality-table",
+        "width": 654,
+        "scroll": 654,
+        "overflow": "visible"
+      },
+      {
+        "kind": "event-table",
+        "width": 654,
+        "scroll": 1098,
+        "overflow": "visible"
+      }
+    ],
+    "event_count_text": [],
+    "pdf_has_page_only_notice": false,
+    "pdf_has_last_event": null,
+    "expected_last_event_cells": null,
+    "selected_png_pages": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "page_errors": [],
+    "spread_caption_pages": [
+      3
+    ],
+    "spread_tick_pages": [
+      3
+    ],
+    "screen_chart_min_widths": [
+      "680px",
+      "680px",
+      "680px",
+      "680px",
+      "680px",
+      "680px",
+      "680px"
+    ],
+    "aborted": false,
+    "owned_edge_rss_sum_peak_bytes": 449019904
+  },
+  {
+    "name": "100k-mf4",
+    "stage": "after",
+    "html_sha256": "90a2a100304234467018f0d89d2d6cd71759512180af6f28d72018b8484d6459",
+    "browser": "154.0.4258.48",
+    "pdf_bytes": 55571558,
+    "pdf_pages": 7,
+    "pdf_s": 64.98334860001341,
+    "chart_count": 3,
+    "print_geometry": [
+      {
+        "kind": "plot-card",
+        "width": 652,
+        "scroll": 652,
+        "overflow": "auto"
+      },
+      {
+        "kind": "plot-card",
+        "width": 652,
+        "scroll": 652,
+        "overflow": "auto"
+      },
+      {
+        "kind": "plot-card",
+        "width": 652,
+        "scroll": 652,
+        "overflow": "auto"
+      },
+      {
+        "kind": "quality-table",
+        "width": 654,
+        "scroll": 654,
+        "overflow": "visible"
+      },
+      {
+        "kind": "event-table",
+        "width": 654,
+        "scroll": 1063,
+        "overflow": "visible"
+      }
+    ],
+    "event_count_text": [
+      "Showing 99901\u2013100000 of 100000 matching events (100000 total). Page 1000 of 1000."
+    ],
+    "pdf_has_page_only_notice": true,
+    "pdf_has_last_event": true,
+    "expected_last_event_cells": [
+      "CELL_OVERVOLTAGE",
+      "9999.8",
+      "9999.8",
+      "9999.8",
+      "4.5 V",
+      "4.2 V",
+      "1",
+      "0",
+      "0.3 V",
+      "cell_1_v",
+      "\u2014"
+    ],
+    "selected_png_pages": [
+      1,
+      2,
+      3,
+      7
+    ],
+    "page_errors": [],
+    "spread_caption_pages": [],
+    "spread_tick_pages": [],
+    "screen_chart_min_widths": [
+      "680px",
+      "680px",
+      "680px"
+    ],
+    "aborted": false,
+    "owned_edge_rss_sum_peak_bytes": 2361950208
+  }
+]
