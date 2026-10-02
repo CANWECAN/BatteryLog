@@ -94,7 +94,3 @@ The report path happened to use less peak RSS than the standard path on this hos
 - Results are from one Windows host and are not suitable as universal performance thresholds.
 
 For real-world validation, repeat the benchmark with representative channel counts, file sizes, MDF compression/layout, and host operating systems, and keep the raw JSON output with `--json-out`.
-
-## Development follow-up
-
-The [0.10 resource characterization](0.10_RESOURCE_CHARACTERIZATION.md) includes Linux single/two-group and high-event-count measurements with raw JSON. Its environment and scenarios differ from the historical Windows runs above.
