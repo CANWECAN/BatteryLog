@@ -161,8 +161,16 @@ with sync_playwright() as pw:
             page.goto(path.as_uri(), wait_until="load", timeout=60000)
             overlays = page.get_by_role("checkbox", name="Show violation overlays")
             overlays.uncheck()
+            last_cells = None
             if name == "100k-mf4":
                 page.locator("#event-pages [data-page=last]").click()
+                last_cells = page.locator("#event-data").evaluate(
+                    "(e)=>JSON.parse(e.textContent).at(-1).cells"
+                )
+                assert (
+                    page.locator("#event-table tbody tr").last.locator("td").all_text_contents()
+                    == last_cells
+                )
             screen_min_widths = page.locator("svg.timeseries-chart").evaluate_all(
                 "(es)=>es.map(e=>getComputedStyle(e).minWidth)"
             )
@@ -196,6 +204,12 @@ with sync_playwright() as pw:
             pdf_s = perf_counter() - pdf_started
             doc = pymupdf.open(pdf)
             text = "\n".join(p.get_text() for p in doc)
+            last_row_match = None
+            if last_cells is not None:
+                last_row_match = "".join("".join(last_cells).split()) in "".join(
+                    doc[-1].get_text().split()
+                )
+                assert last_row_match
             chart_pages = [i for i, p in enumerate(doc) if "Time-series plots" in p.get_text()]
             caption_pages = [
                 i + 1
@@ -227,7 +241,8 @@ with sync_playwright() as pw:
                 "print_geometry": geometry,
                 "event_count_text": count_text,
                 "pdf_has_page_only_notice": "displayed page only" in text,
-                "pdf_has_last_event": "99998" in text if name == "100k-mf4" else None,
+                "pdf_has_last_event": last_row_match,
+                "expected_last_event_cells": last_cells,
                 "selected_png_pages": [i + 1 for i in selected],
                 "page_errors": errors,
                 "spread_caption_pages": caption_pages,
