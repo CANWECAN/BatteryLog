@@ -1,5 +1,6 @@
 from .analysis.core import analyze_battery_log
 from .analysis.service import AnalysisOutput, AnalysisService
+from .batch import BatchFileSummary, BatchSummary, analyze_directory
 from .config import (
     DataQualityConfig,
     EventDetectionConfig,
@@ -38,6 +39,8 @@ __all__ = [
     "AnalysisResult",
     "AnalysisService",
     "AppliedLimits",
+    "BatchFileSummary",
+    "BatchSummary",
     "ComparisonMode",
     "ComparisonPolicyInfo",
     "CurrentDirection",
@@ -58,6 +61,7 @@ __all__ = [
     "ValidationStatus",
     "ViolationEvent",
     "analyze_battery_log",
+    "analyze_directory",
     "load_validation_config",
     "load_validation_limits",
     "validate_result_semantics",

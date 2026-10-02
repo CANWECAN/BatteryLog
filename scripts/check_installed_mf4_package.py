@@ -108,6 +108,34 @@ with TemporaryDirectory() as tmp:
     assert html.count('class="timeseries-chart"') == 3
     assert "Cell-voltage envelope" in html
 
+    inputs = root / "batch-inputs"
+    inputs.mkdir()
+    (inputs / source.name).write_bytes(source.read_bytes())
+    batch_out = root / "batch-results"
+    batch_stdout = io.StringIO()
+    with redirect_stdout(batch_stdout):
+        batch_code = run(
+            [
+                str(inputs),
+                "--batch",
+                "--cell-max-v",
+                "5.0",
+                "--temp-max-c",
+                "60.0",
+                "--output-dir",
+                str(batch_out),
+            ]
+        )
+    batch_summary = json.loads(batch_stdout.getvalue())
+    assert batch_code == 0
+    assert batch_summary["files"][0]["status"] == "PASS"
+    batch_result = json.loads((batch_out / batch_summary["files"][0]["result_json"]).read_text())
+    validator.validate(batch_result)
+    validate_result_semantics(batch_result)
+    assert batch_result == payload
+    assert (batch_out / batch_summary["files"][0]["report_html"]).is_file()
+    assert (batch_out / "summary.csv").is_file()
+
 print(
     f"Installed BatteryLog {expected_version}: MF4 extra, service/path/handle parity, schema/semantics and HTML plots verified"
 )

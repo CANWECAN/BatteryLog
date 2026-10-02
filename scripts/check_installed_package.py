@@ -104,4 +104,34 @@ with TemporaryDirectory() as directory:
     assert mismatch_result["rules_evaluated"] == ["PACK_VOLTAGE_CELL_SUM_MISMATCH"]
     assert mismatch_result["violations"][0]["signed_error_v"] == 0.25
 
-print(f"Installed BatteryLog {expected_version}: service, CLI, schema, rules, HTML plots verified")
+    inputs = Path(directory) / "batch-inputs"
+    inputs.mkdir()
+    (inputs / "same.csv").write_bytes(Path(sample).read_bytes())
+    batch_out = Path(directory) / "batch-results"
+    batch_run = subprocess.run(
+        [
+            str(Path(sys.executable).with_name("batterylog")),
+            str(inputs),
+            "--batch",
+            "--cell-max-v",
+            "5",
+            "--output-dir",
+            str(batch_out),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    batch_summary = json.loads(batch_run.stdout)
+    assert batch_summary["batch_schema_version"] == 1
+    assert batch_summary["files"][0]["status"] == "PASS"
+    batch_result = json.loads((batch_out / batch_summary["files"][0]["result_json"]).read_text())
+    jsonschema.validate(batch_result, schema)
+    validate_result_semantics(batch_result)
+    assert batch_result == result
+    assert (batch_out / batch_summary["files"][0]["report_html"]).is_file()
+    assert (batch_out / "summary.csv").is_file()
+
+print(
+    f"Installed BatteryLog {expected_version}: service, CLI, batch, schema, rules, HTML plots verified"
+)

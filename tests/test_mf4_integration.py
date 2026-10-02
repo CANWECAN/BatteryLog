@@ -19,6 +19,7 @@ from batterylog import (
     ValidationConfig,
     ValidationLimits,
     analyze_battery_log,
+    analyze_directory,
 )
 from batterylog.__main__ import run
 from batterylog.analysis.streaming import analyze_measurement_loader
@@ -160,6 +161,36 @@ def test_real_mf4_matches_independent_all_rule_boundary_golden(
 
     # The oracle is fixed JSON, not equivalent CSV analyzed by the same kernel.
     assert render_json_result(result) == expected
+
+
+def test_real_mf4_batch_matches_single_file_results_and_csv(tmp_path):
+    from batterylog import AnalysisService, ValidationConfig
+
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    source = inputs / "measurement.mf4"
+    timestamps = np.array([0.0, 1.0])
+    _save_mdf(
+        source,
+        [
+            [
+                Signal(np.array([3.5, 4.5]), timestamps, name="cell_1_v", unit="V"),
+                Signal(np.array([25.0, 25.0]), timestamps, name="temp_c", unit="degC"),
+            ]
+        ],
+    )
+    (inputs / "measurement.csv").write_text(
+        "timestamp_s,cell_1_v,temp_c\n0,3.5,25\n1,4.5,25\n", encoding="utf-8"
+    )
+    out = tmp_path / "results"
+    service = AnalysisService(ValidationConfig(limits=ValidationLimits(cell_max_v=4.2)))
+    summary = analyze_directory(inputs, out, service=service)
+
+    assert [item["status"] for item in summary["files"]] == ["FAIL", "FAIL"]
+    results = [json.loads((out / item["result_json"]).read_text()) for item in summary["files"]]
+    assert results[0] == results[1] == service.analyze_path(source).result
+    assert results[0]["violations"][0]["sample_count"] == 1
+    assert all((out / item["report_html"]).is_file() for item in summary["files"])
 
 
 def _canonical_signals(frame: pd.DataFrame) -> list[Signal]:

@@ -4,6 +4,8 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Added sequential directory analysis for CSV/MDF/MF4 measurements with per-file JSON/HTML evidence, a CSV summary, optional recursive discovery and one captured configuration. File errors remain distinct from engineering FAIL; interrupted runs preserve completed reports and identify unprocessed files. Existing result-v8 and single-file commands are unchanged.
+
 ### 0.10 development scope
 
 - Prepare the analysis architecture and measurement contracts for future service and desktop-launcher integration. The desktop GUI and new engineering rules are outside this development checkpoint.

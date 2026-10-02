@@ -59,6 +59,14 @@ Run validation from YAML and generate JSON + HTML evidence:
 
 Completed analyses also emit canonical JSON to stdout.
 
+Development builds also support directory analysis with per-file JSON/HTML and one CSV summary:
+
+```sh
+batterylog measurements --batch --config validation.yaml --output-dir results/run-001
+```
+
+See [batch analysis](docs/BATCH_ANALYSIS.md) for discovery, output layout and error handling.
+
 ## Input model
 
 Canonical CSV input starts with a numeric, non-decreasing timestamp plus indexed cell-voltage and temperature channels:
