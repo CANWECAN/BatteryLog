@@ -241,3 +241,21 @@ def test_browsed_long_path_keeps_filename_visible(ui, monkeypatch):
     assert ui.measurement.get() == selected
     assert entry.index("insert") == len(selected)
     assert entry.xview()[1] == 1.0
+
+
+def test_close_keeps_cleanup_error_visible(ui):
+    from batterylog.desktop_job import DesktopOutcome
+
+    class FailedCleanup:
+        def poll(self):
+            return DesktopOutcome("ERROR", "Cleanup failed for /output/run: access denied")
+
+    ui.job = FailedCleanup()
+    ui.closing = True
+    ui.poll()
+    assert ui.job is None
+    assert not ui.closing
+    assert ui.root.winfo_exists()
+    assert "Cleanup failed for /output/run" in ui.status.get()
+    assert ui.run_button.instate(["!disabled"])
+    assert ui.open_button.instate(["disabled"])

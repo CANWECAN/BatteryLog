@@ -67,7 +67,8 @@ renamed to `results` only after the CLI has finished with a validation outcome a
 exist. Existing runs and input/configuration files are never overwritten. Cancellation first
 requests process termination, then escalates after two seconds if it is still running; the
 GUI keeps polling until the process has exited before removing its owned output folder.
-Closing during analysis asks whether to cancel and waits for this same cleanup.
+Closing during analysis asks whether to cancel and waits for this same cleanup. A cleanup
+error keeps the window open so its message and affected folder remain visible.
 
 A force-killed launcher, power loss or cleanup permission error can leave a run folder with
 `.pending` files. These are not completed results. Cleanup errors are shown with the affected
