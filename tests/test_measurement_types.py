@@ -177,3 +177,103 @@ def test_mixed_temporal_measurements_remain_defects_across_chunks(dtype, value, 
         assert series is not None and series.source_rows == 1
         assert [point.timestamp_s for point in series.points] == [1.0]
     pd.testing.assert_frame_equal(frame, before)
+
+
+@pytest.mark.parametrize("signal", SIGNALS)
+@pytest.mark.parametrize("mode", ["strict", "exclude_invalid_rows"])
+@pytest.mark.parametrize("entrypoint,chunk_rows", ENTRYPOINTS)
+def test_numpy_array_wrappers_follow_required_value_policy(signal, mode, entrypoint, chunk_rows):
+    frame = _frame()
+    normal = frame.loc[1, signal]
+    frame[signal] = pd.Series([np.array(normal), str(normal), None], dtype=object)
+    before = frame.copy(deep=True)
+    if mode == "strict":
+        with pytest.raises(ValueError, match=rf"data row 1 .*column '{signal}'"):
+            _analyze(frame, mode, entrypoint, chunk_rows)
+    else:
+        result, series = _analyze(frame, mode, entrypoint, chunk_rows)
+        _assert_defects(result, signal, analyzed_rows=1, invalid_end=1)
+        if entrypoint == "service":
+            assert series is not None and series.source_rows == 1
+            assert [point.timestamp_s for point in series.points] == [1.0]
+    pd.testing.assert_frame_equal(frame, before)
+
+
+@pytest.mark.parametrize("signal", ["timestamp_s", "temp_c"])
+@pytest.mark.parametrize("mode", ["strict", "exclude_invalid_rows"])
+@pytest.mark.parametrize("entrypoint,chunk_rows", ENTRYPOINTS)
+def test_duplicate_canonical_scalar_columns_raise_a_clear_error(
+    signal, mode, entrypoint, chunk_rows
+):
+    frame = _frame()
+    frame = pd.concat([frame, frame[[signal]]], axis=1)
+    before = frame.copy(deep=True)
+    with pytest.raises(ValueError, match=rf"Duplicate .*'{signal}'"):
+        _analyze(frame, mode, entrypoint, chunk_rows)
+    pd.testing.assert_frame_equal(frame, before)
+
+
+@pytest.mark.parametrize("chunk_rows", [1, 2, 3, 8])
+@pytest.mark.parametrize("max_gap_s", [None, 1.5])
+def test_invalid_adapter_rows_split_engineering_events_with_fixed_expected_evidence(
+    chunk_rows, max_gap_s
+):
+    from batterylog import EventDetectionConfig, ValidationLimits
+
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0, 2.0, 3.0, 4.0, 6.0, 9.0, 10.0],
+            "cell_1_v": [4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 3.5],
+            "temp_c": pd.Series(
+                [25.0, 25.0, np.array(25.0), 25.0, "bad", 25.0, 25.0, 25.0], dtype=object
+            ),
+        },
+        index=list(range(8)),
+    )
+    config = ValidationConfig(
+        limits=ValidationLimits(cell_max_v=4.2),
+        data_quality=DataQualityConfig("exclude_invalid_rows"),
+        event_detection=EventDetectionConfig(max_gap_s=max_gap_s),
+    )
+    output = AnalysisService(config).analyze_loader(
+        FrameLoader(frame, chunk_rows), report_max_points=20
+    )
+    spans = [(0.0, 1.0, 2), (3.0, 3.0, 1)]
+    spans += [(6.0, 9.0, 2)] if max_gap_s is None else [(6.0, 6.0, 1), (9.0, 9.0, 1)]
+    assert output.result["violations"] == [
+        {
+            "code": "CELL_OVERVOLTAGE",
+            "start_time_s": start,
+            "end_time_s": end,
+            "peak_time_s": start,
+            "measured_value": 4.5,
+            "limit_value": 4.2,
+            "sample_count": count,
+            "duration_s": end - start,
+            "peak_excursion": 0.3,
+            "unit": "V",
+            "signals": ["cell_1_v"],
+        }
+        for start, end, count in spans
+    ]
+    assert output.result["rows_analyzed"] == 6 and output.result["rows_excluded"] == 2
+    assert output.report_series is not None
+    assert [point.timestamp_s for point in output.report_series.points] == [
+        0.0,
+        1.0,
+        3.0,
+        6.0,
+        9.0,
+        10.0,
+    ]
+
+
+def test_implicit_mapping_ignores_unselected_metadata_with_a_missing_column_label():
+    frame = _frame()
+    frame[pd.NA] = "not a measurement"
+    before = frame.copy(deep=True)
+    expected, _ = _analyze(_frame(), "strict", "frame", 3)
+    result, series = _analyze(frame, "strict", "service", 1)
+    assert result == expected
+    assert series is not None and series.source_rows == 3
+    pd.testing.assert_frame_equal(frame, before)

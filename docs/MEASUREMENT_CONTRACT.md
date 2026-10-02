@@ -19,6 +19,7 @@ validation, timestamp ordering and engineering evidence.
 Numeric indices identify channels and determine ordering; they do not establish
 physical cell positions, a contiguous stack, or a series-cell count. Duplicate
 logical indices and mixed legacy/indexed temperature names are rejected.
+Canonical scalar column names (`timestamp_s` and legacy `temp_c`) must be unique.
 Explicit mapping assigns source names to the same roles and does not convert
 units. One source cannot supply multiple mapped roles.
 
@@ -49,8 +50,11 @@ The selected timestamp, every selected cell and temperature, and each present
 pack signal participate in required-value validation even when their rules are
 disabled. In strict mode an invalid required value aborts analysis. Exclusion
 mode records the defect and excludes the entire row; it never silently drops
-only the bad sensor. Present pack channels with no analyzed rows therefore have
-null extrema. An absent optional pack signal does not activate a rule.
+only the bad sensor. NumPy array containers are not scalar measurements, including
+zero-dimensional arrays; adapters must explicitly supply scalar values. Invalid
+containers follow the same strict/exclusion handling as other invalid values.
+Present pack channels with no analyzed rows therefore have null extrema. An
+absent optional pack signal does not activate a rule.
 
 Each row represents channels already placed on one time basis by the source
 preparation. Finite timestamps must be non-decreasing across chunks; duplicate

@@ -40,6 +40,9 @@ def canonicalize_analysis_frame(
     limits: ValidationLimits,
 ) -> tuple[pd.DataFrame, SignalLayout]:
     canonical = canonicalize_battery_signals(frame, signal_mapping)
+    for column in ("timestamp_s", "temp_c"):
+        if list(canonical.columns).count(column) > 1:
+            raise ValueError(f"Duplicate canonical signal name {column!r}")
     if "timestamp_s" not in canonical.columns:
         raise ValueError("Required column 'timestamp_s' is missing")
 
@@ -75,11 +78,11 @@ def coerce_required_numeric(frame: pd.DataFrame) -> pd.DataFrame:
             continue
         if is_object_dtype(values.dtype) or isinstance(values.dtype, pd.CategoricalDtype):
             values = values.astype(object)
-            complex_values = values.map(
-                lambda value: isinstance(value, (complex, np.complexfloating))
+            unsupported_values = values.map(
+                lambda value: isinstance(value, (complex, np.complexfloating, np.ndarray))
             )
-            if complex_values.any():
-                values = values.mask(complex_values, np.nan)
+            if unsupported_values.any():
+                values = values.mask(unsupported_values, np.nan)
         numeric[name] = pd.to_numeric(values, errors="coerce")
     return pd.DataFrame(numeric, index=frame.index)
 
