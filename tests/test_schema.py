@@ -69,6 +69,40 @@ def test_generated_results_validate_against_schema_v7(
         validator.validate(result)
 
 
+def test_schema_rejects_rule_without_matching_applied_limit(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(
+        analyze_battery_bytes(
+            b"timestamp_s,cell_1_v,temp_c\n0,3.8,25\n",
+            limits=ValidationLimits(cell_max_v=4.2),
+        )
+    )
+    assert result["validation_status"] == "PASS"
+    assert result["rules_evaluated"] == ["CELL_OVERVOLTAGE"]
+    result["limits_applied"]["cell_max_v"] = None
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
+def test_schema_rejects_violation_for_rule_not_evaluated(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(
+        analyze_battery_bytes(
+            b"timestamp_s,cell_1_v,temp_c\n0,4.3,25\n",
+            limits=ValidationLimits(cell_max_v=4.2),
+        )
+    )
+    assert result["validation_status"] == "FAIL"
+    assert result["violations"][0]["code"] == "CELL_OVERVOLTAGE"
+    result["rules_evaluated"] = ["CELL_UNDERVOLTAGE"]
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
 def test_schema_rejects_unknown_top_level_fields(
     validator: Draft202012Validator,
 ) -> None:
