@@ -123,6 +123,59 @@ def test_schema_enforces_validation_status_invariants(
         validator.validate(result)
 
 
+def test_schema_rejects_configured_limit_missing_from_rules_evaluated(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(
+        analyze_battery_log(
+            SAMPLE,
+            limits=ValidationLimits(
+                imbalance_max_v=0.11,
+                temperature_max_c=50.0,
+            ),
+        )
+    )
+    assert result["validation_status"] == "PASS"
+    assert result["rules_evaluated"] == [
+        "CELL_IMBALANCE_HIGH",
+        "TEMPERATURE_HIGH",
+    ]
+    result["rules_evaluated"].remove("CELL_IMBALANCE_HIGH")
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
+def test_schema_rejects_violation_missing_from_rules_evaluated(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(
+        analyze_battery_log(
+            SAMPLE,
+            limits=ValidationLimits(
+                imbalance_max_v=0.08,
+                temperature_max_c=50.0,
+            ),
+        )
+    )
+    assert result["validation_status"] == "FAIL"
+    assert any(event["code"] == "CELL_IMBALANCE_HIGH" for event in result["violations"])
+    result["rules_evaluated"].remove("CELL_IMBALANCE_HIGH")
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
+def test_schema_rejects_misrepresented_comparison_policy(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(analyze_battery_log(SAMPLE))
+    result["comparison_policy"]["relative_tolerance"] = 0.5
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
 def test_schema_rejects_invalid_canonical_mapping_provenance(
     validator: Draft202012Validator,
 ) -> None:
