@@ -123,6 +123,40 @@ def test_schema_enforces_validation_status_invariants(
         validator.validate(result)
 
 
+def test_schema_rejects_negative_imbalance_limit(
+    validator: Draft202012Validator,
+) -> None:
+    result = copy.deepcopy(
+        analyze_battery_log(
+            SAMPLE,
+            limits=ValidationLimits(imbalance_max_v=0.08),
+        )
+    )
+    result["limits_applied"]["imbalance_max_v"] = -0.01
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("relative_tolerance", 0.5),
+        ("absolute_tolerance", 1.0),
+    ],
+)
+def test_schema_rejects_impossible_comparison_policy_values(
+    validator: Draft202012Validator,
+    field: str,
+    value: float,
+) -> None:
+    result = copy.deepcopy(analyze_battery_log(SAMPLE))
+    result["comparison_policy"][field] = value  # type: ignore[literal-required]
+
+    with pytest.raises(ValidationError):
+        validator.validate(result)
+
+
 def test_schema_rejects_invalid_canonical_mapping_provenance(
     validator: Draft202012Validator,
 ) -> None:
