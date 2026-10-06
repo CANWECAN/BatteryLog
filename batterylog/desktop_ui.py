@@ -7,6 +7,7 @@ from functools import partial
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
+from .desktop_demo import create_demo
 from .desktop_job import DesktopJob
 
 
@@ -26,8 +27,10 @@ class DesktopWindow:
         frame.columnconfigure(1, weight=1)
         frame.rowconfigure(6, weight=1)
         ttk.Label(frame, text="BatteryLog", font=("TkDefaultFont", 18, "bold")).grid(
-            row=0, column=0, columnspan=3, sticky="w", pady=(0, 14)
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 14)
         )
+        self.demo_button = ttk.Button(frame, text="Try demo…", command=self.load_demo)
+        self.demo_button.grid(row=0, column=2, sticky="e", pady=(0, 14))
         self.measurement = tk.StringVar(root)
         self.config = tk.StringVar(root)
         self.output = tk.StringVar(root)
@@ -74,6 +77,34 @@ class DesktopWindow:
         scrollbar.grid(row=6, column=3, sticky="ns", pady=(14, 0))
         self.details.configure(yscrollcommand=scrollbar.set)
         self.set_status(self.status.get())
+
+    def load_demo(self) -> None:
+        if self.job is not None:
+            return
+        selected = filedialog.askdirectory(
+            parent=self.root, title="Choose where to save the demo", mustexist=True
+        )
+        if not selected:
+            return
+        try:
+            directory = create_demo(Path(selected))
+        except (OSError, ValueError) as exc:
+            self.set_status(f"ERROR\n{exc}")
+            return
+        self.measurement.set(str(directory / "synthetic_demo.csv"))
+        self.config.set(str(directory / "validation.yaml"))
+        self.output.set(str(directory))
+        for entry in self.entries:
+            entry.icursor(tk.END)
+            entry.xview_moveto(1.0)
+        self.report = None
+        self.open_button.configure(state="disabled")
+        self.set_status(
+            "DEMO READY — synthetic data, illustrative limits only.\n"
+            "Select Run analysis, then Open report. FAIL is expected: the final sample has "
+            "48 °C above the 45 °C limit and a 100 mV cell spread above the 80 mV limit.\n"
+            f"Demo files: {directory}"
+        )
 
     def set_status(self, message: str) -> None:
         self.status.set(message)
@@ -131,7 +162,7 @@ class DesktopWindow:
         except (OSError, ValueError) as exc:
             self.set_status(f"ERROR\n{exc}")
             return
-        for widget in [*self.inputs, self.run_button]:
+        for widget in [*self.inputs, self.demo_button, self.run_button]:
             widget.configure(state="disabled")
         self.cancel_button.configure(state="normal")
         self.set_status("Running analysis… You can cancel this run.")
@@ -152,7 +183,7 @@ class DesktopWindow:
         self.set_status(
             f"{outcome.status}\n{outcome.message}" + (f"\n{self.report}" if self.report else "")
         )
-        for widget in [*self.inputs, self.run_button]:
+        for widget in [*self.inputs, self.demo_button, self.run_button]:
             widget.configure(state="normal")
         self.cancel_button.configure(state="disabled")
         self.open_button.configure(state="normal" if self.report else "disabled")

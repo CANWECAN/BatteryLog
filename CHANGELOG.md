@@ -10,6 +10,7 @@ All notable changes to BatteryLog are documented here.
 - Add model outcomes to HTML and event totals to batch summaries. Document semantics, limitations and a small five-model synthetic example.
 - Add an initial `batterylog-gui` single-file desktop launcher with measurement/configuration/output selection, cancellable CLI analysis and report opening. Preserve engineering/evidence semantics and publish HTML/JSON together only after completed analysis; remove owned partial outputs after errors or cancellation.
 - Keep the desktop dependency optional: CLI/Python usage and desktop help work without Tkinter or a graphical session.
+- Add a built-in synthetic desktop demo with illustrative limits and two expected violations. Create separate demo files, then reuse the existing analysis/report workflow without changing validation semantics.
 
 ## 0.10.0 - 2026-10-02
 

@@ -23,6 +23,7 @@ from batterylog import (
 )
 from batterylog.analysis.core import analyze_battery_bytes
 from batterylog.analysis.report_series import ReportSeriesCollector
+from batterylog.desktop_demo import create_demo
 
 expected_version, sample = sys.argv[1:]
 assert version("batterylog") == expected_version
@@ -72,6 +73,32 @@ validate_result_semantics(failure_result)
 assert failure_result["validation_status"] == "FAIL"
 assert failure_result["failure_models"]["evaluations"][0]["events"][0]["duration_s"] == 2
 with TemporaryDirectory() as directory:
+    demo = create_demo(Path(directory))
+    demo_report = demo / "report.html"
+    demo_run = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "batterylog",
+            str(demo / "synthetic_demo.csv"),
+            "--config",
+            str(demo / "validation.yaml"),
+            "--report",
+            str(demo_report),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert demo_run.returncode == 1
+    demo_result = json.loads(demo_run.stdout)
+    assert demo_result["validation_status"] == "FAIL"
+    assert {v["code"] for v in demo_result["violations"]} == {
+        "CELL_IMBALANCE_HIGH",
+        "TEMPERATURE_HIGH",
+    }
+    assert len(demo_result["violations"]) == 2
+    assert demo_report.is_file()
     normalized = normalize_measurement(
         sample, Path(directory) / "prepared", units=SourceUnits("s", "V", "degC")
     )
