@@ -32,6 +32,20 @@ python -m pip install -e '.[mf4]'
 
 ## One measurement
 
+For a first try, select **Try demo…** and choose an existing folder. The launcher creates a
+new `batterylog-demo-*` directory containing a small synthetic CSV and its YAML limits,
+then fills the form. Select **Run analysis**, then **Open report**. No download or MDF
+dependency is needed for this example.
+
+The expected outcome is **FAIL**, with two violations at the final sample (4 seconds):
+48 °C exceeds the illustrative 45 °C limit, and the 100 mV cell-voltage spread exceeds the
+illustrative 80 mV limit. FAIL here is a completed engineering result, not a process error.
+The report includes plots, violation evidence and the input/configuration hashes.
+These demo limits are not recommended battery safety limits; use your validation plan
+for real measurements. Each demo and each analysis uses a separate folder.
+
+For your own file:
+
 1. Select a CSV, MDF or MF4 measurement.
 2. Select a YAML configuration, or leave it empty to use the existing default configuration.
 3. Select an existing output location. Each run creates a separate `batterylog-*` folder.

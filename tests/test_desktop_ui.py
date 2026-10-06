@@ -51,6 +51,7 @@ def test_real_analysis_ui_stays_responsive_and_opens_report(
         ui.config.set(str(config))
     ui.run_button.invoke()
     assert ui.run_button.instate(["disabled"])
+    assert ui.demo_button.instate(["disabled"])
     assert ui.open_button.instate(["disabled"])
     ticks = []
     ui.root.after(1, lambda: ticks.append(True))
@@ -62,6 +63,7 @@ def test_real_analysis_ui_stays_responsive_and_opens_report(
     assert ticks
     assert ui.status.get().startswith(f"{status}\n")
     assert ui.run_button.instate(["!disabled"])
+    assert ui.demo_button.instate(["!disabled"])
     assert ui.cancel_button.instate(["disabled"])
     assert ui.open_button.instate(["!disabled"])
     opened = []
@@ -267,3 +269,77 @@ def test_close_keeps_cleanup_error_visible(ui):
     assert "Cleanup failed for /output/run" in ui.status.get()
     assert ui.run_button.instate(["!disabled"])
     assert ui.open_button.instate(["disabled"])
+
+
+def test_demo_load_runs_and_opens_real_report(ui, tmp_path, monkeypatch):
+    import json
+
+    from batterylog import desktop_ui
+
+    monkeypatch.setattr(desktop_ui.filedialog, "askdirectory", lambda **kwargs: str(tmp_path))
+    ui.report = tmp_path / "old-report.html"
+    ui.open_button.configure(state="normal")
+    ui.demo_button.invoke()
+    assert ui.status.get().startswith("DEMO READY")
+    assert "FAIL is expected" in ui.status.get()
+    assert "illustrative limits" in ui.status.get()
+    assert ui.report is None
+    assert ui.open_button.instate(["disabled"])
+    source = Path(ui.measurement.get())
+    assert source.is_file()
+    assert source.parent == Path(ui.output.get())
+    ui.run_button.invoke()
+    ui.load_demo()  # Must not replace inputs while analysis owns the form.
+    assert Path(ui.measurement.get()) == source
+    deadline = time.monotonic() + 30
+    while ui.job is not None and time.monotonic() < deadline:
+        ui.root.update()
+        time.sleep(0.02)
+    assert ui.job is None
+    assert ui.status.get().startswith("FAIL\n")
+    result = json.loads(ui.report.with_name("result.json").read_text(encoding="utf-8"))
+    assert len(result["violations"]) == 2
+    opened = []
+    monkeypatch.setattr(desktop_ui.webbrowser, "open", lambda uri: opened.append(uri) or True)
+    ui.open_button.invoke()
+    assert opened == [ui.report.as_uri()]
+    assert ui.demo_button.instate(["!disabled"])
+
+
+def test_cancelled_demo_picker_preserves_form_and_report(ui, tmp_path, monkeypatch):
+    from batterylog import desktop_ui
+
+    monkeypatch.setattr(desktop_ui.filedialog, "askdirectory", lambda **kwargs: "")
+    ui.measurement.set("existing.csv")
+    ui.config.set("existing.yaml")
+    ui.output.set(str(tmp_path))
+    ui.report = tmp_path / "report.html"
+    ui.open_button.configure(state="normal")
+    status = ui.status.get()
+    ui.demo_button.invoke()
+    assert (ui.measurement.get(), ui.config.get(), ui.output.get()) == (
+        "existing.csv",
+        "existing.yaml",
+        str(tmp_path),
+    )
+    assert ui.report == tmp_path / "report.html"
+    assert ui.open_button.instate(["!disabled"])
+    assert ui.status.get() == status
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_demo_creation_error_preserves_current_selection(ui, tmp_path, monkeypatch):
+    from batterylog import desktop_ui
+
+    monkeypatch.setattr(desktop_ui.filedialog, "askdirectory", lambda **kwargs: str(tmp_path))
+
+    def fail(*args):
+        raise OSError("cannot create demo")
+
+    monkeypatch.setattr(desktop_ui, "create_demo", fail)
+    ui.measurement.set("existing.csv")
+    ui.demo_button.invoke()
+    assert ui.status.get() == "ERROR\ncannot create demo"
+    assert ui.measurement.get() == "existing.csv"
+    assert ui.run_button.instate(["!disabled"])
+    assert ui.demo_button.instate(["!disabled"])
