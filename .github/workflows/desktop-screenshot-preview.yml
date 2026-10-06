@@ -1,0 +1,70 @@
+name: Desktop screenshot preview
+on:
+  push:
+    branches: ["preview/desktop-screenshots-20261006"]
+permissions:
+  contents: read
+jobs:
+  screenshots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -e . pillow
+      - name: Capture the actual launcher and completed demo
+        run: |
+          xvfb-run -a python - <<'PY'
+          import json, time, tkinter as tk
+          from pathlib import Path
+          from PIL import ImageGrab
+          from batterylog import desktop_ui
+          output = Path("/tmp/batterylog-screenshots")
+          output.mkdir()
+          demo = Path("/tmp/batterylog-demo")
+          demo.mkdir()
+          root = tk.Tk()
+          root.geometry("860x420+30+30")
+          window = desktop_ui.DesktopWindow(root)
+          def capture(name):
+              deadline = time.monotonic() + 0.3
+              while time.monotonic() < deadline:
+                  root.update()
+                  time.sleep(0.01)
+              x, y = root.winfo_rootx(), root.winfo_rooty()
+              ImageGrab.grab(
+                  bbox=(x, y, x+root.winfo_width(), y+root.winfo_height()),
+                  xdisplay=root.winfo_screen()
+              ).save(output / name)
+          try:
+              capture("BatteryLog-Launcher.png")
+              desktop_ui.filedialog.askdirectory = lambda **kwargs: str(demo)
+              window.demo_button.invoke()
+              assert window.status.get().startswith("DEMO READY")
+              capture("BatteryLog-Demo-Loaded.png")
+              window.run_button.invoke()
+              deadline = time.monotonic() + 45
+              while window.job is not None and time.monotonic() < deadline:
+                  root.update()
+                  time.sleep(0.02)
+              assert window.job is None
+              assert window.status.get().startswith("FAIL\n")
+              assert window.report and window.report.is_file()
+              result = json.loads(window.report.with_name("result.json").read_text())
+              assert len(result["violations"]) == 2
+              capture("BatteryLog-Demo-Result.png")
+          finally:
+              if window.job is not None:
+                  window.job.cancel()
+                  deadline = time.monotonic() + 5
+                  while window.job.poll() is None and time.monotonic() < deadline:
+                      time.sleep(0.02)
+              root.destroy()
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: batterylog-desktop-screenshots
+          path: /tmp/batterylog-screenshots/*.png
+          retention-days: 3
