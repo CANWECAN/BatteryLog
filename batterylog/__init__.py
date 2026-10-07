@@ -11,6 +11,13 @@ from .config import (
     load_validation_config,
     load_validation_limits,
 )
+from .failure_config import (
+    BalancingConfig,
+    CellSagConfig,
+    FailureModelConfig,
+    SustainedImbalanceConfig,
+    TemperatureRiseConfig,
+)
 from .inspection import (
     InspectionBinding,
     InspectionChannel,
@@ -47,8 +54,10 @@ __all__ = [
     "AnalysisResult",
     "AnalysisService",
     "AppliedLimits",
+    "BalancingConfig",
     "BatchFileSummary",
     "BatchSummary",
+    "CellSagConfig",
     "ComparisonMode",
     "ComparisonPolicyInfo",
     "CurrentDirection",
@@ -58,6 +67,7 @@ __all__ = [
     "DataQualityInfo",
     "DataQualityMode",
     "EventDetectionConfig",
+    "FailureModelConfig",
     "InspectionBinding",
     "InspectionChannel",
     "InspectionResult",
@@ -69,6 +79,8 @@ __all__ = [
     "SignalMappingMode",
     "SignalPattern",
     "SourceUnits",
+    "SustainedImbalanceConfig",
+    "TemperatureRiseConfig",
     "UnitConversion",
     "ValidationConfig",
     "ValidationLimits",

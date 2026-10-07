@@ -1,4 +1,7 @@
-from typing import Literal, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict
+
+if TYPE_CHECKING:
+    from batterylog.failure_models import FailureModelReport
 
 RuleCode = Literal[
     "CELL_IMBALANCE_HIGH",
@@ -12,7 +15,7 @@ RuleCode = Literal[
     "TEMPERATURE_SPREAD_HIGH",
 ]
 
-ResultSchemaVersion = Literal[8]
+ResultSchemaVersion = Literal[8, 9]
 RESULT_SCHEMA_VERSION: ResultSchemaVersion = 8
 
 CurrentDirection = Literal["charge", "discharge"]
@@ -123,3 +126,4 @@ class AnalysisResult(TypedDict):
     min_pack_voltage_v: float | None
     pack_voltage_cell_sum_peak: PackVoltageCellSumPeak | None
     violations: list[ViolationEvent]
+    failure_models: NotRequired["FailureModelReport"]
