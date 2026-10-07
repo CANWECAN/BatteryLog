@@ -118,6 +118,19 @@ The main Linux CI matrix, minimum-runtime job and Windows job require these desk
 only the display-dependent widget tests. Wheel/sdist smoke checks verify the installed GUI
 help entry point outside the source checkout.
 
+On Windows, require the real widgets and use Python-level output capture:
+
+```powershell
+$env:BATTERYLOG_REQUIRE_DESKTOP_TESTS = "1"
+python -m pytest -q --capture=sys
+```
+
+During integration verification, pytest's default per-test file-descriptor capture
+produced intermittent Tcl library-read errors while recreating test windows.
+The same native Windows probe passed all 150 window creations with `--capture=sys`;
+ordinary application launches do not use pytest capture. The Windows CI job uses
+this capture mode and still fails if Tk cannot open the required windows.
+
 ## Windows review build
 
 From a clean, committed development checkout with `build`, `twine`, and the development

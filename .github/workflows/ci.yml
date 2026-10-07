@@ -66,7 +66,8 @@ jobs:
       - name: Run tests including real desktop widgets
         env:
           BATTERYLOG_REQUIRE_DESKTOP_TESTS: "1"
-        run: python -m pytest -q --cov=batterylog --cov-report=term-missing --cov-fail-under=95
+        # Windows Tcl intermittently failed to read its libraries under per-test fd capture.
+        run: python -m pytest -q --capture=sys --cov=batterylog --cov-report=term-missing --cov-fail-under=95
 
   mf4:
     strategy:
