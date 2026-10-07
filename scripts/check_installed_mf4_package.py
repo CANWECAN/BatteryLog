@@ -15,7 +15,9 @@ from asammdf import MDF, Signal
 
 from batterylog import (
     AnalysisService,
+    FailureModelConfig,
     SourceUnits,
+    TemperatureRiseConfig,
     ValidationConfig,
     ValidationLimits,
     analyze_battery_log,
@@ -29,6 +31,7 @@ expected_version = sys.argv[1]
 assert version("batterylog") == expected_version
 schema = json.loads(files("batterylog").joinpath("schema/result-v8.json").read_text())
 validator = jsonschema.Draft202012Validator(schema)
+failure_schema = json.loads(files("batterylog").joinpath("schema/result-v9.json").read_text())
 
 with TemporaryDirectory() as tmp:
     root = Path(tmp)
@@ -137,6 +140,26 @@ with TemporaryDirectory() as tmp:
     assert source.name in html
     assert html.count('class="timeseries-chart"') == 3
     assert "Cell-voltage envelope" in html
+
+    model_result = (
+        AnalysisService(
+            ValidationConfig(
+                failure_models=FailureModelConfig(
+                    2, temperature_rise=TemperatureRiseConfig(60, 0.1)
+                )
+            )
+        )
+        .analyze_path(source)
+        .result
+    )
+    jsonschema.validate(model_result, failure_schema)
+    validate_result_semantics(model_result)
+    assert model_result["schema_version"] == 9
+    assert model_result["validation_status"] == "FAIL"
+    model_event = model_result["failure_models"]["evaluations"][0]["events"][0]
+    assert model_event["code"] == "TEMPERATURE_RISE_HIGH"
+    assert model_event["measured_value"] == 1860
+    assert model_event["evidence"]["previous_time_s"] == 10
 
     inputs = root / "batch-inputs"
     inputs.mkdir()

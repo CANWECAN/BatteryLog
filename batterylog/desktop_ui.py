@@ -53,7 +53,8 @@ class DesktopWindow:
             self.entries.append(entry)
         ttk.Label(
             frame,
-            text="Without configured limits, the result is NOT_EVALUATED. No default limits are added.",
+            text="Without configured validation rules, the result is NOT_EVALUATED. "
+            "The launcher adds no validation rules.",
             wraplength=610,
         ).grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 14))
         actions = ttk.Frame(frame)

@@ -1,8 +1,10 @@
 """Smoke-test an installed distribution from outside the source checkout."""
 
+import hashlib
 import json
 import subprocess
 import sys
+import time
 from importlib.metadata import version
 from importlib.resources import files
 from pathlib import Path
@@ -18,12 +20,14 @@ from batterylog import (
     ValidationConfig,
     ValidationLimits,
     inspect_measurement,
+    load_validation_config,
     normalize_measurement,
     validate_result_semantics,
 )
 from batterylog.analysis.core import analyze_battery_bytes
 from batterylog.analysis.report_series import ReportSeriesCollector
 from batterylog.desktop_demo import create_demo
+from batterylog.desktop_job import DesktopJob
 
 expected_version, sample = sys.argv[1:]
 assert version("batterylog") == expected_version
@@ -73,6 +77,40 @@ validate_result_semantics(failure_result)
 assert failure_result["validation_status"] == "FAIL"
 assert failure_result["failure_models"]["evaluations"][0]["events"][0]["duration_s"] == 2
 with TemporaryDirectory() as directory:
+    model_source = Path(directory) / "failure-model.csv"
+    model_source.write_bytes(
+        b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,3.5,3.25,25\n1,3.5,3.25,25\n2,3.5,3.25,25\n"
+    )
+    for limit, duration, status in [(0.125, 2, "FAIL"), (1, 2, "PASS"), (1, 3, "NOT_EVALUATED")]:
+        model_config = Path(directory) / "failure-model.yaml"
+        model_config.write_text(
+            "schema_version: 7\nfailure_models:\n  max_gap_s: 1\n"
+            f"  sustained_imbalance:\n    max_delta_v: {limit}\n    duration_s: {duration}\n",
+            encoding="utf-8",
+        )
+        model_expected = (
+            AnalysisService(load_validation_config(model_config)).analyze_path(model_source).result
+        )
+        job = DesktopJob(model_source, Path(directory), model_config)
+        deadline = time.monotonic() + 30
+        outcome = None
+        while outcome is None and time.monotonic() < deadline:
+            outcome = job.poll()
+            time.sleep(0.02)
+        if outcome is None:
+            job.cancel()
+            raise AssertionError("Installed desktop worker did not finish within 30 seconds")
+        assert outcome.status == status
+        assert outcome.report is not None
+        model_payload = json.loads(
+            outcome.report.with_name("result.json").read_text(encoding="utf-8")
+        )
+        assert model_payload == model_expected
+        jsonschema.validate(model_payload, failure_schema)
+        validate_result_semantics(model_payload)
+        model_html = outcome.report.read_text(encoding="utf-8")
+        assert hashlib.sha256(model_source.read_bytes()).hexdigest() in model_html
+        assert hashlib.sha256(model_config.read_bytes()).hexdigest() in model_html
     demo = create_demo(Path(directory))
     demo_report = demo / "report.html"
     demo_run = subprocess.run(

@@ -60,6 +60,51 @@ def test_real_worker_preserves_cli_results_and_evidence(tmp_path, limit, status)
 
 
 @pytest.mark.parametrize(
+    "kind,status", [("all", "FAIL"), ("pass", "PASS"), ("short", "NOT_EVALUATED")]
+)
+def test_real_worker_preserves_failure_model_evidence(tmp_path, kind, status):
+    source = SAMPLE.with_name("failure_models_demo.csv")
+    config = tmp_path / "models.yaml"
+    if kind == "all":
+        config.write_bytes(SAMPLE.with_name("failure_models.example.yaml").read_bytes())
+    else:
+        duration = 2 if kind == "pass" else 20
+        config.write_text(
+            "schema_version: 7\nfailure_models:\n  max_gap_s: 2\n"
+            f"  sustained_imbalance:\n    max_delta_v: 1\n    duration_s: {duration}\n",
+            encoding="utf-8",
+        )
+    expected = json.loads(
+        subprocess.run(
+            [sys.executable, "-m", "batterylog", str(source), "--config", str(config)],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout
+    )
+    outcome = finish(DesktopJob(source, tmp_path, config))
+    assert outcome.status == status
+    assert outcome.report is not None
+    payload = json.loads(outcome.report.with_name("result.json").read_text(encoding="utf-8"))
+    assert payload == expected
+    assert payload["schema_version"] == 9
+    html = outcome.report.read_text(encoding="utf-8")
+    assert hashlib.sha256(source.read_bytes()).hexdigest() in html
+    assert hashlib.sha256(config.read_bytes()).hexdigest() in html
+    if kind == "all":
+        codes = {item["code"] for item in payload["failure_models"]["evaluations"]}
+        assert codes == {
+            "CELL_IMBALANCE_SUSTAINED",
+            "TEMPERATURE_RISE_HIGH",
+            "CELL_SAG_UNDER_LOAD",
+            "BALANCING_INEFFECTIVE",
+            "BALANCING_ACTIVE_TOO_LONG",
+        }
+        assert all(code in html for code in codes)
+        assert sum(len(item["events"]) for item in payload["failure_models"]["evaluations"]) == 5
+
+
+@pytest.mark.parametrize(
     "kind", ["missing", "directory", "unsupported", "bad-output", "bad-config"]
 )
 def test_invalid_paths_do_not_create_output(tmp_path, kind):

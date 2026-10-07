@@ -36,18 +36,37 @@ def ui():
         pass
 
 
-@pytest.mark.parametrize("limit,status", [(None, "NOT_EVALUATED"), (50, "PASS"), (40, "FAIL")])
+@pytest.mark.parametrize(
+    "config_text,status",
+    [
+        (None, "NOT_EVALUATED"),
+        ("limits:\n  temperature:\n    max_c: 50\n", "PASS"),
+        ("limits:\n  temperature:\n    max_c: 40\n", "FAIL"),
+        (
+            "failure_models:\n  max_gap_s: 2\n  sustained_imbalance:\n    max_delta_v: 1\n    duration_s: 2\n",
+            "PASS",
+        ),
+        (
+            "failure_models:\n  max_gap_s: 2\n  sustained_imbalance:\n    max_delta_v: 0\n    duration_s: 2\n",
+            "FAIL",
+        ),
+        (
+            "failure_models:\n  max_gap_s: 2\n  sustained_imbalance:\n    max_delta_v: 1\n    duration_s: 99\n",
+            "NOT_EVALUATED",
+        ),
+    ],
+)
 def test_real_analysis_ui_stays_responsive_and_opens_report(
-    ui, tmp_path, monkeypatch, limit, status
+    ui, tmp_path, monkeypatch, config_text, status
 ):
     from batterylog import desktop_ui
 
     sample = Path(__file__).parents[1] / "examples/sample_battery_log.csv"
     ui.measurement.set(str(sample))
     ui.output.set(str(tmp_path))
-    if limit is not None:
+    if config_text is not None:
         config = tmp_path / "validation.yaml"
-        config.write_text(f"limits:\n  temperature:\n    max_c: {limit}\n")
+        config.write_text(config_text, encoding="utf-8")
         ui.config.set(str(config))
     ui.run_button.invoke()
     assert ui.run_button.instate(["disabled"])

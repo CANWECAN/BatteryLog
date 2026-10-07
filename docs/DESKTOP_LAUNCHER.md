@@ -58,6 +58,13 @@ add limits, infer units, modify configuration or change the validation rules. Ca
 signals, explicit YAML mappings and MDF metadata requirements still apply. Prepare noncanonical
 units with the existing normalization workflow before analysis.
 
+The combined development build also accepts [failure-model YAML](FAILURE_MODELS.md).
+Select `examples/failure_models_demo.csv` and `examples/failure_models.example.yaml`
+to exercise all five new model outcomes plus the existing pack/cell-sum rule. This
+synthetic example produces FAIL with six events. The models can also run without
+legacy limits: a fully observed passing model produces PASS; insufficient model
+observations produce NOT_EVALUATED. The HTML and JSON retain result-v9 evidence.
+
 | Displayed outcome | Meaning |
 | --- | --- |
 | PASS | The configured validation rules passed. |
@@ -107,6 +114,6 @@ For Linux without a desktop:
 BATTERYLOG_REQUIRE_DESKTOP_TESTS=1 xvfb-run -a python -m pytest -q tests/test_desktop_ui.py
 ```
 
-The main Linux CI matrix and minimum-runtime job require these desktop tests; ordinary headless environments skip
+The main Linux CI matrix, minimum-runtime job and Windows job require these desktop tests; ordinary headless environments skip
 only the display-dependent widget tests. Wheel/sdist smoke checks verify the installed GUI
 help entry point outside the source checkout.
