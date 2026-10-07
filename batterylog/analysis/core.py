@@ -7,7 +7,9 @@ from batterylog.config import (
     EventDetectionConfig,
     SignalMapping,
     ValidationLimits,
+    validate_failure_current_direction,
 )
+from batterylog.failure_config import FailureModelConfig
 from batterylog.loaders import load_battery_csv_bytes
 from batterylog.models import AnalysisResult, DataQualityEvent
 
@@ -20,7 +22,9 @@ from .configuration import (
 )
 from .data_quality import DataQualityCollector
 from .evaluation import active_rule_codes, evaluate_rules
+from .failure_models import FailureModelCollector
 from .input_validation import (
+    balance_values_for_frame,
     canonicalize_analysis_frame,
     coerce_required_numeric,
     raise_invalid_numeric_value,
@@ -40,6 +44,7 @@ def _analyze_battery_frame(
     event_detection: EventDetectionConfig | None = None,
     data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
+    failure_models: FailureModelConfig | None = None,
 ) -> AnalysisResult:
     warn_legacy_threshold_arguments(
         imbalance_limit_v,
@@ -53,10 +58,13 @@ def _analyze_battery_frame(
     resolved_event_detection = resolve_event_detection(event_detection)
     resolved_data_quality = resolve_data_quality(data_quality)
     validate_signal_mapping(signal_mapping)
+    failure_collector = FailureModelCollector(failure_models)
+    validate_failure_current_direction(resolved_limits, failure_models)
 
     if df.empty:
         raise ValueError("Battery log contains no data rows")
 
+    balance_values = balance_values_for_frame(df, signal_mapping, failure_models)
     df, layout = canonicalize_analysis_frame(df, signal_mapping, resolved_limits)
     cell_cols = layout.cell_cols
     temp_cols = layout.temp_cols
@@ -92,6 +100,12 @@ def _analyze_battery_frame(
         pack_voltage_col=pack_voltage_col,
     )
     rule_inputs = prepared.rule_inputs
+    failure_collector.consume(
+        rule_inputs,
+        prepared.valid_rows,
+        balance_values,
+        exclude_invalid=resolved_data_quality.mode == "exclude_invalid_rows",
+    )
     rows_analyzed = len(prepared.valid_numeric)
     summary = summarize_prepared_measurements(prepared)
 
@@ -113,6 +127,7 @@ def _analyze_battery_frame(
         event_detection=resolved_event_detection,
         data_quality=resolved_data_quality,
         signal_mapping=signal_mapping,
+        failure_models=failure_collector.finish(),
         rules_evaluated=rules_evaluated,
         data_quality_events=data_quality_events,
         violations=violations,
@@ -136,6 +151,7 @@ def analyze_battery_log(
     event_detection: EventDetectionConfig | None = None,
     data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
+    failure_models: FailureModelConfig | None = None,
 ) -> AnalysisResult:
     from .streaming import analyze_battery_log_streaming
 
@@ -147,6 +163,7 @@ def analyze_battery_log(
         event_detection=event_detection,
         data_quality=data_quality,
         signal_mapping=signal_mapping,
+        failure_models=failure_models,
     )
 
 
@@ -159,6 +176,7 @@ def analyze_battery_bytes(
     event_detection: EventDetectionConfig | None = None,
     data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
+    failure_models: FailureModelConfig | None = None,
 ) -> AnalysisResult:
     return _analyze_battery_frame(
         load_battery_csv_bytes(data),
@@ -168,4 +186,5 @@ def analyze_battery_bytes(
         event_detection=event_detection,
         data_quality=data_quality,
         signal_mapping=signal_mapping,
+        failure_models=failure_models,
     )

@@ -7,8 +7,10 @@ from tempfile import TemporaryDirectory
 from typing import Literal, TypedDict
 
 from .analysis.input_validation import (
+    balance_values_for_frame,
     canonicalize_analysis_frame,
     coerce_required_numeric,
+    parse_balancing_status,
     raise_invalid_numeric_value,
 )
 from .config import ValidationConfig
@@ -85,6 +87,11 @@ def normalize_measurement(
                 signal_mapping=config.signals,
                 chunk_ram_bytes=DEFAULT_MDF_CHUNK_RAM_BYTES,
                 source_units=units,
+                balance_active_source=(
+                    config.failure_models.balancing.active_source
+                    if config.failure_models and config.failure_models.balancing
+                    else None
+                ),
             )
             if is_mdf_path(source)
             else iter_battery_csv_file(snapshot.handle, chunk_rows=DEFAULT_CSV_CHUNK_ROWS)
@@ -94,9 +101,22 @@ def normalize_measurement(
         previous_source_time: float | None = None
         conversions: list[UnitConversion] = []
         selected_columns: list[str] | None = None
+        balance_presence: bool | None = None
         try:
             with csv_path.open("w", encoding="utf-8", newline="") as output:
                 for frame in chunks:
+                    balance = balance_values_for_frame(frame, config.signals, config.failure_models)
+                    if balance_presence is None:
+                        balance_presence = balance is not None
+                    elif balance_presence != (balance is not None):
+                        raise ValueError("Balancing signal presence changed during normalization")
+                    balance_source = (
+                        config.failure_models.balancing.active_source
+                        if balance is not None
+                        and config.failure_models
+                        and config.failure_models.balancing
+                        else None
+                    )
                     canonical, layout = canonicalize_analysis_frame(
                         frame, config.signals, config.limits
                     )
@@ -140,6 +160,17 @@ def normalize_measurement(
                                     "offset": offset,
                                 }
                             )
+                        if balance_source is not None:
+                            conversions.append(
+                                {
+                                    "source": balance_source,
+                                    "canonical": balance_source,
+                                    "source_unit": "1",
+                                    "target_unit": "1",
+                                    "divisor": 1.0,
+                                    "offset": 0.0,
+                                }
+                            )
                     elif layout.numeric_cols != selected_columns:
                         raise ValueError("Selected channel layout changed between chunks")
                     selected = canonical.loc[:, selected_columns]
@@ -157,6 +188,8 @@ def normalize_measurement(
                     previous_source_time = float(source_times[-1])
                     for conversion in conversions:
                         name = conversion["canonical"]
+                        if name == balance_source:
+                            continue
                         original = numeric[name].to_numpy(dtype=float)
                         scaled = original / conversion["divisor"]
                         if ((original != 0) & (scaled == 0)).any():
@@ -172,6 +205,16 @@ def normalize_measurement(
                                 "Timestamps must be non-decreasing during normalization"
                             )
                         previous_time = float(times[-1])
+                    if balance is not None:
+                        statuses = []
+                        for position, value in enumerate(balance.to_numpy(dtype=object)):
+                            active = parse_balancing_status(value)
+                            if active is None:
+                                raise ValueError(
+                                    f"Balancing status must be 0/1 or boolean at data row {rows + position + 1}"
+                                )
+                            statuses.append(int(active))
+                        numeric[balance_source] = statuses
                     numeric.to_csv(output, index=False, header=rows == 0, lineterminator="\n")
                     rows += len(numeric)
         finally:

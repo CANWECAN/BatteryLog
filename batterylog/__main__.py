@@ -294,6 +294,7 @@ def _resolve_cli_config(
         event_detection=event_detection,
         data_quality=base.data_quality,
         signals=base.signals,
+        failure_models=base.failure_models,
     )
 
 

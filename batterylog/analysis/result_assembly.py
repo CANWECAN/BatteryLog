@@ -4,6 +4,7 @@ from batterylog.config import (
     SignalMapping,
     ValidationLimits,
 )
+from batterylog.failure_models import FailureModelReport
 from batterylog.models import (
     RESULT_SCHEMA_VERSION,
     AnalysisOptions,
@@ -100,6 +101,7 @@ def build_analysis_result(
     pack_current_detected: bool,
     pack_voltage_detected: bool,
     metrics: AnalysisMetrics,
+    failure_models: FailureModelReport | None = None,
 ) -> AnalysisResult:
     validation_status: ValidationStatus
     if violations or data_quality_events:
@@ -109,8 +111,17 @@ def build_analysis_result(
     else:
         validation_status = "NOT_EVALUATED"
 
-    return {
-        "schema_version": RESULT_SCHEMA_VERSION,
+    if failure_models is not None and validation_status != "FAIL":
+        statuses = [item["status"] for item in failure_models["evaluations"]]
+        if "FAIL" in statuses:
+            validation_status = "FAIL"
+        elif "NOT_EVALUATED" in statuses:
+            validation_status = "NOT_EVALUATED"
+        else:
+            validation_status = "PASS"
+
+    result: AnalysisResult = {
+        "schema_version": 9 if failure_models is not None else RESULT_SCHEMA_VERSION,
         "validation_status": validation_status,
         "rules_evaluated": rules_evaluated,
         "limits_applied": _limits_snapshot(limits),
@@ -140,3 +151,6 @@ def build_analysis_result(
         "pack_voltage_cell_sum_peak": metrics.pack_voltage_cell_sum_peak,
         "violations": violations,
     }
+    if failure_models is not None:
+        result["failure_models"] = failure_models
+    return result

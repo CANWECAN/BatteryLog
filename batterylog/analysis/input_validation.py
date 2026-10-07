@@ -1,17 +1,64 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_object_dtype
 
 from batterylog.config import SignalMapping, ValidationLimits
+from batterylog.failure_config import FailureModelConfig
+from batterylog.loaders import MeasurementLoader
+from batterylog.loaders.mf4 import MdfFileLoader, MdfPathLoader
 from batterylog.signals import (
     canonicalize_battery_signals,
     find_canonical_pack_signal_columns,
     find_canonical_signal_columns,
+    resolve_signal_mapping,
 )
 
 from .data_quality import _required_boolean_mask
+
+
+def parse_balancing_status(value: object) -> bool | None:
+    if isinstance(value, str):
+        value = {"0": 0, "1": 1, "true": True, "false": False}.get(value.strip().lower())
+    if isinstance(value, (bool, int, float, np.bool_, np.integer, np.floating)) and value in (0, 1):
+        return bool(value)
+    return None
+
+
+def failure_model_loader(
+    loader: MeasurementLoader,
+    config: FailureModelConfig | None,
+) -> MeasurementLoader:
+    if config is not None and not isinstance(config, FailureModelConfig):
+        raise TypeError("failure_models must be a FailureModelConfig instance or null")
+    if config and config.balancing and isinstance(loader, (MdfFileLoader, MdfPathLoader)):
+        return replace(loader, balance_active_source=config.balancing.active_source)
+    return loader
+
+
+def balance_values_for_frame(
+    frame: pd.DataFrame,
+    mapping: SignalMapping | None,
+    config: FailureModelConfig | None,
+) -> pd.Series | None:
+    if config is None or config.balancing is None:
+        return None
+    source = config.balancing.active_source
+    count = sum(name == source for name in frame.columns)
+    if count == 0:
+        return None
+    if count > 1:
+        raise ValueError(f"Duplicate balancing source {source!r}")
+    if mapping is not None:
+        resolved = resolve_signal_mapping(frame.columns, mapping)
+        required = [*resolved.source_columns, *resolved.canonical_columns]
+    else:
+        cells, temperatures = find_canonical_signal_columns(frame.columns)
+        required = ["timestamp_s", "pack_current_a", "pack_voltage_v", *cells, *temperatures]
+    if source in required:
+        raise ValueError(f"Balancing source {source!r} is also assigned to a measurement role")
+    return frame[source]
 
 
 @dataclass(frozen=True)
