@@ -12,13 +12,16 @@ import jsonschema
 
 from batterylog import (
     AnalysisService,
+    FailureModelConfig,
     SourceUnits,
+    SustainedImbalanceConfig,
     ValidationConfig,
     ValidationLimits,
     inspect_measurement,
     normalize_measurement,
     validate_result_semantics,
 )
+from batterylog.analysis.core import analyze_battery_bytes
 from batterylog.analysis.report_series import ReportSeriesCollector
 
 expected_version, sample = sys.argv[1:]
@@ -47,6 +50,20 @@ assert legacy_v5["properties"]["schema_version"]["const"] == 5
 assert legacy_v4["properties"]["schema_version"]["const"] == 4
 assert legacy_v3["properties"]["schema_version"]["const"] == 3
 assert legacy_v2["properties"]["schema_version"]["const"] == 2
+failure_schema = json.loads(files("batterylog").joinpath("schema/result-v9.json").read_text())
+model_config_schema = json.loads(
+    files("batterylog").joinpath("schema/failure-config-v1.json").read_text()
+)
+jsonschema.Draft202012Validator.check_schema(failure_schema)
+jsonschema.Draft202012Validator.check_schema(model_config_schema)
+failure_result = analyze_battery_bytes(
+    b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,3.5,3.25,25\n1,3.5,3.25,25\n2,3.5,3.25,25\n",
+    failure_models=FailureModelConfig(1, sustained_imbalance=SustainedImbalanceConfig(0.125, 2)),
+)
+jsonschema.validate(failure_result, failure_schema)
+validate_result_semantics(failure_result)
+assert failure_result["validation_status"] == "FAIL"
+assert failure_result["failure_models"]["evaluations"][0]["events"][0]["duration_s"] == 2
 with TemporaryDirectory() as directory:
     normalized = normalize_measurement(
         sample, Path(directory) / "prepared", units=SourceUnits("s", "V", "degC")

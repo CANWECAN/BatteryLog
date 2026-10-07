@@ -1,0 +1,195 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "max_gap_s"
+  ],
+  "properties": {
+    "max_gap_s": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "sustained_imbalance": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_delta_v",
+            "duration_s"
+          ],
+          "properties": {
+            "max_delta_v": {
+              "type": "number",
+              "minimum": 0
+            },
+            "duration_s": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "temperature_rise": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_c_per_min",
+            "min_interval_s"
+          ],
+          "properties": {
+            "max_c_per_min": {
+              "type": "number",
+              "minimum": 0
+            },
+            "min_interval_s": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cell_sag": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "positive_direction",
+            "baseline_max_abs_current_a",
+            "load_min_discharge_a",
+            "baseline_max_age_s",
+            "settling_s",
+            "excess_sag_max_v"
+          ],
+          "properties": {
+            "positive_direction": {
+              "enum": [
+                "charge",
+                "discharge"
+              ]
+            },
+            "baseline_max_abs_current_a": {
+              "type": "number",
+              "minimum": 0
+            },
+            "load_min_discharge_a": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "baseline_max_age_s": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "settling_s": {
+              "type": "number",
+              "minimum": 0
+            },
+            "excess_sag_max_v": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "balancing": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "active_source",
+            "evaluation_s",
+            "min_improvement_v",
+            "min_start_delta_v",
+            "timeout_s"
+          ],
+          "properties": {
+            "active_source": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evaluation_s": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "min_improvement_v": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "min_start_delta_v": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "timeout_s": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "anyOf": [
+    {
+      "properties": {
+        "sustained_imbalance": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "sustained_imbalance"
+      ]
+    },
+    {
+      "properties": {
+        "temperature_rise": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "temperature_rise"
+      ]
+    },
+    {
+      "properties": {
+        "cell_sag": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "cell_sag"
+      ]
+    },
+    {
+      "properties": {
+        "balancing": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "balancing"
+      ]
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CANWECAN/BatteryLog/blob/main/batterylog/schema/failure-config-v1.json",
+  "title": "BatteryLog opt-in failure model parameters v1"
+}
