@@ -420,8 +420,7 @@ def test_invalid_balancing_censor_does_not_leak_across_timestamp_gap():
         data_quality=DataQualityConfig("exclude_invalid_rows"),
     )
     assert all(
-        item["incomplete_intervals"] == 2
-        for item in result["failure_models"]["evaluations"]
+        item["incomplete_intervals"] == 2 for item in result["failure_models"]["evaluations"]
     )
 
 
