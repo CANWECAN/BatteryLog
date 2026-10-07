@@ -117,3 +117,19 @@ BATTERYLOG_REQUIRE_DESKTOP_TESTS=1 xvfb-run -a python -m pytest -q tests/test_de
 The main Linux CI matrix, minimum-runtime job and Windows job require these desktop tests; ordinary headless environments skip
 only the display-dependent widget tests. Wheel/sdist smoke checks verify the installed GUI
 help entry point outside the source checkout.
+
+## Windows review build
+
+From a clean, committed development checkout with `build`, `twine`, and the development
+dependencies installed, create an isolated review folder:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\build_windows_review.py --output-parent C:\path\to\existing\folder
+```
+
+The builder checks both distributions in fresh base/MF4 environments outside the checkout,
+opens and closes a real installed Tk window, and prepares the six-event synthetic model
+report. The new folder contains `Start-BatteryLog.cmd`, the installed environment, examples,
+distribution checksums and build diagnostics. Double-click the command file to open the
+launcher. Keep the folder at its built location; Python virtual environments contain absolute
+paths. This is a local Python-based review build, not a standalone installer.
