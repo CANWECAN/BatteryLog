@@ -4,6 +4,11 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Add opt-in sustained cell imbalance, temperature rate-of-rise, load-relative cell sag, and explicit balancing improvement/timeout observations. Reuse the released pack-versus-cell-sum mismatch rule. Preserve bounded state and whole-frame/chunk equivalence.
+- Add strict config-v7 model parameters and result-v9 model outcomes/measurement chains. Legacy-only analysis retains frozen result-v8. Insufficient or censored requested model observations prevent overall PASS.
+- Select and validate an explicitly named dimensionless balancing status from CSV/MF4 without interpolation. Preserve missing status as NOT_EVALUATED.
+- Add model outcomes to HTML and event totals to batch summaries. Document semantics, limitations and a small five-model synthetic example.
+
 ## 0.10.0 - 2026-10-02
 
 ### Measurement workflows
