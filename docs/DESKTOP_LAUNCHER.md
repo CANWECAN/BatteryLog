@@ -48,9 +48,13 @@ For your own file:
 
 1. Select a CSV, MDF or MF4 measurement.
 2. Select a YAML configuration, or leave it empty to use the existing default configuration.
-3. Select an existing output location. Each run creates a separate `batterylog-*` folder.
-4. Run analysis. The form is locked while the subprocess runs; Cancel remains available.
-5. Open the completed HTML report in the default browser. Its path remains visible if no
+3. Select **Inspect input** to read channel metadata before analysis. This uses the existing
+   CLI inspection path in a subprocess, requires no output folder and does not decode samples
+   or evaluate engineering rules. The launcher shows canonical bindings and the first blocking
+   selection issue, plus up to 60 source channels in the scrollable details area.
+4. Select an existing output location. Each run creates a separate `batterylog-*` folder.
+5. Run analysis. The form is locked while the subprocess runs; Cancel remains available.
+6. Open the completed HTML report in the default browser. Its path remains visible if no
    browser can be opened. The JSON result is next to the report.
 
 The launcher uses the same interpreter and `python -m batterylog` as the CLI. It does not
@@ -102,12 +106,14 @@ The subprocess's JSON stdout is discarded because the complete JSON is written t
 ## Current scope and verification
 
 This first workflow has no batch UI, channel-selection editor, unit-conversion UI, embedded
-plot viewer, packaging installer or automatic update mechanism. The existing CLI remains
-available for inspection, normalization and batch analysis.
+plot viewer, packaging installer or automatic update mechanism. Read-only input inspection is
+available in the launcher; the existing CLI remains available for normalization and batch
+analysis.
 
 Tests exercise real CLI outcomes and parity, input/configuration hashes in HTML, distinct
-output folders, partial-output cleanup and cancellation escalation. Real Tk widget tests
-exercise selection, responsive polling, enabled controls, report opening and close handling.
+output folders, partial-output cleanup, inspection metadata/issue handling and cancellation
+escalation. Real Tk widget tests exercise selection, responsive analysis/inspection polling,
+enabled controls, report opening and close handling.
 For Linux without a desktop:
 
 ```sh

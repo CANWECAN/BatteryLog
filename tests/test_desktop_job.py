@@ -9,7 +9,12 @@ from pathlib import Path
 import pytest
 
 import batterylog.desktop_job as module
-from batterylog.desktop_job import DesktopJob, DesktopOutcome
+from batterylog.desktop_job import (
+    DesktopInspectionJob,
+    DesktopInspectionOutcome,
+    DesktopJob,
+    DesktopOutcome,
+)
 
 SAMPLE = Path(__file__).parents[1] / "examples/sample_battery_log.csv"
 VALID_PASS = Path(__file__).with_name("golden") / "semantic_all_rules_pass.json"
@@ -24,6 +29,56 @@ def finish(job: DesktopJob) -> DesktopOutcome:
         time.sleep(0.02)
     job.cancel()
     pytest.fail("Desktop worker did not finish within 30 seconds")
+
+
+def finish_inspection(job: DesktopInspectionJob) -> DesktopInspectionOutcome:
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        outcome = job.poll()
+        if outcome is not None:
+            return outcome
+        time.sleep(0.02)
+    job.cancel()
+    pytest.fail("Desktop inspection worker did not finish within 30 seconds")
+
+
+def test_real_inspection_worker_reports_channels_without_analysis(tmp_path):
+    job = DesktopInspectionJob(SAMPLE)
+    directory = job._directory
+    outcome = finish_inspection(job)
+    assert not directory.exists()
+    assert outcome.status == "OK"
+    assert outcome.inspection is not None
+    assert outcome.inspection["analysis_performed"] is False
+    assert outcome.inspection["source_format"] == "csv"
+    assert [item["name"] for item in outcome.inspection["channels"]] == [
+        "timestamp_s",
+        "current_a",
+        "soc_pct",
+        "temp_c",
+        "cell_1_v",
+        "cell_2_v",
+        "cell_3_v",
+        "cell_4_v",
+    ]
+    assert {item["canonical"] for item in outcome.inspection["bindings"]} == {
+        "timestamp_s",
+        "temp_c",
+        "cell_1_v",
+        "cell_2_v",
+        "cell_3_v",
+        "cell_4_v",
+    }
+
+
+def test_real_inspection_worker_surfaces_selection_issues(tmp_path):
+    broken = tmp_path / "broken.csv"
+    broken.write_text("timestamp_s,temp_c\n0,25\n", encoding="utf-8")
+    outcome = finish_inspection(DesktopInspectionJob(broken))
+    assert outcome.status == "ISSUES"
+    assert outcome.inspection is not None
+    assert outcome.inspection["bindings"] == []
+    assert outcome.inspection["issues"] == ["No cell voltage columns found"]
 
 
 @pytest.mark.parametrize("limit,status", [(50, "PASS"), (40, "FAIL"), (None, "NOT_EVALUATED")])

@@ -11,6 +11,7 @@ All notable changes to BatteryLog are documented here.
 - Add an initial `batterylog-gui` single-file desktop launcher with measurement/configuration/output selection, cancellable CLI analysis and report opening. Preserve engineering/evidence semantics and publish HTML/JSON together only after completed analysis; remove owned partial outputs after errors or cancellation.
 - Keep the desktop dependency optional: CLI/Python usage and desktop help work without Tkinter or a graphical session.
 - Add a built-in synthetic desktop demo with illustrative limits and two expected violations. Create separate demo files, then reuse the existing analysis/report workflow without changing validation semantics.
+- Add non-blocking desktop input inspection through the existing CLI metadata path. Show channel inventory, canonical bindings and blocking selection issues before analysis without decoding samples or requiring an output folder.
 
 ## 0.10.0 - 2026-10-02
 

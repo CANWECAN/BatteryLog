@@ -25,10 +25,11 @@ def ui():
     root.withdraw()
     window = DesktopWindow(root)
     yield window
-    if window.job is not None:
-        window.job.cancel()
+    active = window.job or window.inspection_job
+    if active is not None:
+        active.cancel()
         deadline = time.monotonic() + 5
-        while window.job.poll() is None and time.monotonic() < deadline:
+        while active.poll() is None and time.monotonic() < deadline:
             time.sleep(0.02)
     try:
         root.destroy()
@@ -92,6 +93,46 @@ def test_real_analysis_ui_stays_responsive_and_opens_report(
     ui.report.unlink()
     ui.open_button.invoke()
     assert "no longer available" in ui.status.get()
+
+
+def test_real_input_inspection_is_responsive_and_requires_no_output_folder(ui):
+    sample = Path(__file__).parents[1] / "examples/sample_battery_log.csv"
+    ui.measurement.set(str(sample))
+    ticks = []
+    ui.root.after(1, lambda: ticks.append(True))
+    ui.inspect_button.invoke()
+    assert ui.inspect_button.instate(["disabled"])
+    assert ui.run_button.instate(["disabled"])
+    deadline = time.monotonic() + 30
+    while ui.inspection_job is not None and time.monotonic() < deadline:
+        ui.root.update()
+        time.sleep(0.02)
+    assert ui.inspection_job is None
+    assert ticks
+    assert ui.status.get().startswith("INSPECTION OK\nCSV · 8 channels")
+    assert "timestamp_s → timestamp_s" in ui.status.get()
+    assert "current_a" in ui.status.get()
+    assert "Metadata only" in ui.status.get()
+    assert ui.inspect_button.instate(["!disabled"])
+    assert ui.run_button.instate(["!disabled"])
+    assert ui.cancel_button.instate(["disabled"])
+    assert ui.open_button.instate(["disabled"])
+    assert ui.report is None
+
+
+def test_input_inspection_surfaces_mapping_issue_without_running_analysis(ui, tmp_path):
+    broken = tmp_path / "broken.csv"
+    broken.write_text("timestamp_s,temp_c\n0,25\n", encoding="utf-8")
+    ui.measurement.set(str(broken))
+    ui.inspect_button.invoke()
+    deadline = time.monotonic() + 30
+    while ui.inspection_job is not None and time.monotonic() < deadline:
+        ui.root.update()
+        time.sleep(0.02)
+    assert ui.inspection_job is None
+    assert ui.status.get().startswith("INSPECTION ISSUES\n")
+    assert "No cell voltage columns found" in ui.status.get()
+    assert ui.open_button.instate(["disabled"])
 
 
 def test_invalid_input_can_be_corrected_and_stale_report_is_disabled(ui, tmp_path):

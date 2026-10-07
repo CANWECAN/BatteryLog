@@ -8,13 +8,15 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from .desktop_demo import create_demo
-from .desktop_job import DesktopJob
+from .desktop_job import DesktopInspectionJob, DesktopJob
+from .inspection import InspectionResult
 
 
 class DesktopWindow:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.job: DesktopJob | None = None
+        self.inspection_job: DesktopInspectionJob | None = None
         self.report: Path | None = None
         self.closing = False
         root.title("BatteryLog — single-file analysis")
@@ -59,16 +61,18 @@ class DesktopWindow:
         ).grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 14))
         actions = ttk.Frame(frame)
         actions.grid(row=5, column=0, columnspan=3, sticky="w")
+        self.inspect_button = ttk.Button(actions, text="Inspect input", command=self.inspect_input)
+        self.inspect_button.grid(row=0, column=0)
         self.run_button = ttk.Button(actions, text="Run analysis", command=self.start)
-        self.run_button.grid(row=0, column=0)
+        self.run_button.grid(row=0, column=1, padx=(8, 0))
         self.cancel_button = ttk.Button(
             actions, text="Cancel", command=self.cancel, state="disabled"
         )
-        self.cancel_button.grid(row=0, column=1, padx=8)
+        self.cancel_button.grid(row=0, column=2, padx=8)
         self.open_button = ttk.Button(
             actions, text="Open report", command=self.open_report, state="disabled"
         )
-        self.open_button.grid(row=0, column=2)
+        self.open_button.grid(row=0, column=3)
         self.status = tk.StringVar(
             root, "Ready — select a measurement and an existing output folder."
         )
@@ -80,7 +84,7 @@ class DesktopWindow:
         self.set_status(self.status.get())
 
     def load_demo(self) -> None:
-        if self.job is not None:
+        if self.job is not None or self.inspection_job is not None:
             return
         selected = filedialog.askdirectory(
             parent=self.root, title="Choose where to save the demo", mustexist=True
@@ -146,15 +150,89 @@ class DesktopWindow:
             entry.icursor(tk.END)
             entry.xview_moveto(1.0)
 
+    def _set_busy(self, busy: bool) -> None:
+        state = "disabled" if busy else "normal"
+        for widget in [*self.inputs, self.demo_button, self.inspect_button, self.run_button]:
+            widget.configure(state=state)
+        self.cancel_button.configure(state="normal" if busy else "disabled")
+
+    @staticmethod
+    def _inspection_text(result: InspectionResult) -> str:
+        channels = result["channels"]
+        bindings = result["bindings"]
+        lines = [
+            f"INSPECTION {result['metadata_status']}",
+            f"{result['source_format'].upper()} · {len(channels)} channels · time basis: {result['time_basis']}",
+        ]
+        if result["issues"]:
+            lines.append("Issues:")
+            lines.extend(f"- {issue}" for issue in result["issues"])
+        if bindings:
+            lines.append("Bindings:")
+            lines.extend(f"- {item['source']} → {item['canonical']}" for item in bindings)
+        lines.append(f"Channels ({len(channels)} total):")
+        for channel in channels[:60]:
+            suffix = []
+            if channel["unit"]:
+                suffix.append(channel["unit"])
+            if channel["group"] is not None:
+                suffix.append(f"group {channel['group']}, index {channel['index']}")
+            extra = f" [{'; '.join(suffix)}]" if suffix else ""
+            lines.append(f"- {channel['name']}{extra}")
+        if len(channels) > 60:
+            lines.append(f"… {len(channels) - 60} additional channels not shown")
+        lines.append(
+            "Metadata only — measurement samples and engineering rules were not evaluated."
+        )
+        return "\n".join(lines)
+
+    def inspect_input(self) -> None:
+        if self.job is not None or self.inspection_job is not None:
+            return
+        self.report = None
+        self.open_button.configure(state="disabled")
+        try:
+            if not self.measurement.get().strip():
+                raise ValueError("Select a measurement before inspection.")
+            config = self.config.get().strip()
+            self.inspection_job = DesktopInspectionJob(
+                Path(self.measurement.get()),
+                Path(config) if config else None,
+            )
+        except (OSError, ValueError) as exc:
+            self.set_status(f"ERROR\n{exc}")
+            return
+        self._set_busy(True)
+        self.set_status("Inspecting channel metadata… You can cancel this inspection.")
+        self.root.after(100, self.poll_inspection)
+
+    def poll_inspection(self) -> None:
+        assert self.inspection_job is not None
+        outcome = self.inspection_job.poll()
+        if outcome is None:
+            self.root.after(100, self.poll_inspection)
+            return
+        self.inspection_job = None
+        if self.closing and outcome.status == "CANCELLED":
+            self.root.destroy()
+            return
+        self.closing = False
+        if outcome.inspection is not None:
+            self.set_status(self._inspection_text(outcome.inspection))
+        else:
+            self.set_status(f"{outcome.status}\n{outcome.message}")
+        self._set_busy(False)
+        self.open_button.configure(state="disabled")
+
     def start(self) -> None:
-        if self.job is not None:
+        if self.job is not None or self.inspection_job is not None:
             return
         self.report = None
         self.open_button.configure(state="disabled")
         try:
             if not self.measurement.get().strip() or not self.output.get().strip():
                 raise ValueError("Select a measurement and an existing output folder.")
-            config = self.config.get()
+            config = self.config.get().strip()
             self.job = DesktopJob(
                 Path(self.measurement.get()),
                 Path(self.output.get()),
@@ -163,9 +241,7 @@ class DesktopWindow:
         except (OSError, ValueError) as exc:
             self.set_status(f"ERROR\n{exc}")
             return
-        for widget in [*self.inputs, self.demo_button, self.run_button]:
-            widget.configure(state="disabled")
-        self.cancel_button.configure(state="normal")
+        self._set_busy(True)
         self.set_status("Running analysis… You can cancel this run.")
         self.root.after(150, self.poll)
 
@@ -184,9 +260,7 @@ class DesktopWindow:
         self.set_status(
             f"{outcome.status}\n{outcome.message}" + (f"\n{self.report}" if self.report else "")
         )
-        for widget in [*self.inputs, self.demo_button, self.run_button]:
-            widget.configure(state="normal")
-        self.cancel_button.configure(state="disabled")
+        self._set_busy(False)
         self.open_button.configure(state="normal" if self.report else "disabled")
 
     def cancel(self) -> None:
@@ -194,6 +268,10 @@ class DesktopWindow:
             self.job.cancel()
             self.cancel_button.configure(state="disabled")
             self.set_status("Cancelling analysis…")
+        elif self.inspection_job is not None:
+            self.inspection_job.cancel()
+            self.cancel_button.configure(state="disabled")
+            self.set_status("Cancelling inspection…")
 
     def open_report(self) -> None:
         if self.report is not None:
@@ -208,9 +286,11 @@ class DesktopWindow:
                 self.set_status(f"{exc}\n{self.report}")
 
     def close(self) -> None:
-        if self.job is not None:
+        if self.job is not None or self.inspection_job is not None:
             if not messagebox.askyesno(
-                "Cancel analysis?", "Cancel the active analysis and close?", parent=self.root
+                "Cancel active task?",
+                "Cancel the active BatteryLog task and close?",
+                parent=self.root,
             ):
                 return
             self.closing = True
