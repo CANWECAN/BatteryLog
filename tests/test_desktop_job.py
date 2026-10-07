@@ -204,6 +204,34 @@ def test_worker_never_publishes_exit_status_mismatch(monkeypatch, tmp_path):
     assert not job.directory.exists()
 
 
+@pytest.mark.parametrize(
+    ("key", "value"), [("cells_detected", "not-an-integer"), ("unexpected_field", 123)]
+)
+def test_worker_never_publishes_schema_invalid_result(monkeypatch, tmp_path, key, value):
+    payload = json.loads(VALID_PASS.read_text(encoding="utf-8"))
+    payload[key] = value
+    fake_worker(monkeypatch, code=0, result_text=json.dumps(payload))
+    job = DesktopJob(SAMPLE, tmp_path)
+    outcome = job.poll()
+    assert outcome.status == "ERROR"
+    assert outcome.report is None
+    assert not job.directory.exists()
+
+
+@pytest.mark.parametrize("token", ["NaN", "Infinity", "-Infinity"])
+def test_worker_never_publishes_non_json_numbers(monkeypatch, tmp_path, token):
+    payload = VALID_PASS.read_text(encoding="utf-8").replace(
+        '"max_cell_voltage_v": 4.25', f'"max_cell_voltage_v": {token}'
+    )
+    fake_worker(monkeypatch, code=0, result_text=payload)
+    job = DesktopJob(SAMPLE, tmp_path)
+    outcome = job.poll()
+    assert outcome.status == "ERROR"
+    assert "Non-JSON number" in outcome.message
+    assert outcome.report is None
+    assert not job.directory.exists()
+
+
 def test_cancel_wins_before_completed_result_is_observed(monkeypatch, tmp_path):
     process = fake_worker(monkeypatch)
     job = DesktopJob(SAMPLE, tmp_path)

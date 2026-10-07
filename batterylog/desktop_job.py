@@ -7,8 +7,12 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass
+from functools import lru_cache
+from importlib.resources import files
 from pathlib import Path
 from typing import BinaryIO, cast
+
+from jsonschema import Draft202012Validator, ValidationError
 
 from .models import AnalysisResult
 from .result_validation import validate_result_semantics
@@ -24,18 +28,35 @@ class DesktopOutcome:
 _STATUS_BY_EXIT = {0: "PASS", 1: "FAIL", 3: "NOT_EVALUATED"}
 
 
+@lru_cache(maxsize=2)
+def _result_validator(version: int) -> Draft202012Validator:
+    if version not in (8, 9):
+        raise ValueError(f"Unsupported result schema version: {version!r}")
+    schema = json.loads(
+        files("batterylog").joinpath(f"schema/result-v{version}.json").read_text(encoding="utf-8")
+    )
+    return Draft202012Validator(schema)
+
+
+def _reject_non_json_number(token: str) -> None:
+    raise ValueError(f"Non-JSON number: {token}")
+
+
 def _validate_published_result(path: Path, exit_code: int) -> str:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        payload = json.loads(
+            path.read_text(encoding="utf-8"), parse_constant=_reject_non_json_number
+        )
+    except (OSError, UnicodeError, ValueError) as exc:
         raise OSError(f"Analysis produced invalid result JSON: {exc}") from exc
     if not isinstance(payload, dict):
         raise OSError("Analysis result JSON must be an object.")
     try:
+        _result_validator(payload.get("schema_version")).validate(payload)
         result = cast(AnalysisResult, payload)
         validate_result_semantics(result)
         status = result["validation_status"]
-    except (KeyError, TypeError, ValueError) as exc:
+    except (KeyError, TypeError, ValueError, ValidationError) as exc:
         raise OSError(f"Analysis produced an invalid result payload: {exc}") from exc
     expected = _STATUS_BY_EXIT[exit_code]
     if status != expected:

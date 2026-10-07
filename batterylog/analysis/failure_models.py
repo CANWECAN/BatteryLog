@@ -217,6 +217,7 @@ class FailureModelCollector:
         self.previous_temperatures = None
         self.baseline = None
         self.balance_previous = None
+        self.balance_invalid_censor = False
 
     def _sustained(self, t: float, cells: np.ndarray, names: list[str]) -> None:
         assert self.config is not None

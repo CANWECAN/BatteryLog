@@ -411,6 +411,20 @@ def test_contiguous_invalid_balancing_status_is_one_incomplete_interval():
     )
 
 
+def test_invalid_balancing_censor_does_not_leak_across_timestamp_gap():
+    frame = _balance_frame(improvement=0.0625, status=(0, 1, 2, 1, 0))
+    frame["timestamp_s"] = [0, 1, 2, 10, 11]
+    result = _check(
+        frame,
+        FailureModelConfig(1.5, balancing=BALANCE),
+        data_quality=DataQualityConfig("exclude_invalid_rows"),
+    )
+    assert all(
+        item["incomplete_intervals"] == 2
+        for item in result["failure_models"]["evaluations"]
+    )
+
+
 def test_boolean_and_text_balancing_states_are_equivalent():
     cfg = FailureModelConfig(1, balancing=BALANCE)
     numeric = _check(_balance_frame(), cfg)

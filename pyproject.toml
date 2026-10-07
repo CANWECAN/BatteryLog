@@ -16,6 +16,7 @@ dependencies = [
   "numpy>=1.26",
   "pandas>=2.2",
   "PyYAML>=6.0",
+  "jsonschema>=4",
 ]
 
 [project.urls]
@@ -33,7 +34,6 @@ mf4 = [
 ]
 dev = [
   "hypothesis>=6",
-  "jsonschema>=4",
   "mypy>=1.18",
   "pytest>=9",
   "pytest-cov>=7",
