@@ -43,15 +43,15 @@ def ui():
         ("limits:\n  temperature:\n    max_c: 50\n", "PASS"),
         ("limits:\n  temperature:\n    max_c: 40\n", "FAIL"),
         (
-            "failure_models:\n  max_gap_s: 2\n  sustained_imbalance:\n    max_delta_v: 1\n    duration_s: 2\n",
+            "schema_version: 7\nfailure_models:\n  max_gap_s: 2\n  sustained_imbalance:\n    max_delta_v: 1\n    duration_s: 2\n",
             "PASS",
         ),
         (
-            "failure_models:\n  max_gap_s: 2\n  sustained_imbalance:\n    max_delta_v: 0\n    duration_s: 2\n",
+            "schema_version: 7\nfailure_models:\n  max_gap_s: 2\n  sustained_imbalance:\n    max_delta_v: 0\n    duration_s: 2\n",
             "FAIL",
         ),
         (
-            "failure_models:\n  max_gap_s: 2\n  sustained_imbalance:\n    max_delta_v: 1\n    duration_s: 99\n",
+            "schema_version: 7\nfailure_models:\n  max_gap_s: 2\n  sustained_imbalance:\n    max_delta_v: 1\n    duration_s: 99\n",
             "NOT_EVALUATED",
         ),
     ],
