@@ -465,8 +465,9 @@ def test_explicit_mapping_preserves_named_status_and_rejects_alias():
 
 @pytest.mark.parametrize("mapped", [False, True])
 @pytest.mark.parametrize("chunk_rows", [1, 20])
+@pytest.mark.parametrize("line_ending", ["\n", "\r\n"], ids=["LF", "CRLF"])
 def test_normalization_preserves_balancing_status_and_identity_chain(
-    tmp_path, monkeypatch, mapped, chunk_rows
+    tmp_path, monkeypatch, mapped, chunk_rows, line_ending
 ):
     from batterylog import normalization as module
 
@@ -493,7 +494,7 @@ def test_normalization_preserves_balancing_status_and_identity_chain(
         )
     models = FailureModelConfig(1, balancing=replace(BALANCE, active_source="Bal"))
     path = tmp_path / "source.csv"
-    path.write_text(frame.to_csv(index=False))
+    frame.to_csv(path, index=False, lineterminator=line_ending)
     output = tmp_path / "prepared"
     conversion = normalize_measurement(
         path,
@@ -526,7 +527,7 @@ def test_normalization_rejects_bad_status_and_canonical_name_collision(tmp_path)
     frame = _balance_frame()
     frame["balance_active"] = [0, 2, 1, 1, 1, 1, 1, 0]
     path = tmp_path / "source.csv"
-    path.write_text(frame.to_csv(index=False))
+    frame.to_csv(path, index=False)
     config = ValidationConfig(
         failure_models=FailureModelConfig(1, balancing=BALANCE),
         data_quality=DataQualityConfig("exclude_invalid_rows"),
@@ -564,7 +565,7 @@ def test_normalization_rejects_status_disappearing_between_chunks(tmp_path, monk
 
     frame = _balance_frame()
     source = tmp_path / "source.csv"
-    source.write_text(frame.to_csv(index=False))
+    frame.to_csv(source, index=False)
     monkeypatch.setattr(
         module,
         "iter_battery_csv_file",

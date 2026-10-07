@@ -83,7 +83,7 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev,mf4]"
       - run: python -m pip check
-      - run: python -m pytest -q tests/test_mf4_integration.py tests/test_mf4_loader.py
+      - run: python -m pytest -q tests/test_mf4_integration.py tests/test_mf4_loader.py tests/test_failure_models_mf4.py
 
   package:
     runs-on: ubuntu-24.04

@@ -51,7 +51,33 @@ rates can be noise-sensitive; relative sag can hide common-mode drops; balancing
 spread is affected by the test operating conditions. Those limits are explicit
 in the contract and reported measurement chains.
 
-Windows, Python 3.13/3.14 and the hosted GitHub Actions matrix were not run for
-this branch. The existing workflow runs on main pushes and pull requests; no PR
-was opened or modified, no main merge was performed, and no tag or release was
-created. The separate desktop-launcher work remains untouched.
+At the initial cloud snapshot, Windows, Python 3.13/3.14 and the hosted GitHub
+Actions matrix had not been run. No PR, main merge, tag or release was created
+in that snapshot. The separate desktop-launcher work remains untouched.
+
+## Windows and CI follow-up - 2026-10-07
+
+The branch was recovered at `cec8578` into a separate Windows worktree. An initial
+Windows/Python 3.13.14 run found five failures in the new CSV normalization fixtures:
+`Path.write_text(frame.to_csv(...))` translated pandas' CRLF output a second time,
+creating CR-CR-LF records. The strict loader correctly treated the resulting blank
+rows as invalid measurements. Writing directly with `DataFrame.to_csv(path, ...)`
+fixes fixture generation; the model calculations and strict loader are unchanged.
+The normalization parity test now exercises LF and CRLF input independently with
+canonical/explicit mapping and one/full-frame chunks.
+
+| Follow-up verification | Recorded result |
+|---|---|
+| Windows, Python 3.13.14, NumPy 2.5.3, pandas 3.0.6, PyYAML 6.0.3, asammdf 8.8.27 | 1,647 passed, 1 skipped; coverage 98.87% |
+| Windows skip | Existing Linux-only `/proc` process-lifetime benchmark |
+| Focused normalization regressions | 10 passed |
+| Ruff 0.16.8 lint and formatting | Passed |
+| Package-wide mypy 2.3.1 | Passed, 40 source files |
+| Dependency consistency and git whitespace check | Passed |
+| Frozen result-v8 schema and golden corpus | Still unchanged against main |
+
+The MF4 CI job now explicitly includes `tests/test_failure_models_mf4.py` on its
+existing Linux Python 3.11-3.14 and Windows Python 3.13 matrix. Without this change,
+that new module was skipped by the base jobs and omitted from the MF4 command.
+A draft PR will trigger the hosted matrix; hosted results are reported in the PR
+checks. No main merge, tag or release is part of this work.
