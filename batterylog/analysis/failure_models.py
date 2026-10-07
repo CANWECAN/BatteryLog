@@ -136,6 +136,7 @@ class FailureModelCollector:
         self.balance_count = 0
         self.balance_checked = False
         self.balance_timeout_emitted = False
+        self.balance_invalid_censor = False
         self.balance_presence: bool | None = None
 
     def _flush(self, code: FailureCode) -> None:
@@ -184,16 +185,20 @@ class FailureModelCollector:
         self.load_baseline = None
         self.load_evaluated = False
 
-    def _end_balance(self, *, complete: bool) -> None:
+    def _end_balance(self, *, complete: bool, count_incomplete: bool = True) -> None:
         if self.balance_start is not None:
             assert self.config is not None and self.config.balancing is not None
             cfg = self.config.balancing
-            if _at_least(self.balance_initial, cfg.min_start_delta_v) and not self.balance_checked:
+            if (
+                count_incomplete
+                and _at_least(self.balance_initial, cfg.min_start_delta_v)
+                and not self.balance_checked
+            ):
                 self.evaluations["BALANCING_INEFFECTIVE"]["incomplete_intervals"] += 1
             timeout = self.evaluations["BALANCING_ACTIVE_TOO_LONG"]
             if complete:
                 timeout["evaluated_samples"] += 1
-            elif not self.balance_timeout_emitted:
+            elif count_incomplete and not self.balance_timeout_emitted:
                 timeout["incomplete_intervals"] += 1
         self.balance_start = None
         self.balance_last = None
@@ -332,20 +337,23 @@ class FailureModelCollector:
         if cfg is None:
             return
         if active is None:
-            self._end_balance(complete=False)
+            self._end_balance(complete=False, count_incomplete=False)
             self.balance_previous = None
             return
         if not active:
             self._end_balance(complete=True)
+            self.balance_invalid_censor = False
         elif self.balance_previous is False:
             self.balance_start = self.balance_last = t
             self.balance_initial = delta
         elif self.balance_start is None:
             # Left-censored active sessions have no observed activation edge.
             for code in _BALANCING_CODES:
-                self.evaluations[code]["reason"] = "No observed inactive-to-active balancing edge"
-                if self.balance_previous is None:
-                    self.evaluations[code]["incomplete_intervals"] += 1
+                evaluation = self.evaluations[code]
+                if evaluation["reason"] is None:
+                    evaluation["reason"] = "No observed inactive-to-active balancing edge"
+                if self.balance_previous is None and not self.balance_invalid_censor:
+                    evaluation["incomplete_intervals"] += 1
         if active and self.balance_start is not None:
             self.balance_count += 1
             self.balance_last = t
@@ -446,8 +454,11 @@ class FailureModelCollector:
                         f"Balancing status must be 0/1 or boolean at data row {row_offset + row + 1}"
                     )
                 elif active is None:
+                    if not self.balance_invalid_censor:
+                        for code in _BALANCING_CODES:
+                            self.evaluations[code]["incomplete_intervals"] += 1
+                    self.balance_invalid_censor = True
                     for code in _BALANCING_CODES:
-                        self.evaluations[code]["incomplete_intervals"] += 1
                         self.evaluations[code]["reason"] = (
                             "Invalid balancing status samples were excluded"
                         )

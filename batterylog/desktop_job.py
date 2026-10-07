@@ -1,5 +1,6 @@
 """Single CLI subprocess owned by the desktop launcher; no GUI dependency."""
 
+import json
 import shutil
 import subprocess
 import sys
@@ -7,7 +8,10 @@ import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, cast
+
+from .models import AnalysisResult
+from .result_validation import validate_result_semantics
 
 
 @dataclass(frozen=True)
@@ -15,6 +19,30 @@ class DesktopOutcome:
     status: str
     message: str
     report: Path | None = None
+
+
+_STATUS_BY_EXIT = {0: "PASS", 1: "FAIL", 3: "NOT_EVALUATED"}
+
+
+def _validate_published_result(path: Path, exit_code: int) -> str:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise OSError(f"Analysis produced invalid result JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise OSError("Analysis result JSON must be an object.")
+    try:
+        result = cast(AnalysisResult, payload)
+        validate_result_semantics(result)
+        status = result["validation_status"]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise OSError(f"Analysis produced an invalid result payload: {exc}") from exc
+    expected = _STATUS_BY_EXIT[exit_code]
+    if status != expected:
+        raise OSError(
+            f"Analysis process exit code {exit_code} disagrees with result status {status!r}."
+        )
+    return status
 
 
 class DesktopJob:
@@ -99,17 +127,17 @@ class DesktopJob:
                         or not (self._staging / name).stat().st_size
                     ):
                         raise OSError(f"Analysis did not produce a complete {name}.")
+                status = _validate_published_result(self._staging / "result.json", code)
                 (self.directory / "stderr.log").unlink()
                 # This destination belongs to our exclusively created run directory.
                 self._staging.rename(self.directory / "results")
-                status, message = {
-                    0: ("PASS", "The configured validation rules passed."),
-                    1: ("FAIL", "Configured validation rules failed. Open the report for details."),
-                    3: (
-                        "NOT_EVALUATED",
-                        "No validation conclusion was reached. Open the report for details.",
+                message = {
+                    "PASS": "The configured validation rules passed.",
+                    "FAIL": "Configured validation rules failed. Open the report for details.",
+                    "NOT_EVALUATED": (
+                        "No validation conclusion was reached. Open the report for details."
                     ),
-                }[code]
+                }[status]
                 outcome = DesktopOutcome(status, message, self.directory / "results/report.html")
             except OSError as exc:
                 outcome = DesktopOutcome("ERROR", str(exc))

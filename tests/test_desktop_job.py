@@ -12,6 +12,7 @@ import batterylog.desktop_job as module
 from batterylog.desktop_job import DesktopJob, DesktopOutcome
 
 SAMPLE = Path(__file__).parents[1] / "examples/sample_battery_log.csv"
+VALID_PASS = Path(__file__).with_name("golden") / "semantic_all_rules_pass.json"
 
 
 def finish(job: DesktopJob) -> DesktopOutcome:
@@ -157,14 +158,15 @@ class CompletedProcess:
         self.terminated = True
 
 
-def fake_worker(monkeypatch, code=0, complete=True, stderr=b""):
+def fake_worker(monkeypatch, code=0, complete=True, stderr=b"", result_text=None):
     process = CompletedProcess(code)
 
     def popen(command, **kwargs):
         report = Path(command[command.index("--report") + 1])
         report.write_text("<html>partial or complete</html>")
         if complete:
-            report.with_name("result.json").write_text("{}")
+            payload = VALID_PASS.read_text(encoding="utf-8") if result_text is None else result_text
+            report.with_name("result.json").write_text(payload, encoding="utf-8")
         kwargs["stderr"].write(stderr)
         return process
 
@@ -178,6 +180,26 @@ def test_failed_or_incomplete_worker_never_publishes(monkeypatch, tmp_path, code
     job = DesktopJob(SAMPLE, tmp_path)
     outcome = job.poll()
     assert outcome.status == "ERROR"
+    assert outcome.report is None
+    assert not job.directory.exists()
+
+
+@pytest.mark.parametrize("payload", ["{}", "[]", "not-json"])
+def test_worker_never_publishes_invalid_result_payload(monkeypatch, tmp_path, payload):
+    fake_worker(monkeypatch, code=0, result_text=payload)
+    job = DesktopJob(SAMPLE, tmp_path)
+    outcome = job.poll()
+    assert outcome.status == "ERROR"
+    assert outcome.report is None
+    assert not job.directory.exists()
+
+
+def test_worker_never_publishes_exit_status_mismatch(monkeypatch, tmp_path):
+    fake_worker(monkeypatch, code=1)
+    job = DesktopJob(SAMPLE, tmp_path)
+    outcome = job.poll()
+    assert outcome.status == "ERROR"
+    assert "disagrees with result status" in outcome.message
     assert outcome.report is None
     assert not job.directory.exists()
 

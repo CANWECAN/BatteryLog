@@ -387,11 +387,27 @@ def test_bad_balancing_state_rejects_or_makes_observation_incomplete(bad):
         _analyze_battery_frame(frame, failure_models=cfg)
     with pytest.raises(ValueError, match="data row 2"):
         _analyze_battery_chunks((frame.iloc[:1], frame.iloc[1:]), failure_models=cfg)
-    assert (
-        _check(frame, cfg, data_quality=DataQualityConfig("exclude_invalid_rows"))[
-            "validation_status"
-        ]
-        == "NOT_EVALUATED"
+    result = _check(frame, cfg, data_quality=DataQualityConfig("exclude_invalid_rows"))
+    assert result["validation_status"] == "NOT_EVALUATED"
+    assert all(
+        item["incomplete_intervals"] == 1
+        and item["reason"] == "Invalid balancing status samples were excluded"
+        for item in result["failure_models"]["evaluations"]
+    )
+
+
+def test_contiguous_invalid_balancing_status_is_one_incomplete_interval():
+    frame = _balance_frame(improvement=0.0625, status=(0, 1, 1, 1, 1, 0))
+    frame["balance_active"] = pd.Series([0, 1, 2, 2, 1, 0], dtype=object)
+    result = _check(
+        frame,
+        FailureModelConfig(1, balancing=BALANCE),
+        data_quality=DataQualityConfig("exclude_invalid_rows"),
+    )
+    assert all(
+        item["incomplete_intervals"] == 1
+        and item["reason"] == "Invalid balancing status samples were excluded"
+        for item in result["failure_models"]["evaluations"]
     )
 
 
