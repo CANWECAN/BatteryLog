@@ -378,6 +378,55 @@ def test_balancing_censored_and_missing_cases(case):
     assert "lack eligible observations" in render_html_report(result)
 
 
+def test_strict_error_precedence_is_chunk_independent_for_balancing_and_numeric():
+    frame = _frame(
+        times=[0.0, 1.0, 2.0],
+        cell_1_v=[3.6, 3.6, 3.6],
+        cell_2_v=[3.6, 3.6, float("inf")],
+        cell_3_v=[3.6, 3.6, 3.6],
+        temp_c=[25.0, 25.0, 25.0],
+        balance_active=[0, 2, 0],
+    )
+    cfg = FailureModelConfig(2, balancing=BALANCE)
+
+    with pytest.raises(ValueError) as whole_error:
+        _analyze_battery_frame(frame, failure_models=cfg)
+    assert str(whole_error.value) == "Balancing status must be 0/1 or boolean at data row 2"
+
+    for chunk_rows in (1, 2, 3):
+        chunks = [
+            frame.iloc[start : start + chunk_rows].copy()
+            for start in range(0, len(frame), chunk_rows)
+        ]
+        with pytest.raises(ValueError) as streaming_error:
+            _analyze_battery_chunks(chunks, failure_models=cfg)
+        assert type(streaming_error.value) is type(whole_error.value)
+        assert str(streaming_error.value) == str(whole_error.value)
+
+
+def test_same_row_numeric_defect_precedes_balancing_defect():
+    frame = _frame(
+        times=[0.0, 1.0],
+        cell_1_v=[3.6, 3.6],
+        cell_2_v=[3.6, float("inf")],
+        cell_3_v=[3.6, 3.6],
+        temp_c=[25.0, 25.0],
+        balance_active=[0, 2],
+    )
+    cfg = FailureModelConfig(2, balancing=BALANCE)
+
+    with pytest.raises(ValueError, match=r"data row 2 .*column 'cell_2_v'") as whole_error:
+        _analyze_battery_frame(frame, failure_models=cfg)
+    for chunk_rows in (1, 2):
+        chunks = [
+            frame.iloc[start : start + chunk_rows].copy()
+            for start in range(0, len(frame), chunk_rows)
+        ]
+        with pytest.raises(ValueError) as streaming_error:
+            _analyze_battery_chunks(chunks, failure_models=cfg)
+        assert str(streaming_error.value) == str(whole_error.value)
+
+
 @pytest.mark.parametrize("bad", [2, -1, "active", None, float("nan"), float("inf")])
 def test_bad_balancing_state_rejects_or_makes_observation_incomplete(bad):
     frame = _balance_frame(improvement=0.0625, status=(0, 1, 1, 1, 0))

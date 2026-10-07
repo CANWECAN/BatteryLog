@@ -143,12 +143,12 @@ def _first_true_position(mask: np.ndarray) -> tuple[int, int] | None:
     return row_pos, column_pos
 
 
-def raise_invalid_numeric_value(
+def _invalid_numeric_error(
     frame: pd.DataFrame,
     numeric: pd.DataFrame,
     *,
     row_offset: int = 0,
-) -> None:
+) -> tuple[int, ValueError] | None:
     columns = list(numeric.columns)
     numeric_missing = numeric.isna().to_numpy(dtype=bool)
     invalid_numeric = numeric_missing | _required_boolean_mask(frame, columns)
@@ -157,34 +157,120 @@ def raise_invalid_numeric_value(
 
     invalid_position = _first_true_position(invalid_numeric | non_finite)
     if invalid_position is None:
-        return
+        return None
 
     row_pos, column_pos = invalid_position
     column = numeric.columns[column_pos]
     row_index = frame.index[row_pos]
     if invalid_numeric[row_pos, column_pos]:
         raw_value = frame.iloc[row_pos][column]
-        raise ValueError(
+        return row_pos, ValueError(
             "Required numeric value is missing or non-numeric at "
             f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
             f"column {column!r}: {raw_value!r}"
         )
 
     value = values[row_pos, column_pos]
-    raise ValueError(
+    return row_pos, ValueError(
         "Required numeric value is non-finite at "
         f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
         f"column {column!r}: {value!r}"
     )
 
 
-def valid_timestamp_values(
+def raise_invalid_numeric_value(
     frame: pd.DataFrame,
     numeric: pd.DataFrame,
-) -> pd.Series:
+    *,
+    row_offset: int = 0,
+) -> None:
+    error = _invalid_numeric_error(frame, numeric, row_offset=row_offset)
+    if error is not None:
+        raise error[1]
+
+
+def _valid_timestamp_positions_and_values(
+    frame: pd.DataFrame,
+    numeric: pd.DataFrame,
+) -> tuple[np.ndarray, np.ndarray]:
     timestamp = numeric["timestamp_s"]
     invalid = timestamp.isna().to_numpy(dtype=bool).copy()
     invalid |= _required_boolean_mask(frame, ["timestamp_s"])[:, 0]
     values = timestamp.to_numpy(dtype=float, na_value=np.nan)
     invalid |= ~np.isfinite(values)
-    return pd.Series(values[~invalid], dtype=float)
+    positions = np.flatnonzero(~invalid)
+    return positions, values[positions]
+
+
+def valid_timestamp_values(
+    frame: pd.DataFrame,
+    numeric: pd.DataFrame,
+) -> pd.Series:
+    _, values = _valid_timestamp_positions_and_values(frame, numeric)
+    return pd.Series(values, dtype=float)
+
+
+def _timestamp_regression_error(
+    frame: pd.DataFrame,
+    numeric: pd.DataFrame,
+    *,
+    previous_timestamp: float | None,
+) -> tuple[int, ValueError] | None:
+    positions, values = _valid_timestamp_positions_and_values(frame, numeric)
+    if not len(values):
+        return None
+    if previous_timestamp is not None and float(values[0]) < previous_timestamp:
+        return int(positions[0]), ValueError("timestamp_s must be non-decreasing")
+    decreases = np.flatnonzero(np.diff(values) < 0)
+    if not len(decreases):
+        return None
+    row_pos = int(positions[int(decreases[0]) + 1])
+    return row_pos, ValueError("timestamp_s must be non-decreasing")
+
+
+def _invalid_balancing_error(
+    balance_values: pd.Series | None,
+    *,
+    row_offset: int,
+) -> tuple[int, ValueError] | None:
+    if balance_values is None:
+        return None
+    invalid = np.fromiter(
+        (parse_balancing_status(value) is None for value in balance_values.to_numpy(dtype=object)),
+        dtype=bool,
+        count=len(balance_values),
+    )
+    positions = np.flatnonzero(invalid)
+    if not len(positions):
+        return None
+    row_pos = int(positions[0])
+    return row_pos, ValueError(
+        f"Balancing status must be 0/1 or boolean at data row {row_offset + row_pos + 1}"
+    )
+
+
+def raise_first_strict_input_error(
+    frame: pd.DataFrame,
+    numeric: pd.DataFrame,
+    balance_values: pd.Series | None,
+    *,
+    row_offset: int = 0,
+    previous_timestamp: float | None = None,
+) -> None:
+    """Raise the earliest strict input defect independent of measurement chunking."""
+    candidates: list[tuple[int, int, ValueError]] = []
+    numeric_error = _invalid_numeric_error(frame, numeric, row_offset=row_offset)
+    if numeric_error is not None:
+        candidates.append((numeric_error[0], 0, numeric_error[1]))
+    timestamp_error = _timestamp_regression_error(
+        frame,
+        numeric,
+        previous_timestamp=previous_timestamp,
+    )
+    if timestamp_error is not None:
+        candidates.append((timestamp_error[0], 1, timestamp_error[1]))
+    balancing_error = _invalid_balancing_error(balance_values, row_offset=row_offset)
+    if balancing_error is not None:
+        candidates.append((balancing_error[0], 2, balancing_error[1]))
+    if candidates:
+        raise min(candidates, key=lambda item: (item[0], item[1]))[2]

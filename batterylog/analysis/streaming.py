@@ -35,7 +35,7 @@ from .input_validation import (
     canonicalize_analysis_frame,
     coerce_required_numeric,
     failure_model_loader,
-    raise_invalid_numeric_value,
+    raise_first_strict_input_error,
     valid_timestamp_values,
 )
 from .preparation import PreparedMeasurements, prepare_measurements
@@ -161,10 +161,12 @@ def _analyze_battery_chunks(
             chunk_row_offset = rows_input
             numeric = coerce_required_numeric(frame[layout.numeric_cols])
             if data_quality_collector is None:
-                raise_invalid_numeric_value(
+                raise_first_strict_input_error(
                     frame,
                     numeric,
+                    balance_values,
                     row_offset=chunk_row_offset,
+                    previous_timestamp=previous_timestamp,
                 )
                 invalid_rows = pd.Series(False, index=numeric.index, dtype=bool)
             else:

@@ -27,7 +27,7 @@ from .input_validation import (
     balance_values_for_frame,
     canonicalize_analysis_frame,
     coerce_required_numeric,
-    raise_invalid_numeric_value,
+    raise_first_strict_input_error,
     valid_timestamp_values,
 )
 from .preparation import prepare_measurements
@@ -77,7 +77,7 @@ def _analyze_battery_frame(
     data_quality_events: list[DataQualityEvent] = []
 
     if resolved_data_quality.mode == "strict":
-        raise_invalid_numeric_value(df, numeric)
+        raise_first_strict_input_error(df, numeric, balance_values)
         invalid_rows = pd.Series(False, index=numeric.index, dtype=bool)
     else:
         collector = DataQualityCollector()
