@@ -1725,7 +1725,8 @@
             "CELL_SAG_UNDER_LOAD",
             "BALANCING_INEFFECTIVE",
             "BALANCING_ACTIVE_TOO_LONG",
-            "CURRENT_WHILE_UNLOADED"
+            "CURRENT_WHILE_UNLOADED",
+            "CONTACTOR_FEEDBACK_TIMEOUT"
           ]
         },
         "start_time_s": {
@@ -2026,6 +2027,64 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "CONTACTOR_FEEDBACK_TIMEOUT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "unit": {
+                "const": "s"
+              },
+              "evidence": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "previous_command_time_s",
+                  "previous_command_closed",
+                  "command_time_s",
+                  "command_closed",
+                  "feedback_closed",
+                  "required_response_s"
+                ],
+                "properties": {
+                  "previous_command_time_s": {
+                    "type": "number"
+                  },
+                  "previous_command_closed": {
+                    "enum": [
+                      0,
+                      1
+                    ]
+                  },
+                  "command_time_s": {
+                    "type": "number"
+                  },
+                  "command_closed": {
+                    "enum": [
+                      0,
+                      1
+                    ]
+                  },
+                  "feedback_closed": {
+                    "enum": [
+                      0,
+                      1
+                    ]
+                  },
+                  "required_response_s": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -2048,7 +2107,8 @@
             "CELL_SAG_UNDER_LOAD",
             "BALANCING_INEFFECTIVE",
             "BALANCING_ACTIVE_TOO_LONG",
-            "CURRENT_WHILE_UNLOADED"
+            "CURRENT_WHILE_UNLOADED",
+            "CONTACTOR_FEEDBACK_TIMEOUT"
           ]
         },
         "status": {
@@ -2338,6 +2398,35 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "CONTACTOR_FEEDBACK_TIMEOUT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "events": {
+                "items": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/failureEvent"
+                    },
+                    {
+                      "properties": {
+                        "code": {
+                          "const": "CONTACTOR_FEEDBACK_TIMEOUT"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -2530,6 +2619,38 @@
                   "type": "null"
                 }
               ]
+            },
+            "contactor_response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "command_source",
+                    "feedback_source",
+                    "response_timeout_s"
+                  ],
+                  "properties": {
+                    "command_source": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "\\S"
+                    },
+                    "feedback_source": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "\\S"
+                    },
+                    "response_timeout_s": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "anyOf": [
@@ -2582,13 +2703,23 @@
               "required": [
                 "unloaded_current"
               ]
+            },
+            {
+              "properties": {
+                "contactor_response": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "contactor_response"
+              ]
             }
           ]
         },
         "evaluations": {
           "type": "array",
           "minItems": 1,
-          "maxItems": 6,
+          "maxItems": 7,
           "items": {
             "$ref": "#/$defs/failureEvaluation"
           }
@@ -2836,6 +2967,50 @@
                     "properties": {
                       "code": {
                         "const": "CURRENT_WHILE_UNLOADED"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "config": {
+                "properties": {
+                  "contactor_response": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "contactor_response"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evaluations": {
+                "contains": {
+                  "properties": {
+                    "code": {
+                      "const": "CONTACTOR_FEEDBACK_TIMEOUT"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "evaluations": {
+                "not": {
+                  "contains": {
+                    "properties": {
+                      "code": {
+                        "const": "CONTACTOR_FEEDBACK_TIMEOUT"
                       }
                     }
                   }

@@ -14,6 +14,7 @@ from .config import (
 from .failure_config import (
     BalancingConfig,
     CellSagConfig,
+    ContactorResponseConfig,
     FailureModelConfig,
     SustainedImbalanceConfig,
     TemperatureRiseConfig,
@@ -61,6 +62,7 @@ __all__ = [
     "CellSagConfig",
     "ComparisonMode",
     "ComparisonPolicyInfo",
+    "ContactorResponseConfig",
     "CurrentDirection",
     "DataQualityCode",
     "DataQualityConfig",

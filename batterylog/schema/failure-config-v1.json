@@ -175,6 +175,38 @@
           "type": "null"
         }
       ]
+    },
+    "contactor_response": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "command_source",
+            "feedback_source",
+            "response_timeout_s"
+          ],
+          "properties": {
+            "command_source": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "feedback_source": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "response_timeout_s": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "anyOf": [
@@ -226,6 +258,16 @@
       },
       "required": [
         "unloaded_current"
+      ]
+    },
+    {
+      "properties": {
+        "contactor_response": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "contactor_response"
       ]
     }
   ],

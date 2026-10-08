@@ -97,6 +97,16 @@ class _Run:
         )
 
 
+@dataclass
+class _Response:
+    start: float
+    previous_time: float
+    previous_command: bool
+    command: bool
+    count: int = 0
+    decided: bool = False
+
+
 class FailureModelCollector:
     def __init__(self, config: FailureModelConfig | None) -> None:
         if config is not None and not isinstance(config, FailureModelConfig):
@@ -111,6 +121,7 @@ class FailureModelCollector:
                 (config.balancing, "BALANCING_INEFFECTIVE"),
                 (config.balancing, "BALANCING_ACTIVE_TOO_LONG"),
                 (config.unloaded_current, "CURRENT_WHILE_UNLOADED"),
+                (config.contactor_response, "CONTACTOR_FEEDBACK_TIMEOUT"),
             ]
             for enabled, code in models:
                 if enabled is not None:
@@ -143,6 +154,79 @@ class FailureModelCollector:
         self.unloaded_start: float | None = None
         self.unloaded_evaluated = False
         self.unloaded_invalid_censor = False
+        self.contactor_presence: tuple[bool, bool] | None = None
+        self.contactor_previous: tuple[float, bool] | None = None
+        self.contactor_pending: _Response | None = None
+        self.contactor_invalid_censor = False
+
+    def _end_contactor(self, *, count_incomplete: bool = True) -> None:
+        pending = self.contactor_pending
+        if count_incomplete and pending is not None and not pending.decided:
+            self.evaluations["CONTACTOR_FEEDBACK_TIMEOUT"]["incomplete_intervals"] += 1
+        self.contactor_pending = None
+        self.contactor_previous = None
+
+    def _censor_contactor(self, reason: str) -> None:
+        evaluation = self.evaluations["CONTACTOR_FEEDBACK_TIMEOUT"]
+        if not self.contactor_invalid_censor:
+            evaluation["incomplete_intervals"] += 1
+        self.contactor_invalid_censor = True
+        evaluation["reason"] = reason
+        self._end_contactor(count_incomplete=False)
+
+    def _contactor(self, t: float, command: bool, feedback: bool) -> None:
+        assert self.config is not None and self.config.contactor_response is not None
+        cfg = self.config.contactor_response
+        evaluation = self.evaluations["CONTACTOR_FEEDBACK_TIMEOUT"]
+        previous = self.contactor_previous
+        if previous is None:
+            if command != feedback and not self.contactor_invalid_censor:
+                evaluation["incomplete_intervals"] += 1
+                evaluation["reason"] = "Mismatch without an observed command transition"
+        elif command != previous[1]:
+            self._end_contactor()
+            self.contactor_pending = _Response(t, previous[0], previous[1], command)
+        self.contactor_invalid_censor = False
+        self.contactor_previous = (t, command)
+        pending = self.contactor_pending
+        if pending is None or pending.decided:
+            return
+        pending.count += 1
+        elapsed = _finite(t - pending.start)
+        if command == feedback:
+            pending.decided = True
+            if not _above(elapsed, cfg.response_timeout_s):
+                evaluation["evaluated_samples"] += 1
+            else:
+                # No interpolation: a late matching sample cannot locate the response.
+                evaluation["incomplete_intervals"] += 1
+                evaluation["reason"] = (
+                    "First matching feedback observed after the response deadline"
+                )
+        elif _above(elapsed, cfg.response_timeout_s):
+            pending.decided = True
+            evaluation["evaluated_samples"] += 1
+            evaluation["events"].append(
+                _event(
+                    "CONTACTOR_FEEDBACK_TIMEOUT",
+                    pending.start,
+                    t,
+                    t,
+                    elapsed,
+                    cfg.response_timeout_s,
+                    pending.count,
+                    "s",
+                    [cfg.command_source, cfg.feedback_source],
+                    {
+                        "previous_command_time_s": pending.previous_time,
+                        "previous_command_closed": float(pending.previous_command),
+                        "command_time_s": pending.start,
+                        "command_closed": float(pending.command),
+                        "feedback_closed": float(feedback),
+                        "required_response_s": cfg.response_timeout_s,
+                    },
+                )
+            )
 
     def _flush(self, code: FailureCode) -> None:
         run = self.runs.pop(code, None)
@@ -267,6 +351,8 @@ class FailureModelCollector:
             self._end_balance(complete=False)
         if self.config and self.config.unloaded_current:
             self._end_unloaded(count_incomplete=not self.unloaded_invalid_censor)
+        if self.config and self.config.contactor_response:
+            self._end_contactor(count_incomplete=not self.contactor_invalid_censor)
         self.previous_t = self.span_start = None
         self.previous_temperatures = None
         self.baseline = None
@@ -467,6 +553,7 @@ class FailureModelCollector:
         balance_values: pd.Series | None,
         *,
         unloaded_values: pd.Series | None = None,
+        contactor_values: tuple[pd.Series | None, pd.Series | None] = (None, None),
         exclude_invalid: bool,
         row_offset: int = 0,
     ) -> None:
@@ -506,8 +593,33 @@ class FailureModelCollector:
                 )
             elif current is None:
                 self.evaluations["CURRENT_WHILE_UNLOADED"]["reason"] = "Missing pack_current_a"
+        raw_contactor = tuple(
+            v.to_numpy(dtype=object) if v is not None else None for v in contactor_values
+        )
+        if self.config.contactor_response:
+            presence = (raw_contactor[0] is not None, raw_contactor[1] is not None)
+            if self.contactor_presence is None:
+                self.contactor_presence = presence
+            elif self.contactor_presence != presence:
+                raise ValueError("Contactor signal presence changed between measurement chunks")
+            if not all(presence):
+                cfg = self.config.contactor_response
+                missing = [
+                    source
+                    for source, present in zip(
+                        (cfg.command_source, cfg.feedback_source), presence, strict=True
+                    )
+                    if not present
+                ]
+                self.evaluations["CONTACTOR_FEEDBACK_TIMEOUT"]["reason"] = (
+                    f"Missing contactor status source(s): {missing!r}"
+                )
         for row, valid in enumerate(valid_rows.to_numpy(dtype=bool)):
             if not valid:
+                if self.config.contactor_response and all(v is not None for v in raw_contactor):
+                    self._censor_contactor(
+                        "Invalid measurement rows interrupted contactor observations"
+                    )
                 if (
                     self.config.unloaded_current
                     and raw_unloaded is not None
@@ -522,6 +634,8 @@ class FailureModelCollector:
             if self.previous_t is not None and _above(
                 _finite(t - self.previous_t), self.config.max_gap_s
             ):
+                if self.config.contactor_response and all(v is not None for v in raw_contactor):
+                    self._censor_contactor("Measurement gap interrupted contactor observations")
                 self._break()
             if self.span_start is None:
                 self.span_start = t
@@ -565,6 +679,18 @@ class FailureModelCollector:
                 inputs.cell_cols,
             )
             self._unloaded(t, float(current[row]) if current is not None else None, unloaded)
+            if self.config.contactor_response and all(v is not None for v in raw_contactor):
+                states = [parse_binary_status(v[row]) for v in raw_contactor if v is not None]
+                if any(state is None for state in states):
+                    if not exclude_invalid:
+                        label = "command" if states[0] is None else "feedback"
+                        raise ValueError(
+                            f"Contactor {label} status must be 0/1 or boolean at data row {row_offset + row + 1}"
+                        )
+                    self._censor_contactor("Invalid contactor status samples were excluded")
+                else:
+                    assert states[0] is not None and states[1] is not None
+                    self._contactor(t, states[0], states[1])
             self.previous_t = t
             self.previous_temperatures = temperatures[row].copy()
 
@@ -587,4 +713,6 @@ class FailureModelCollector:
         serialized_config = asdict(self.config)
         if self.config.unloaded_current is None:
             serialized_config.pop("unloaded_current")
+        if self.config.contactor_response is None:
+            serialized_config.pop("contactor_response")
         return {"config": serialized_config, "evaluations": list(self.evaluations.values())}

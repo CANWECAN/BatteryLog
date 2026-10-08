@@ -97,6 +97,26 @@ class UnloadedCurrentConfig:
 
 
 @dataclass(frozen=True)
+class ContactorResponseConfig:
+    """Independent binary channels: 1 means closed, 0 means open."""
+
+    command_source: str
+    feedback_source: str
+    response_timeout_s: float
+
+    def __post_init__(self) -> None:
+        for name in ("command_source", "feedback_source"):
+            value = getattr(self, name)
+            if not isinstance(value, str):
+                raise TypeError(f"{name} must be a string")
+            if not value.strip():
+                raise ValueError(f"{name} must not be empty")
+        if self.command_source == self.feedback_source:
+            raise ValueError("command_source and feedback_source must be distinct")
+        _number("response_timeout_s", self.response_timeout_s)
+
+
+@dataclass(frozen=True)
 class FailureModelConfig:
     max_gap_s: float
     sustained_imbalance: SustainedImbalanceConfig | None = None
@@ -104,6 +124,7 @@ class FailureModelConfig:
     cell_sag: CellSagConfig | None = None
     balancing: BalancingConfig | None = None
     unloaded_current: UnloadedCurrentConfig | None = None
+    contactor_response: ContactorResponseConfig | None = None
 
     def __post_init__(self) -> None:
         _number("failure_models.max_gap_s", self.max_gap_s)
@@ -114,6 +135,7 @@ class FailureModelConfig:
             ("cell_sag", CellSagConfig),
             ("balancing", BalancingConfig),
             ("unloaded_current", UnloadedCurrentConfig),
+            ("contactor_response", ContactorResponseConfig),
         ):
             value = getattr(self, name)
             if value is not None:
@@ -144,6 +166,7 @@ def parse_failure_models(raw: Any) -> FailureModelConfig | None:
         ("cell_sag", CellSagConfig),
         ("balancing", BalancingConfig),
         ("unloaded_current", UnloadedCurrentConfig),
+        ("contactor_response", ContactorResponseConfig),
     ):
         group = raw.get(name)
         if group is None:

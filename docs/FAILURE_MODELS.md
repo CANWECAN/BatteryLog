@@ -5,6 +5,20 @@ weak cell, a bad connection, a faulty sensor, or the cause of a balancing result
 No SOC estimator, energy estimator, calibration, internal resistance measurement,
 expression language, or general state-machine framework is included.
 
+## Try the contactor-response synthetic example
+
+```bash
+python -m batterylog examples/contactor_response_demo.csv \
+  --config examples/contactor_response.example.yaml \
+  --json-out result.json --report report.html
+```
+
+The expected result is FAIL, exit code 1, with one `CONTACTOR_FEEDBACK_TIMEOUT`
+event from the closing command at 1 s to the still-open feedback at 4 s.
+The 2 s deadline and 1 s maximum gap are illustrative. Select both for the
+actual procedure and sampling rate. Use the same files in desktop single-file
+or batch mode. Opening commands are checked in the same way.
+
 ## Try the unloaded-current synthetic example
 
 ```bash
@@ -49,7 +63,7 @@ events live under `failure_models.evaluations[].events`. Use both collections.
 ## Observation and continuity contract
 
 `failure_models.max_gap_s` is mandatory and positive. It bounds every interval
-used for continuity, derivatives, resting references and balancing sessions.
+used for continuity, derivatives, resting references, balancing sessions and contactor responses.
 Invalid measurement rows and larger gaps reset the state; no interpolation or
 zero-order hold across missing observations is performed. Duplicate timestamps
 do not add elapsed time. Rates need a positive qualifying interval; a duplicate
@@ -98,6 +112,40 @@ status is retained as 0/1 under its original name with a dimensionless identity
 conversion record. Normalization remains strict, preserves all rows, and performs
 no engineering evaluation. Analyze the resulting canonical CSV without the original
 sensor mapping; retain the failure-model parameters and balancing source name.
+
+### Contactor-response contract
+
+`contactor_response.command_source` and `feedback_source` name distinct binary
+columns/channels. Both use 1/true for closed and 0/false for open; convert hardware
+polarity or multi-state enums at the producer. Neither source may share a
+measurement role. Set a positive `response_timeout_s` explicitly. CSV accepts the
+same boolean/0/1 forms as the other status checks; MF4 channels must be unique and
+dimensionless. Mapping and unit normalization preserve both names and record
+identity conversions. MF4 invalidation is retained; asynchronous samples are never
+interpolated or forward-filled.
+
+Each observed command change starts one response window. Matching feedback at or
+before the deadline completes a passing response. A still-mismatching sample
+strictly after the deadline emits one timeout event at that observation; it records
+the previous command/time, command edge, feedback, elapsed time and required limit.
+Matching feedback first seen after the deadline is inconclusive: the actual switch
+may have occurred earlier between samples, so this interval is NOT_EVALUATED.
+An unfinished window at EOF, a command reversed before resolving its window, an
+initial mismatch with no observed edge, or interrupted observations also prevent
+PASS. A log with no command changes is NOT_EVALUATED. A data gap beyond `max_gap_s`
+is unknown even when no response was pending. Duplicate timestamps add no time.
+
+Strict mode reports malformed states with the global row number. With
+`exclude_invalid_rows`, invalid contactor states interrupt only this model and
+preserve valid numeric measurements for other checks. Adjacent unknown samples
+count once. Missing command or feedback gives NOT_EVALUATED. Earlier timeout events
+remain FAIL after interruptions or later successful responses. `evaluated_samples`
+counts resolved response windows, rather than every sample in each window.
+
+This model checks response to command transitions. After a window is resolved it
+waits for another command change; it does not monitor later feedback reversions
+under an unchanged command. It reports observed deadline misses and does not
+identify welded contacts, driver faults or another physical cause.
 
 ### Unloaded-state contract
 

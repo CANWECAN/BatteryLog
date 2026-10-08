@@ -255,3 +255,7 @@ BatteryLog is licensed under the [Apache License 2.0](LICENSE). Commercial, inte
 Citation metadata is available in [`CITATION.cff`](CITATION.cff); attribution information is recorded in [`NOTICE`](NOTICE).
 
 Tagged releases publish wheel/sdist artifacts plus SHA-256 checksums through [GitHub Releases](https://github.com/CANWECAN/BatteryLog/releases).
+
+The opt-in contactor response check compares observed command transitions with
+independent binary feedback. Try `examples/contactor_response_demo.csv` with
+`examples/contactor_response.example.yaml`; see [the observation contract](docs/FAILURE_MODELS.md#contactor-response-contract).

@@ -14,6 +14,7 @@ import jsonschema
 
 from batterylog import (
     AnalysisService,
+    ContactorResponseConfig,
     FailureModelConfig,
     SourceUnits,
     SustainedImbalanceConfig,
@@ -88,6 +89,19 @@ validate_result_semantics(unloaded_result)
 unloaded_event = unloaded_result["failure_models"]["evaluations"][0]["events"][0]
 assert unloaded_event["code"] == "CURRENT_WHILE_UNLOADED"
 assert unloaded_event["unit"] == "A" and unloaded_event["evidence"]["current_a"] == 1.5
+contactor_result = analyze_battery_bytes(
+    b"timestamp_s,cell_1_v,cell_2_v,temp_c,Cmd,Feedback\n"
+    b"0,3.5,3.5,25,0,0\n1,3.5,3.5,25,1,0\n2,3.5,3.5,25,1,0\n"
+    b"3,3.5,3.5,25,1,0\n4,3.5,3.5,25,1,0\n",
+    failure_models=FailureModelConfig(
+        1, contactor_response=ContactorResponseConfig("Cmd", "Feedback", 2)
+    ),
+)
+jsonschema.validate(contactor_result, failure_schema)
+validate_result_semantics(contactor_result)
+contactor_event = contactor_result["failure_models"]["evaluations"][0]["events"][0]
+assert contactor_event["code"] == "CONTACTOR_FEEDBACK_TIMEOUT"
+assert contactor_event["duration_s"] == 3 and contactor_event["evidence"]["command_time_s"] == 1
 with TemporaryDirectory() as directory:
     model_source = Path(directory) / "failure-model.csv"
     model_source.write_bytes(

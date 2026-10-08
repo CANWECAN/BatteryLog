@@ -34,6 +34,7 @@ from .input_validation import (
     balance_values_for_frame,
     canonicalize_analysis_frame,
     coerce_required_numeric,
+    contactor_values_for_frame,
     failure_model_loader,
     raise_first_strict_input_error,
     unloaded_values_for_frame,
@@ -148,6 +149,7 @@ def _analyze_battery_chunks(
 
             balance_values = balance_values_for_frame(frame, signal_mapping, failure_models)
             unloaded_values = unloaded_values_for_frame(frame, signal_mapping, failure_models)
+            contactor_values = contactor_values_for_frame(frame, signal_mapping, failure_models)
             frame, layout = canonicalize_analysis_frame(frame, signal_mapping, resolved_limits)
             cell_cols = layout.cell_cols
             temp_cols = layout.temp_cols
@@ -168,6 +170,7 @@ def _analyze_battery_chunks(
                     numeric,
                     balance_values,
                     unloaded_values=unloaded_values,
+                    contactor_values=contactor_values,
                     row_offset=chunk_row_offset,
                     previous_timestamp=previous_timestamp,
                 )
@@ -208,6 +211,7 @@ def _analyze_battery_chunks(
                 prepared.valid_rows,
                 balance_values,
                 unloaded_values=unloaded_values,
+                contactor_values=contactor_values,
                 exclude_invalid=resolved_data_quality.mode == "exclude_invalid_rows",
                 row_offset=chunk_row_offset,
             )

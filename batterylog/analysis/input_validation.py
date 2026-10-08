@@ -42,6 +42,14 @@ def failure_model_loader(
             unloaded_source=config.unloaded_current.unloaded_source
             if config.unloaded_current
             else None,
+            status_sources=(
+                (
+                    config.contactor_response.command_source,
+                    config.contactor_response.feedback_source,
+                )
+                if config.contactor_response
+                else ()
+            ),
         )
     return loader
 
@@ -65,6 +73,20 @@ def unloaded_values_for_frame(
         return None
     return _status_values_for_frame(
         frame, mapping, config.unloaded_current.unloaded_source, "Unloaded"
+    )
+
+
+def contactor_values_for_frame(
+    frame: pd.DataFrame,
+    mapping: SignalMapping | None,
+    config: FailureModelConfig | None,
+) -> tuple[pd.Series | None, pd.Series | None]:
+    if config is None or config.contactor_response is None:
+        return None, None
+    cfg = config.contactor_response
+    return (
+        _status_values_for_frame(frame, mapping, cfg.command_source, "Contactor command"),
+        _status_values_for_frame(frame, mapping, cfg.feedback_source, "Contactor feedback"),
     )
 
 
@@ -282,6 +304,7 @@ def raise_first_strict_input_error(
     balance_values: pd.Series | None,
     *,
     unloaded_values: pd.Series | None = None,
+    contactor_values: tuple[pd.Series | None, pd.Series | None] = (None, None),
     row_offset: int = 0,
     previous_timestamp: float | None = None,
 ) -> None:
@@ -305,5 +328,11 @@ def raise_first_strict_input_error(
     unloaded_error = _invalid_status_error(unloaded_values, row_offset=row_offset, label="Unloaded")
     if unloaded_error is not None:
         candidates.append((unloaded_error[0], 3, unloaded_error[1]))
+    for priority, (label, values) in enumerate(
+        zip(("Contactor command", "Contactor feedback"), contactor_values, strict=True), start=4
+    ):
+        error = _invalid_status_error(values, row_offset=row_offset, label=label)
+        if error is not None:
+            candidates.append((error[0], priority, error[1]))
     if candidates:
         raise min(candidates, key=lambda item: (item[0], item[1]))[2]

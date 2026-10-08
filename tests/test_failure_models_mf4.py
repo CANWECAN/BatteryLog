@@ -13,6 +13,7 @@ from asammdf import MDF, Signal
 from batterylog import (
     AnalysisService,
     BalancingConfig,
+    ContactorResponseConfig,
     DataQualityConfig,
     FailureModelConfig,
     SignalMapping,
@@ -374,3 +375,159 @@ def test_real_mf4_unloaded_status_never_infers_or_fills_missing_state(tmp_path, 
         assert result == _analyze_battery_frame(
             frame, failure_models=models, data_quality=config.data_quality
         )
+
+
+def _write_contactor(
+    path,
+    *,
+    grouped=True,
+    missing=False,
+    invalid=False,
+    unit="1",
+    asynchronous=False,
+    scaled=False,
+    duplicate=False,
+):
+    times = np.arange(5, dtype=float)
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": times,
+            "cell_1_v": [3.5] * 5,
+            "cell_2_v": [3.5] * 5,
+            "temp_c": [25.0] * 5,
+            "Cmd": [False, True, True, True, True],
+            "Feedback": [False] * 5,
+        }
+    )
+    signals = [
+        Signal(frame[n].to_numpy(), times, name=n, unit=u)
+        for n, u in [("cell_1_v", "V"), ("cell_2_v", "V"), ("temp_c", "degC")]
+    ]
+    for name in ("Cmd", "Feedback"):
+        if missing and name == "Feedback":
+            frame = frame.drop(columns=name)
+            continue
+        selected = times[::2] if asynchronous and name == "Feedback" else times
+        bits = (
+            np.array([False, False, True, False, False]) if invalid and name == "Feedback" else None
+        )
+        samples = (
+            frame[name].to_numpy()[::2]
+            if asynchronous and name == "Feedback"
+            else frame[name].to_numpy()
+        )
+        signal = Signal(samples, selected, name=name, unit=unit, invalidation_bits=bits)
+        if scaled and name == "Cmd":
+            from asammdf.blocks.v4_blocks import ChannelConversion
+            from asammdf.blocks.v4_constants import CONVERSION_TYPE_LIN
+
+            signal.conversion = ChannelConversion(conversion_type=CONVERSION_TYPE_LIN, a=2, b=0)
+        signals.append(signal)
+    if invalid:
+        frame["Feedback"] = frame["Feedback"].astype(object)
+        frame.loc[2, "Feedback"] = np.nan
+    mdf = MDF(version="4.10")
+    try:
+        if grouped:
+            mdf.append(signals, common_timebase=True)
+        else:
+            for signal in signals:
+                mdf.append([signal], common_timebase=True)
+        if duplicate:
+            mdf.append([signals[-1]], common_timebase=True)
+        mdf.save(path, overwrite=True)
+    finally:
+        mdf.close()
+    return frame
+
+
+@pytest.mark.parametrize("grouped", [True, False])
+@pytest.mark.parametrize("entry", ["service", "path", "file", "normalize"])
+def test_real_mf4_contactor_sources_match_csv(tmp_path, grouped, entry):
+    path = tmp_path / "response.mf4"
+    frame = _write_contactor(path, grouped=grouped)
+    models = FailureModelConfig(1, contactor_response=ContactorResponseConfig("Cmd", "Feedback", 2))
+    config = ValidationConfig(failure_models=models)
+    expected = _analyze_battery_frame(frame, failure_models=models)
+    if entry == "service":
+        result = AnalysisService(config).analyze_path(path).result
+    elif entry == "normalize":
+        destination = tmp_path / "prepared"
+        evidence = normalize_measurement(
+            path, destination, units=SourceUnits("s", "V", "degC"), config=config
+        )
+        assert {c["canonical"] for c in evidence["conversions"] if c["target_unit"] == "1"} == {
+            "Cmd",
+            "Feedback",
+        }
+        result = AnalysisService(config).analyze_path(destination / "normalized.csv").result
+    else:
+        loader = (
+            MdfPathLoader(path, chunk_ram_bytes=40)
+            if entry == "path"
+            else MdfFileLoader(BytesIO(path.read_bytes()), chunk_ram_bytes=40)
+        )
+        result = analyze_measurement_loader(loader, failure_models=models)
+    assert result == expected and result["validation_status"] == "FAIL"
+    validate_result_semantics(result)
+
+
+@pytest.mark.parametrize("grouped", [True, False])
+@pytest.mark.parametrize("defect", ["invalidation", "scaled", "unit", "missing", "duplicate"])
+def test_real_mf4_contactor_rejects_invalid_and_ambiguous_states(tmp_path, grouped, defect):
+    path = tmp_path / "response.mf4"
+    frame = _write_contactor(
+        path,
+        grouped=grouped,
+        invalid=defect == "invalidation",
+        scaled=defect == "scaled",
+        unit="V" if defect == "unit" else "1",
+        missing=defect == "missing",
+        duplicate=defect == "duplicate",
+    )
+    models = FailureModelConfig(1, contactor_response=ContactorResponseConfig("Cmd", "Feedback", 2))
+    config = ValidationConfig(failure_models=models)
+    if defect == "missing":
+        assert AnalysisService(config).analyze_path(path).result == _analyze_battery_frame(
+            frame, failure_models=models
+        )
+        return
+    with pytest.raises(
+        ValueError,
+        match="dimensionless"
+        if defect == "unit"
+        else "ambiguous"
+        if defect == "duplicate"
+        else "Contactor .*status",
+    ):
+        AnalysisService(config).analyze_path(path)
+    if defect in ("unit", "duplicate"):
+        return
+    config = replace(config, data_quality=DataQualityConfig("exclude_invalid_rows"))
+    result = AnalysisService(config).analyze_path(path).result
+    assert result["rows_excluded"] == 0
+    assert result["failure_models"]["evaluations"][0]["status"] == "NOT_EVALUATED"
+    if defect == "invalidation":
+        assert result == _analyze_battery_frame(
+            frame, failure_models=models, data_quality=config.data_quality
+        )
+
+
+def test_real_mf4_contactor_async_feedback_is_not_interpolated(tmp_path):
+    path = tmp_path / "response.mf4"
+    _write_contactor(path, grouped=False, asynchronous=True)
+    models = FailureModelConfig(1, contactor_response=ContactorResponseConfig("Cmd", "Feedback", 2))
+    with pytest.raises(ValueError, match="Contactor feedback.*data row 2"):
+        AnalysisService(ValidationConfig(failure_models=models)).analyze_path(path)
+    result = (
+        AnalysisService(
+            ValidationConfig(
+                failure_models=models, data_quality=DataQualityConfig("exclude_invalid_rows")
+            )
+        )
+        .analyze_path(path)
+        .result
+    )
+    assert result["rows_excluded"] == 0
+    assert result["failure_models"]["evaluations"][0]["status"] == "NOT_EVALUATED"
+    assert result["failure_models"]["evaluations"][0]["events"] == []

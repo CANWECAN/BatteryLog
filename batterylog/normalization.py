@@ -12,6 +12,7 @@ from .analysis.input_validation import (
     balance_values_for_frame,
     canonicalize_analysis_frame,
     coerce_required_numeric,
+    contactor_values_for_frame,
     parse_binary_status,
     raise_invalid_numeric_value,
     unloaded_values_for_frame,
@@ -95,6 +96,14 @@ def normalize_measurement(
                     if config.failure_models and config.failure_models.balancing
                     else None
                 ),
+                status_sources=(
+                    (
+                        config.failure_models.contactor_response.command_source,
+                        config.failure_models.contactor_response.feedback_source,
+                    )
+                    if config.failure_models and config.failure_models.contactor_response
+                    else ()
+                ),
                 unloaded_source=(
                     config.failure_models.unloaded_current.unloaded_source
                     if config.failure_models and config.failure_models.unloaded_current
@@ -115,6 +124,12 @@ def normalize_measurement(
                 for frame in chunks:
                     status_values: dict[str, pd.Series] = {}
                     status_labels: dict[str, str] = {}
+                    contactor_values = contactor_values_for_frame(
+                        frame, config.signals, config.failure_models
+                    )
+                    contactor = (
+                        config.failure_models.contactor_response if config.failure_models else None
+                    )
                     for label, values, state_source in (
                         (
                             "Balancing",
@@ -129,6 +144,16 @@ def normalize_measurement(
                             config.failure_models.unloaded_current.unloaded_source
                             if config.failure_models and config.failure_models.unloaded_current
                             else None,
+                        ),
+                        (
+                            "Contactor command",
+                            contactor_values[0],
+                            contactor.command_source if contactor else None,
+                        ),
+                        (
+                            "Contactor feedback",
+                            contactor_values[1],
+                            contactor.feedback_source if contactor else None,
                         ),
                     ):
                         present = values is not None

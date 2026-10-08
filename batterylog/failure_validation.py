@@ -31,6 +31,8 @@ def validate_failure_report(report: FailureModelReport) -> None:
         expected.extend(["BALANCING_INEFFECTIVE", "BALANCING_ACTIVE_TOO_LONG"])
     if config.unloaded_current:
         expected.append("CURRENT_WHILE_UNLOADED")
+    if config.contactor_response:
+        expected.append("CONTACTOR_FEEDBACK_TIMEOUT")
     _require(
         [item["code"] for item in report["evaluations"]] == expected,
         "enabled model codes/order differ",
@@ -137,6 +139,44 @@ def validate_failure_report(report: FailureModelReport) -> None:
                 _require(
                     _same(evidence["required_duration_s"], unloaded.duration_s),
                     "duration limit differs",
+                )
+            elif code == "CONTACTOR_FEEDBACK_TIMEOUT":
+                contactor = config.contactor_response
+                assert contactor is not None
+                _require(
+                    _same(limit, contactor.response_timeout_s), "contactor response limit differs"
+                )
+                _require(
+                    _same(evidence["required_response_s"], limit), "contactor deadline differs"
+                )
+                _require(
+                    _same(measured, event["duration_s"]) and _above(measured, limit),
+                    "contactor response deadline has not been exceeded",
+                )
+                _require(
+                    _same(evidence["command_time_s"], event["start_time_s"]),
+                    "contactor command time differs",
+                )
+                _require(
+                    event["peak_time_s"] == event["end_time_s"],
+                    "contactor timeout observation differs",
+                )
+                _require(
+                    evidence["previous_command_closed"] != evidence["command_closed"],
+                    "no command transition",
+                )
+                _require(
+                    evidence["feedback_closed"] != evidence["command_closed"],
+                    "feedback matches command",
+                )
+                age = evidence["command_time_s"] - evidence["previous_command_time_s"]
+                _require(
+                    age >= 0 and not _above(age, config.max_gap_s),
+                    "command transition crosses an ineligible gap",
+                )
+                _require(
+                    event["signals"] == [contactor.command_source, contactor.feedback_source],
+                    "contactor sources differ",
                 )
             else:
                 balance = config.balancing
