@@ -55,6 +55,16 @@ def validate_result_semantics(result: AnalysisResult) -> None:
         if report is None:
             raise ValueError("result-v9 requires failure_models")
         validate_failure_current_direction(limits, parse_failure_models(report["config"]))
+        for evaluation in report["evaluations"]:
+            if evaluation["evaluated_samples"] > result["rows_analyzed"]:
+                raise ValueError(
+                    "Failure-model evidence: eligible observations exceed analyzed rows"
+                )
+            if (
+                sum(event["sample_count"] for event in evaluation["events"])
+                > result["rows_analyzed"]
+            ):
+                raise ValueError("Failure-model evidence: event observations exceed analyzed rows")
         validate_failure_report(report)
         statuses = [item["status"] for item in report["evaluations"]]
         expected_status = (

@@ -47,9 +47,13 @@ def validate_failure_report(report: FailureModelReport) -> None:
         _require(
             evaluation["status"] == expected_status, "status disagrees with observations/events"
         )
+        _require(
+            len(evaluation["events"]) <= evaluation["evaluated_samples"],
+            "events exceed eligible observations",
+        )
         for event in evaluation["events"]:
             _require(event["code"] == code, "event code differs from its evaluation")
-            _validate_event(event)
+            _validate_event(event, config.max_gap_s)
             evidence = event["evidence"]
             measured, limit = event["measured_value"], event["limit_value"]
             if code == "CELL_IMBALANCE_SUSTAINED":
@@ -170,10 +174,18 @@ def validate_failure_report(report: FailureModelReport) -> None:
                     _require(_above(measured, limit), "balancing timeout has not been exceeded")
 
 
-def _validate_event(event: FailureEvent) -> None:
+def _validate_event(event: FailureEvent, max_gap_s: float) -> None:
     start, end, peak = event["start_time_s"], event["end_time_s"], event["peak_time_s"]
     _require(start <= peak <= end, "event times are out of order")
     _require(_same(event["duration_s"], end - start), "event duration differs from timestamps")
+    count = event["sample_count"]
+    if count == 1:
+        _require(start == end, "a single observation cannot span positive duration")
+    else:
+        _require(
+            not _above(event["duration_s"] / (count - 1), max_gap_s),
+            "event duration cannot be supported by its observation count and maximum gap",
+        )
     _require(
         _same(event["peak_excursion"], abs(event["measured_value"] - event["limit_value"])),
         "peak excursion differs",

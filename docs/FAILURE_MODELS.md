@@ -155,6 +155,12 @@ Validate strict JSON against `batterylog/schema/result-v9.json`, then call
 `validate_result_semantics`. Structural validation checks required fields, status
 shape, units, enabled codes and original limit-rule provenance. Semantic checks
 also verify configuration relationships, code order/uniqueness, overall status,
-event timing, threshold direction and arithmetic in the recorded chains. This
-does not authenticate the source or prove the measured median/peaks are correct;
-the original log and existing SHA-256 provenance remain necessary.
+event timing, threshold direction and arithmetic in the recorded chains. Each
+model's eligible observations and summed event sample counts cannot exceed the
+analyzed source rows, and events require at least one eligible observation each.
+A single-sample event has zero elapsed duration. Other events must have enough
+samples to support their duration under the configured maximum observation gap;
+duplicate timestamps remain valid and do not imply elapsed time. These are
+necessary consistency bounds, not proof of every individual acquisition interval.
+This does not authenticate the source or prove the measured median/peaks are
+correct; the original log and existing SHA-256 provenance remain necessary.

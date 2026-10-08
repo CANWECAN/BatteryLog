@@ -4,6 +4,8 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Reject result-v9 model evidence whose observation counts cannot support event duration, exceed analyzed source rows, or contain more events than eligible observations. The desktop inherits these checks before accepting a worker result; valid duplicate timestamps and binary64 gap boundaries remain supported.
+
 - Add opt-in `CURRENT_WHILE_UNLOADED` observation using an independently declared 0/1 state, a current-magnitude tolerance and a persistence duration. Preserve signed peak evidence, mark missing/short/interrupted observations NOT_EVALUATED, reject state/measurement role collisions, and retain both state channels through CSV/MF4 normalization without interpolation or current correction. Add a synthetic CLI/desktop example and independent interval-reference tests.
 
 - Add a reproducible CORA real-data characterization harness for the opt-in failure models, independent event-chain audits, illustrative threshold sensitivity and a traceable CLI demo. Keep absent balancing status NOT_EVALUATED and document temperature acquisition anomalies separately from physical fault diagnosis.
