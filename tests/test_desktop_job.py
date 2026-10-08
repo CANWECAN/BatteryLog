@@ -1,3 +1,4 @@
+import csv
 import hashlib
 import json
 import os
@@ -10,6 +11,8 @@ import pytest
 
 import batterylog.desktop_job as module
 from batterylog.desktop_job import (
+    DesktopBatchJob,
+    DesktopBatchOutcome,
     DesktopInspectionJob,
     DesktopInspectionOutcome,
     DesktopJob,
@@ -40,6 +43,133 @@ def finish_inspection(job: DesktopInspectionJob) -> DesktopInspectionOutcome:
         time.sleep(0.02)
     job.cancel()
     pytest.fail("Desktop inspection worker did not finish within 30 seconds")
+
+
+def finish_batch(job: DesktopBatchJob) -> DesktopBatchOutcome:
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        outcome = job.poll()
+        if outcome is not None:
+            return outcome
+        time.sleep(0.02)
+    job.cancel()
+    pytest.fail("Desktop batch worker did not finish within 60 seconds")
+
+
+def test_real_batch_worker_preserves_cli_summary_and_unique_output(tmp_path):
+    source = tmp_path / "measurements"
+    nested = source / "nested"
+    nested.mkdir(parents=True)
+    (source / "a.csv").write_bytes(SAMPLE.read_bytes())
+    (nested / "b.csv").write_bytes(SAMPLE.read_bytes())
+    output_parent = tmp_path / "results"
+    output_parent.mkdir()
+    config = tmp_path / "validation.yaml"
+    config.write_text("limits:\n  temperature:\n    max_c: 40\n", encoding="utf-8")
+
+    first = DesktopBatchJob(source, output_parent, config, recursive=True)
+    first_outcome = finish_batch(first)
+    assert first_outcome.status == "FAIL"
+    assert first_outcome.summary is not None
+    assert [item["source"] for item in first_outcome.summary["files"]] == [
+        "a.csv",
+        "nested/b.csv",
+    ]
+    assert {item["status"] for item in first_outcome.summary["files"]} == {"FAIL"}
+    assert first_outcome.summary_csv == first.directory / "summary.csv"
+    assert first_outcome.summary_csv.is_file()
+    assert first.directory.parent == output_parent
+    assert first.directory.is_dir()
+
+    second = DesktopBatchJob(source, output_parent, config, recursive=False)
+    second_outcome = finish_batch(second)
+    assert second_outcome.status == "FAIL"
+    assert second_outcome.summary is not None
+    assert [item["source"] for item in second_outcome.summary["files"]] == ["a.csv"]
+    assert second.directory != first.directory
+    assert first.directory.exists()
+
+
+def test_batch_worker_rejects_output_inside_input(tmp_path):
+    source = tmp_path / "measurements"
+    source.mkdir()
+    (source / "a.csv").write_bytes(SAMPLE.read_bytes())
+    with pytest.raises(ValueError, match="outside the input folder"):
+        DesktopBatchJob(source, source)
+
+
+def test_batch_worker_keeps_valid_summary_when_one_file_errors(tmp_path):
+    source = tmp_path / "measurements"
+    source.mkdir()
+    (source / "good.csv").write_bytes(SAMPLE.read_bytes())
+    (source / "broken.csv").write_text("timestamp_s,temp_c\n0,25\n", encoding="utf-8")
+    output_parent = tmp_path / "results"
+    output_parent.mkdir()
+
+    job = DesktopBatchJob(source, output_parent)
+    outcome = finish_batch(job)
+    assert outcome.status == "ERROR"
+    assert outcome.summary is not None
+    assert {item["source"]: item["status"] for item in outcome.summary["files"]} == {
+        "broken.csv": "ERROR",
+        "good.csv": "NOT_EVALUATED",
+    }
+    assert outcome.summary_csv is not None and outcome.summary_csv.is_file()
+    assert "1 ERROR" in outcome.message
+
+
+def test_batch_worker_config_error_has_no_false_summary(tmp_path):
+    source = tmp_path / "measurements"
+    source.mkdir()
+    (source / "a.csv").write_bytes(SAMPLE.read_bytes())
+    output_parent = tmp_path / "results"
+    output_parent.mkdir()
+    config = tmp_path / "broken.yaml"
+    config.write_text("limits: [invalid]\n", encoding="utf-8")
+
+    job = DesktopBatchJob(source, output_parent, config)
+    outcome = finish_batch(job)
+    assert outcome.status == "ERROR"
+    assert outcome.summary is None
+    assert outcome.summary_csv is None
+    assert "must be a mapping" in outcome.message
+    assert not job.directory.exists()
+
+
+def test_batch_cancel_stops_worker_and_preserves_existing_summary(monkeypatch, tmp_path):
+    source = tmp_path / "measurements"
+    source.mkdir()
+    (source / "a.csv").write_bytes(SAMPLE.read_bytes())
+    output_parent = tmp_path / "results"
+    output_parent.mkdir()
+    ready = tmp_path / "ready"
+    original = subprocess.Popen
+
+    def waiting_worker(command, **kwargs):
+        return original(
+            [
+                sys.executable,
+                "-c",
+                (f"import pathlib,time; pathlib.Path({str(ready)!r}).touch(); time.sleep(60)"),
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(module.subprocess, "Popen", waiting_worker)
+    job = DesktopBatchJob(source, output_parent)
+    deadline = time.monotonic() + 5
+    while not ready.exists() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert ready.exists()
+    job.directory.mkdir()
+    summary = job.directory / "summary.csv"
+    summary.write_text("source,status\na.csv,NOT_PROCESSED\n", encoding="utf-8")
+    job.cancel()
+    outcome = finish_batch(job)
+    assert outcome.status == "CANCELLED"
+    assert outcome.summary_csv == summary
+    assert summary.is_file()
+    assert job.directory.is_dir()
 
 
 def test_real_inspection_worker_reports_channels_without_analysis(tmp_path):
@@ -396,3 +526,69 @@ def test_diagnostic_read_failure_is_an_error_and_cleans_outputs(monkeypatch, tmp
     assert "diagnostic disk error" in outcome.message
     assert original.closed
     assert not job.directory.exists()
+
+
+def test_batch_cancel_finalizes_real_cli_summary(monkeypatch, tmp_path):
+    source = tmp_path / "measurements"
+    source.mkdir()
+    for name in ("a.csv", "b.csv"):
+        (source / name).write_bytes(SAMPLE.read_bytes())
+    output_parent = tmp_path / "results"
+    output_parent.mkdir()
+    ready = tmp_path / "second-file-ready"
+    original = subprocess.Popen
+
+    def delayed_cli(command, **kwargs):
+        # Run the actual worker/CLI, delaying only the second file to cancel deterministically.
+        child = (
+            "import runpy,sys,time\n"
+            "from pathlib import Path\n"
+            "import batterylog.batch as batch\n"
+            "original = batch._analyze_file\n"
+            "def delayed(source, *args):\n"
+            "    if source.name == 'b.csv':\n"
+            f"        Path({str(ready)!r}).touch()\n"
+            "        while True: time.sleep(0.01)\n"
+            "    return original(source, *args)\n"
+            "batch._analyze_file = delayed\n"
+            f"sys.argv = ['batterylog', *{command[3:]!r}]\n"
+            f"runpy.run_module({command[2]!r}, run_name='__main__')\n"
+        )
+        return original([sys.executable, "-c", child], **kwargs)
+
+    monkeypatch.setattr(module.subprocess, "Popen", delayed_cli)
+    job = DesktopBatchJob(source, output_parent)
+    try:
+        deadline = time.monotonic() + 15
+        while not ready.exists() and time.monotonic() < deadline:
+            assert job._process.poll() is None
+            time.sleep(0.02)
+        assert ready.exists()
+        completed = job.directory / "files/a.csv"
+        json_before = (completed / "result.json").read_bytes()
+        html_before = (completed / "report.html").read_bytes()
+        job.cancel()
+        outcome = finish_batch(job)
+        assert outcome.status == "CANCELLED"
+        assert outcome.summary_csv is not None
+        assert job._process.returncode == 130
+        assert job._process.stdin.closed
+        job.cancel()
+        with outcome.summary_csv.open(encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        assert {row["source"]: row["status"] for row in rows} == {
+            "a.csv": "NOT_EVALUATED",
+            "b.csv": "NOT_PROCESSED",
+        }
+        assert (completed / "result.json").read_bytes() == json_before
+        assert (completed / "report.html").read_bytes() == html_before
+        assert not (job.directory / "files/b.csv").exists()
+        assert not job._directory.exists()
+        assert job.poll() is outcome
+    finally:
+        if job._process.poll() is None:
+            job._process.kill()
+            job._process.wait(timeout=5)
+        for handle in (job._stdout, job._stderr, job._process.stdin):
+            if handle is not None:
+                handle.close()

@@ -12,6 +12,7 @@ All notable changes to BatteryLog are documented here.
 - Keep the desktop dependency optional: CLI/Python usage and desktop help work without Tkinter or a graphical session.
 - Add a built-in synthetic desktop demo with illustrative limits and two expected violations. Create separate demo files, then reuse the existing analysis/report workflow without changing validation semantics.
 - Add non-blocking desktop input inspection through the existing CLI metadata path. Show channel inventory, canonical bindings and blocking selection issues before analysis without decoding samples or requiring an output folder.
+- Add desktop batch mode for sequential folder analysis with optional recursion, unique output directories and visible batch summary paths. Use a private cancellation pipe so the existing CLI finalization preserves completed per-file reports and summary evidence even without a Windows console; retain a bounded hard-kill fallback.
 
 ## 0.10.0 - 2026-10-02
 

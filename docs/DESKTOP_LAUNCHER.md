@@ -69,15 +69,31 @@ synthetic example produces FAIL with six events. The models can also run without
 legacy limits: a fully observed passing model produces PASS; insufficient model
 observations produce NOT_EVALUATED. The HTML and JSON retain result-v9 evidence.
 
+## Batch folder
+
+Enable **Batch folder** to switch the first picker from one measurement to an input
+directory. **Recursive** optionally includes supported files in subdirectories. Select an
+existing output location; each batch run creates a new `batterylog-batch-*` child directory
+so previous runs are not overwritten. The launcher delegates to the existing sequential
+`--batch` CLI workflow and shows PASS/FAIL/NOT_EVALUATED/ERROR counts plus the generated
+`summary.csv` path when the run completes.
+
+Cancelling a batch sends a request over the worker's private stdin pipe. The worker raises
+`KeyboardInterrupt` in its main thread so the existing CLI finalization path writes
+`summary.csv`, preserves completed per-file HTML/JSON reports and marks untouched files as
+NOT_PROCESSED. This works without a console window on Windows. If the worker remains blocked
+for two seconds, the launcher escalates to a hard kill; a new summary may then be unavailable.
+Any already-created batch output directory is retained rather than deleted.
+
 | Displayed outcome | Meaning |
 | --- | --- |
 | PASS | The configured validation rules passed. |
 | FAIL | An engineering validation failure; a completed report is available. |
 | NOT_EVALUATED | No validation conclusion was reached; inspect the report. Without active rules this is the expected result. |
-| ERROR | Input, configuration, dependency, process or output error; no completed report is published. |
-| CANCELLED | The run was cancelled before completion was displayed; no completed report is published. |
+| ERROR | Input, configuration, dependency, process or output error. Batch reports from other completed files are retained. |
+| CANCELLED | Single-file runs publish no report; batch runs retain completed reports and any finalized summary. |
 
-Completed output:
+Completed single-file output:
 
 ```text
 selected-output-location/
@@ -105,10 +121,10 @@ The subprocess's JSON stdout is discarded because the complete JSON is written t
 
 ## Current scope and verification
 
-This first workflow has no batch UI, channel-selection editor, unit-conversion UI, embedded
-plot viewer, packaging installer or automatic update mechanism. Read-only input inspection is
-available in the launcher; the existing CLI remains available for normalization and batch
-analysis.
+This development workflow now includes single-file analysis, read-only input inspection and
+sequential batch-folder analysis. It still has no channel-selection editor, unit-conversion UI,
+embedded plot viewer, packaging installer or automatic update mechanism. The existing CLI
+remains available for normalization and scripted workflows.
 
 Tests exercise real CLI outcomes and parity, input/configuration hashes in HTML, distinct
 output folders, partial-output cleanup, inspection metadata/issue handling and cancellation

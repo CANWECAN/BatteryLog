@@ -8,7 +8,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from .desktop_demo import create_demo
-from .desktop_job import DesktopInspectionJob, DesktopJob
+from .desktop_job import DesktopBatchJob, DesktopInspectionJob, DesktopJob
 from .inspection import InspectionResult
 
 
@@ -17,9 +17,10 @@ class DesktopWindow:
         self.root = root
         self.job: DesktopJob | None = None
         self.inspection_job: DesktopInspectionJob | None = None
+        self.batch_job: DesktopBatchJob | None = None
         self.report: Path | None = None
         self.closing = False
-        root.title("BatteryLog — single-file analysis")
+        root.title("BatteryLog — analysis launcher")
         root.minsize(680, 390)
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
@@ -36,8 +37,11 @@ class DesktopWindow:
         self.measurement = tk.StringVar(root)
         self.config = tk.StringVar(root)
         self.output = tk.StringVar(root)
+        self.batch_mode = tk.BooleanVar(root, False)
+        self.recursive = tk.BooleanVar(root, False)
         self.inputs: list[ttk.Entry | ttk.Button] = []
         self.entries: list[ttk.Entry] = []
+        self.labels: list[ttk.Label] = []
         for row, (label, variable) in enumerate(
             [
                 ("Measurement", self.measurement),
@@ -46,7 +50,9 @@ class DesktopWindow:
             ],
             start=1,
         ):
-            ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", padx=(0, 12))
+            label_widget = ttk.Label(frame, text=label)
+            label_widget.grid(row=row, column=0, sticky="w", padx=(0, 12))
+            self.labels.append(label_widget)
             entry = ttk.Entry(frame, textvariable=variable)
             entry.grid(row=row, column=1, sticky="ew", pady=5)
             button = ttk.Button(frame, text="Browse…", command=partial(self.browse, row))
@@ -61,18 +67,26 @@ class DesktopWindow:
         ).grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 14))
         actions = ttk.Frame(frame)
         actions.grid(row=5, column=0, columnspan=3, sticky="w")
+        self.batch_mode_button = ttk.Checkbutton(
+            actions, text="Batch folder", variable=self.batch_mode, command=self._mode_changed
+        )
+        self.batch_mode_button.grid(row=0, column=0, sticky="w")
+        self.recursive_button = ttk.Checkbutton(
+            actions, text="Recursive", variable=self.recursive, state="disabled"
+        )
+        self.recursive_button.grid(row=0, column=1, sticky="w", padx=(10, 0))
         self.inspect_button = ttk.Button(actions, text="Inspect input", command=self.inspect_input)
-        self.inspect_button.grid(row=0, column=0)
+        self.inspect_button.grid(row=1, column=0, pady=(8, 0))
         self.run_button = ttk.Button(actions, text="Run analysis", command=self.start)
-        self.run_button.grid(row=0, column=1, padx=(8, 0))
+        self.run_button.grid(row=1, column=1, padx=(8, 0), pady=(8, 0))
         self.cancel_button = ttk.Button(
             actions, text="Cancel", command=self.cancel, state="disabled"
         )
-        self.cancel_button.grid(row=0, column=2, padx=8)
+        self.cancel_button.grid(row=1, column=2, padx=8, pady=(8, 0))
         self.open_button = ttk.Button(
             actions, text="Open report", command=self.open_report, state="disabled"
         )
-        self.open_button.grid(row=0, column=3)
+        self.open_button.grid(row=1, column=3, pady=(8, 0))
         self.status = tk.StringVar(
             root, "Ready — select a measurement and an existing output folder."
         )
@@ -83,8 +97,29 @@ class DesktopWindow:
         self.details.configure(yscrollcommand=scrollbar.set)
         self.set_status(self.status.get())
 
+    def _apply_mode(self, *, clear_measurement: bool) -> None:
+        batch = self.batch_mode.get()
+        if clear_measurement:
+            self.measurement.set("")
+        if not batch:
+            self.recursive.set(False)
+        self.labels[0].configure(text="Input folder" if batch else "Measurement")
+        self.run_button.configure(text="Run batch" if batch else "Run analysis")
+        self.inspect_button.configure(state="disabled" if batch else "normal")
+        self.recursive_button.configure(state="normal" if batch else "disabled")
+        self.report = None
+        self.open_button.configure(state="disabled")
+
+    def _mode_changed(self) -> None:
+        self._apply_mode(clear_measurement=True)
+        self.set_status(
+            "Batch mode — select an input folder and an output location."
+            if self.batch_mode.get()
+            else "Ready — select a measurement and an existing output folder."
+        )
+
     def load_demo(self) -> None:
-        if self.job is not None or self.inspection_job is not None:
+        if self.job is not None or self.inspection_job is not None or self.batch_job is not None:
             return
         selected = filedialog.askdirectory(
             parent=self.root, title="Choose where to save the demo", mustexist=True
@@ -96,6 +131,8 @@ class DesktopWindow:
         except (OSError, ValueError) as exc:
             self.set_status(f"ERROR\n{exc}")
             return
+        self.batch_mode.set(False)
+        self._apply_mode(clear_measurement=False)
         self.measurement.set(str(directory / "synthetic_demo.csv"))
         self.config.set(str(directory / "validation.yaml"))
         self.output.set(str(directory))
@@ -119,7 +156,12 @@ class DesktopWindow:
         self.details.configure(state="disabled")
 
     def browse(self, row: int) -> None:
-        if row == 1:
+        if row == 1 and self.batch_mode.get():
+            selected = filedialog.askdirectory(
+                parent=self.root, title="Select batch input folder", mustexist=True
+            )
+            variable = self.measurement
+        elif row == 1:
             selected = filedialog.askopenfilename(
                 parent=self.root,
                 title="Select measurement",
@@ -152,9 +194,20 @@ class DesktopWindow:
 
     def _set_busy(self, busy: bool) -> None:
         state = "disabled" if busy else "normal"
-        for widget in [*self.inputs, self.demo_button, self.inspect_button, self.run_button]:
+        for widget in [
+            *self.inputs,
+            self.demo_button,
+            self.batch_mode_button,
+            self.run_button,
+        ]:
             widget.configure(state=state)
         self.cancel_button.configure(state="normal" if busy else "disabled")
+        if busy:
+            self.inspect_button.configure(state="disabled")
+            self.recursive_button.configure(state="disabled")
+        else:
+            self.inspect_button.configure(state="disabled" if self.batch_mode.get() else "normal")
+            self.recursive_button.configure(state="normal" if self.batch_mode.get() else "disabled")
 
     @staticmethod
     def _inspection_text(result: InspectionResult) -> str:
@@ -187,7 +240,12 @@ class DesktopWindow:
         return "\n".join(lines)
 
     def inspect_input(self) -> None:
-        if self.job is not None or self.inspection_job is not None:
+        if (
+            self.batch_mode.get()
+            or self.job is not None
+            or self.inspection_job is not None
+            or self.batch_job is not None
+        ):
             return
         self.report = None
         self.open_button.configure(state="disabled")
@@ -225,7 +283,10 @@ class DesktopWindow:
         self.open_button.configure(state="disabled")
 
     def start(self) -> None:
-        if self.job is not None or self.inspection_job is not None:
+        if self.job is not None or self.inspection_job is not None or self.batch_job is not None:
+            return
+        if self.batch_mode.get():
+            self.start_batch()
             return
         self.report = None
         self.open_button.configure(state="disabled")
@@ -244,6 +305,46 @@ class DesktopWindow:
         self._set_busy(True)
         self.set_status("Running analysis… You can cancel this run.")
         self.root.after(150, self.poll)
+
+    def start_batch(self) -> None:
+        self.report = None
+        self.open_button.configure(state="disabled")
+        try:
+            if not self.measurement.get().strip() or not self.output.get().strip():
+                raise ValueError("Select an input folder and an existing output folder.")
+            config = self.config.get().strip()
+            self.batch_job = DesktopBatchJob(
+                Path(self.measurement.get()),
+                Path(self.output.get()),
+                Path(config) if config else None,
+                recursive=self.recursive.get(),
+            )
+        except (OSError, ValueError) as exc:
+            self.set_status(f"ERROR\n{exc}")
+            return
+        self._set_busy(True)
+        self.set_status(
+            "Running batch analysis… Completed file reports will be preserved on cancel."
+        )
+        self.root.after(150, self.poll_batch)
+
+    def poll_batch(self) -> None:
+        assert self.batch_job is not None
+        outcome = self.batch_job.poll()
+        if outcome is None:
+            self.root.after(150, self.poll_batch)
+            return
+        self.batch_job = None
+        if self.closing and outcome.status == "CANCELLED":
+            self.root.destroy()
+            return
+        self.closing = False
+        message = f"{outcome.status}\n{outcome.message}\nOutput: {outcome.output_directory}"
+        if outcome.summary_csv is not None:
+            message += f"\nSummary: {outcome.summary_csv}"
+        self.set_status(message)
+        self._set_busy(False)
+        self.open_button.configure(state="disabled")
 
     def poll(self) -> None:
         assert self.job is not None
@@ -272,6 +373,10 @@ class DesktopWindow:
             self.inspection_job.cancel()
             self.cancel_button.configure(state="disabled")
             self.set_status("Cancelling inspection…")
+        elif self.batch_job is not None:
+            self.batch_job.cancel()
+            self.cancel_button.configure(state="disabled")
+            self.set_status("Cancelling batch… Completed reports will be preserved.")
 
     def open_report(self) -> None:
         if self.report is not None:
@@ -286,7 +391,7 @@ class DesktopWindow:
                 self.set_status(f"{exc}\n{self.report}")
 
     def close(self) -> None:
-        if self.job is not None or self.inspection_job is not None:
+        if self.job is not None or self.inspection_job is not None or self.batch_job is not None:
             if not messagebox.askyesno(
                 "Cancel active task?",
                 "Cancel the active BatteryLog task and close?",

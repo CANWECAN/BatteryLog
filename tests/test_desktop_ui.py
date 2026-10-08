@@ -25,7 +25,7 @@ def ui():
     root.withdraw()
     window = DesktopWindow(root)
     yield window
-    active = window.job or window.inspection_job
+    active = window.job or window.inspection_job or window.batch_job
     if active is not None:
         active.cancel()
         deadline = time.monotonic() + 5
@@ -133,6 +133,58 @@ def test_input_inspection_surfaces_mapping_issue_without_running_analysis(ui, tm
     assert ui.status.get().startswith("INSPECTION ISSUES\n")
     assert "No cell voltage columns found" in ui.status.get()
     assert ui.open_button.instate(["disabled"])
+
+
+def test_real_batch_ui_is_responsive_recursive_and_shows_summary(ui, tmp_path):
+    sample = Path(__file__).parents[1] / "examples/sample_battery_log.csv"
+    source = tmp_path / "measurements"
+    nested = source / "nested"
+    nested.mkdir(parents=True)
+    (source / "a.csv").write_bytes(sample.read_bytes())
+    (nested / "b.csv").write_bytes(sample.read_bytes())
+    output = tmp_path / "results"
+    output.mkdir()
+    config = tmp_path / "validation.yaml"
+    config.write_text("limits:\n  temperature:\n    max_c: 40\n", encoding="utf-8")
+
+    ui.batch_mode_button.invoke()
+    assert ui.batch_mode.get()
+    assert ui.labels[0].cget("text") == "Input folder"
+    assert ui.run_button.cget("text") == "Run batch"
+    assert ui.inspect_button.instate(["disabled"])
+    assert ui.recursive_button.instate(["!disabled"])
+    ui.measurement.set(str(source))
+    ui.config.set(str(config))
+    ui.output.set(str(output))
+    ui.recursive.set(True)
+
+    ticks = []
+    ui.root.after(1, lambda: ticks.append(True))
+    ui.run_button.invoke()
+    assert ui.batch_job is not None
+    assert ui.batch_mode_button.instate(["disabled"])
+    assert ui.recursive_button.instate(["disabled"])
+    deadline = time.monotonic() + 30
+    while ui.batch_job is not None and time.monotonic() < deadline:
+        ui.root.update()
+        time.sleep(0.02)
+    assert ui.batch_job is None
+    assert ticks
+    assert ui.status.get().startswith("FAIL\nBatch completed: 2 files; 0 PASS, 2 FAIL")
+    assert "summary.csv" in ui.status.get()
+    assert len(list(output.glob("batterylog-batch-*"))) == 1
+    assert ui.batch_mode_button.instate(["!disabled"])
+    assert ui.recursive_button.instate(["!disabled"])
+    assert ui.inspect_button.instate(["disabled"])
+    assert ui.cancel_button.instate(["disabled"])
+    assert ui.open_button.instate(["disabled"])
+
+    ui.batch_mode_button.invoke()
+    assert not ui.batch_mode.get()
+    assert ui.labels[0].cget("text") == "Measurement"
+    assert ui.run_button.cget("text") == "Run analysis"
+    assert ui.inspect_button.instate(["!disabled"])
+    assert ui.recursive_button.instate(["disabled"])
 
 
 def test_invalid_input_can_be_corrected_and_stale_report_is_disabled(ui, tmp_path):

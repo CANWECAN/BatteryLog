@@ -27,7 +27,7 @@ from batterylog import (
 from batterylog.analysis.core import analyze_battery_bytes
 from batterylog.analysis.report_series import ReportSeriesCollector
 from batterylog.desktop_demo import create_demo
-from batterylog.desktop_job import DesktopJob
+from batterylog.desktop_job import DesktopBatchJob, DesktopJob
 
 expected_version, sample = sys.argv[1:]
 assert version("batterylog") == expected_version
@@ -111,6 +111,29 @@ with TemporaryDirectory() as directory:
         model_html = outcome.report.read_text(encoding="utf-8")
         assert hashlib.sha256(model_source.read_bytes()).hexdigest() in model_html
         assert hashlib.sha256(model_config.read_bytes()).hexdigest() in model_html
+    batch_input = Path(directory) / "batch-input"
+    (batch_input / "nested").mkdir(parents=True)
+    for relative in ("a.csv", "nested/b.csv"):
+        (batch_input / relative).write_bytes(Path(sample).read_bytes())
+    batch_job = DesktopBatchJob(batch_input, Path(directory), recursive=True)
+    batch_outcome = None
+    deadline = time.monotonic() + 30
+    while batch_outcome is None and time.monotonic() < deadline:
+        batch_outcome = batch_job.poll()
+        time.sleep(0.02)
+    if batch_outcome is None:
+        batch_job.cancel()
+        raise AssertionError("Installed desktop batch worker did not finish within 30 seconds")
+    assert batch_outcome.status == "NOT_EVALUATED"
+    assert batch_outcome.summary_csv is not None and batch_outcome.summary_csv.is_file()
+    assert batch_outcome.summary is not None
+    assert [item["source"] for item in batch_outcome.summary["files"]] == ["a.csv", "nested/b.csv"]
+    expected_batch_result = AnalysisService().analyze_path(sample).result
+    for item in batch_outcome.summary["files"]:
+        assert item["status"] == "NOT_EVALUATED"
+        result_path = batch_job.directory / item["result_json"]
+        assert json.loads(result_path.read_text(encoding="utf-8")) == expected_batch_result
+
     demo = create_demo(Path(directory))
     demo_report = demo / "report.html"
     demo_run = subprocess.run(

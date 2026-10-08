@@ -11,9 +11,11 @@ from functools import lru_cache
 from importlib.resources import files
 from pathlib import Path
 from typing import BinaryIO, cast
+from uuid import uuid4
 
 from jsonschema import Draft202012Validator, ValidationError
 
+from .batch import BatchSummary
 from .inspection import InspectionResult
 from .models import AnalysisResult
 from .result_validation import validate_result_semantics
@@ -304,6 +306,214 @@ class DesktopInspectionJob:
         except OSError as exc:
             outcome = DesktopInspectionOutcome(
                 "ERROR", f"{outcome.message}\nInspection cleanup failed: {exc}"
+            )
+        self._outcome = outcome
+        return outcome
+
+
+@dataclass(frozen=True)
+class DesktopBatchOutcome:
+    status: str
+    message: str
+    output_directory: Path
+    summary: BatchSummary | None = None
+    summary_csv: Path | None = None
+
+
+def _validate_batch_payload(payload: object, exit_code: int) -> BatchSummary:
+    if not isinstance(payload, dict):
+        raise OSError("Batch summary JSON must be an object.")
+    if payload.get("batch_schema_version") != 1:
+        raise OSError("Batch summary has an unsupported schema version.")
+    if payload.get("summary_csv") != "summary.csv":
+        raise OSError("Batch summary has an invalid summary_csv path.")
+    files_value = payload.get("files")
+    if not isinstance(files_value, list) or not files_value:
+        raise OSError("Batch summary must contain at least one file.")
+    statuses: list[str] = []
+    for item in files_value:
+        if not isinstance(item, dict):
+            raise OSError("Batch summary file entries must be objects.")
+        status = item.get("status")
+        if status not in {"PASS", "FAIL", "NOT_EVALUATED", "ERROR", "NOT_PROCESSED"}:
+            raise OSError(f"Batch summary has invalid file status: {status!r}.")
+        if not isinstance(item.get("source"), str):
+            raise OSError("Batch summary file source must be a string.")
+        statuses.append(status)
+    expected_exit = (
+        4
+        if any(status in {"ERROR", "NOT_PROCESSED"} for status in statuses)
+        else 1
+        if "FAIL" in statuses
+        else 3
+        if "NOT_EVALUATED" in statuses
+        else 0
+    )
+    if exit_code != expected_exit:
+        raise OSError(
+            f"Batch process exit code {exit_code} disagrees with file statuses {statuses!r}."
+        )
+    return cast(BatchSummary, payload)
+
+
+class DesktopBatchJob:
+    """Run the existing sequential batch CLI without blocking the desktop UI."""
+
+    def __init__(
+        self,
+        input_directory: Path,
+        output_parent: Path,
+        config: Path | None = None,
+        *,
+        recursive: bool = False,
+    ):
+        input_directory = input_directory.expanduser().resolve(strict=True)
+        output_parent = output_parent.expanduser().resolve(strict=True)
+        if not input_directory.is_dir():
+            raise ValueError("Select an existing batch input folder.")
+        if not output_parent.is_dir():
+            raise ValueError("Select an existing output folder.")
+        if output_parent == input_directory or output_parent.is_relative_to(input_directory):
+            raise ValueError("Batch output location must be outside the input folder.")
+        if config is not None:
+            config = config.expanduser().resolve(strict=True)
+            if not config.is_file():
+                raise ValueError("Select a YAML configuration file, or leave it empty.")
+
+        self.directory = output_parent / f"batterylog-batch-{uuid4().hex[:12]}"
+        self._directory = Path(tempfile.mkdtemp(prefix="batterylog-batch-worker-"))
+        self._stdout: BinaryIO | None = None
+        self._stderr: BinaryIO | None = None
+        self._cancel_at: float | None = None
+        self._outcome: DesktopBatchOutcome | None = None
+        command = [
+            sys.executable,
+            "-m",
+            "batterylog._desktop_batch_worker",
+            str(input_directory),
+            "--batch",
+            "--output-dir",
+            str(self.directory),
+        ]
+        if config is not None:
+            command.extend(["--config", str(config)])
+        if recursive:
+            command.append("--recursive")
+
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
+        try:
+            self._stdout = (self._directory / "stdout.json").open("w+b")
+            self._stderr = (self._directory / "stderr.log").open("w+b")
+            self._process = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=self._stdout,
+                stderr=self._stderr,
+                bufsize=0,
+                creationflags=creationflags,
+            )
+        except BaseException:
+            if self._stdout is not None:
+                self._stdout.close()
+            if self._stderr is not None:
+                self._stderr.close()
+            shutil.rmtree(self._directory)
+            raise
+
+    def cancel(self) -> None:
+        if self._outcome is not None or self._cancel_at is not None:
+            return
+        self._cancel_at = time.monotonic()
+        try:
+            assert self._process.stdin is not None
+            self._process.stdin.write(b"\x03")
+        except OSError:
+            # The worker may have exited between the last poll and this request.
+            # A live worker still has the bounded kill fallback in poll().
+            pass
+
+    def poll(self) -> DesktopBatchOutcome | None:
+        if self._outcome is not None:
+            return self._outcome
+        code = self._process.poll()
+        if code is None:
+            if self._cancel_at is not None and time.monotonic() - self._cancel_at >= 2:
+                self._process.kill()
+            return None
+
+        assert self._stdout is not None and self._stderr is not None
+        if self._process.stdin is not None:
+            self._process.stdin.close()
+        try:
+            with self._stdout, self._stderr:
+                self._stdout.seek(0)
+                self._stderr.seek(0)
+                raw_output = self._stdout.read()
+                error = self._stderr.read(8192).decode("utf-8", errors="replace").strip()
+        except OSError as exc:
+            outcome = DesktopBatchOutcome(
+                "ERROR",
+                f"Cannot read batch process output: {exc}",
+                self.directory,
+            )
+        else:
+            summary_csv = self.directory / "summary.csv"
+            if self._cancel_at is not None:
+                outcome = DesktopBatchOutcome(
+                    "CANCELLED",
+                    "Batch cancelled. Completed reports were preserved.",
+                    self.directory,
+                    summary_csv=summary_csv if summary_csv.is_file() else None,
+                )
+            elif not raw_output:
+                outcome = DesktopBatchOutcome(
+                    "ERROR",
+                    error or f"Batch process exited with code {code} without a summary.",
+                    self.directory,
+                    summary_csv=summary_csv if summary_csv.is_file() else None,
+                )
+            else:
+                try:
+                    payload = json.loads(
+                        raw_output.decode("utf-8"), parse_constant=_reject_non_json_number
+                    )
+                    summary = _validate_batch_payload(payload, code)
+                except (UnicodeError, ValueError, OSError) as exc:
+                    outcome = DesktopBatchOutcome(
+                        "ERROR",
+                        error or f"Batch produced invalid summary JSON: {exc}",
+                        self.directory,
+                        summary_csv=summary_csv if summary_csv.is_file() else None,
+                    )
+                else:
+                    statuses = [item["status"] for item in summary["files"]]
+                    counts = {
+                        name: statuses.count(name)
+                        for name in ("PASS", "FAIL", "NOT_EVALUATED", "ERROR", "NOT_PROCESSED")
+                    }
+                    status = _STATUS_BY_EXIT.get(code, "ERROR")
+                    message = (
+                        f"Batch completed: {len(statuses)} files; "
+                        f"{counts['PASS']} PASS, {counts['FAIL']} FAIL, "
+                        f"{counts['NOT_EVALUATED']} NOT_EVALUATED, "
+                        f"{counts['ERROR']} ERROR, {counts['NOT_PROCESSED']} NOT_PROCESSED."
+                    )
+                    outcome = DesktopBatchOutcome(
+                        status,
+                        message,
+                        self.directory,
+                        summary,
+                        summary_csv if summary_csv.is_file() else None,
+                    )
+        try:
+            shutil.rmtree(self._directory)
+        except OSError as exc:
+            outcome = DesktopBatchOutcome(
+                "ERROR",
+                f"{outcome.message}\nBatch worker cleanup failed: {exc}",
+                self.directory,
+                outcome.summary,
+                outcome.summary_csv,
             )
         self._outcome = outcome
         return outcome
