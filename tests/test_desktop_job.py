@@ -528,7 +528,8 @@ def test_diagnostic_read_failure_is_an_error_and_cleans_outputs(monkeypatch, tmp
     assert not job.directory.exists()
 
 
-def test_batch_cancel_finalizes_real_cli_summary(monkeypatch, tmp_path):
+@pytest.mark.parametrize("ignore_sigint", [False, True])
+def test_batch_cancel_finalizes_real_cli_summary(monkeypatch, tmp_path, ignore_sigint):
     source = tmp_path / "measurements"
     source.mkdir()
     for name in ("a.csv", "b.csv"):
@@ -541,7 +542,8 @@ def test_batch_cancel_finalizes_real_cli_summary(monkeypatch, tmp_path):
     def delayed_cli(command, **kwargs):
         # Run the actual worker/CLI, delaying only the second file to cancel deterministically.
         child = (
-            "import runpy,sys,time\n"
+            "import runpy,signal,sys,time\n"
+            f"if {ignore_sigint!r}: signal.signal(signal.SIGINT, signal.SIG_IGN)\n"
             "from pathlib import Path\n"
             "import batterylog.batch as batch\n"
             "original = batch._analyze_file\n"

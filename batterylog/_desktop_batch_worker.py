@@ -2,6 +2,7 @@
 
 import _thread
 import os
+import signal
 import threading
 
 from .__main__ import main as cli_main
@@ -18,6 +19,8 @@ def _wait_for_cancel() -> None:
 
 def main() -> None:
     try:
+        # The desktop can inherit SIG_IGN when launched in the background on POSIX.
+        signal.signal(signal.SIGINT, signal.default_int_handler)
         # Raw fd reads avoid holding a buffered-stdin lock during interpreter shutdown.
         threading.Thread(target=_wait_for_cancel, daemon=True).start()
         cli_main()
