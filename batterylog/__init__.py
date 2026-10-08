@@ -17,6 +17,7 @@ from .failure_config import (
     FailureModelConfig,
     SustainedImbalanceConfig,
     TemperatureRiseConfig,
+    UnloadedCurrentConfig,
 )
 from .inspection import (
     InspectionBinding,
@@ -82,6 +83,7 @@ __all__ = [
     "SustainedImbalanceConfig",
     "TemperatureRiseConfig",
     "UnitConversion",
+    "UnloadedCurrentConfig",
     "ValidationConfig",
     "ValidationLimits",
     "ValidationStatus",

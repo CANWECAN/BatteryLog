@@ -36,6 +36,7 @@ from .input_validation import (
     coerce_required_numeric,
     failure_model_loader,
     raise_first_strict_input_error,
+    unloaded_values_for_frame,
     valid_timestamp_values,
 )
 from .preparation import PreparedMeasurements, prepare_measurements
@@ -146,6 +147,7 @@ def _analyze_battery_chunks(
                 continue
 
             balance_values = balance_values_for_frame(frame, signal_mapping, failure_models)
+            unloaded_values = unloaded_values_for_frame(frame, signal_mapping, failure_models)
             frame, layout = canonicalize_analysis_frame(frame, signal_mapping, resolved_limits)
             cell_cols = layout.cell_cols
             temp_cols = layout.temp_cols
@@ -165,6 +167,7 @@ def _analyze_battery_chunks(
                     frame,
                     numeric,
                     balance_values,
+                    unloaded_values=unloaded_values,
                     row_offset=chunk_row_offset,
                     previous_timestamp=previous_timestamp,
                 )
@@ -204,6 +207,7 @@ def _analyze_battery_chunks(
                 rule_inputs,
                 prepared.valid_rows,
                 balance_values,
+                unloaded_values=unloaded_values,
                 exclude_invalid=resolved_data_quality.mode == "exclude_invalid_rows",
                 row_offset=chunk_row_offset,
             )

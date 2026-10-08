@@ -28,6 +28,7 @@ from .input_validation import (
     canonicalize_analysis_frame,
     coerce_required_numeric,
     raise_first_strict_input_error,
+    unloaded_values_for_frame,
     valid_timestamp_values,
 )
 from .preparation import prepare_measurements
@@ -65,6 +66,7 @@ def _analyze_battery_frame(
         raise ValueError("Battery log contains no data rows")
 
     balance_values = balance_values_for_frame(df, signal_mapping, failure_models)
+    unloaded_values = unloaded_values_for_frame(df, signal_mapping, failure_models)
     df, layout = canonicalize_analysis_frame(df, signal_mapping, resolved_limits)
     cell_cols = layout.cell_cols
     temp_cols = layout.temp_cols
@@ -77,7 +79,7 @@ def _analyze_battery_frame(
     data_quality_events: list[DataQualityEvent] = []
 
     if resolved_data_quality.mode == "strict":
-        raise_first_strict_input_error(df, numeric, balance_values)
+        raise_first_strict_input_error(df, numeric, balance_values, unloaded_values=unloaded_values)
         invalid_rows = pd.Series(False, index=numeric.index, dtype=bool)
     else:
         collector = DataQualityCollector()
@@ -104,6 +106,7 @@ def _analyze_battery_frame(
         rule_inputs,
         prepared.valid_rows,
         balance_values,
+        unloaded_values=unloaded_values,
         exclude_invalid=resolved_data_quality.mode == "exclude_invalid_rows",
     )
     rows_analyzed = len(prepared.valid_numeric)

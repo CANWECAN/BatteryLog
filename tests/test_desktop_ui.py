@@ -120,6 +120,56 @@ def test_real_input_inspection_is_responsive_and_requires_no_output_folder(ui):
     assert ui.report is None
 
 
+@pytest.mark.parametrize("batch", [False, True])
+@pytest.mark.parametrize(
+    "mode,status", [("unexpected", "FAIL"), ("quiet", "PASS"), ("missing", "NOT_EVALUATED")]
+)
+def test_real_unloaded_current_ui_and_batch_keep_model_evidence(ui, tmp_path, batch, mode, status):
+    import json
+
+    root = Path(__file__).parents[1]
+    text = (root / "examples/unloaded_current_demo.csv").read_text(encoding="utf-8")
+    if mode == "quiet":
+        text = text.replace(",1,1\n", ",0,1\n").replace(",-1.5,1\n", ",0,1\n")
+    elif mode == "missing":
+        text = "\n".join(line.rsplit(",", 1)[0] for line in text.splitlines()) + "\n"
+    source = tmp_path / "inputs"
+    source.mkdir()
+    measurement = source / "measurement.csv"
+    measurement.write_text(text, encoding="utf-8")
+    output = tmp_path / "outputs"
+    output.mkdir()
+    if batch:
+        ui.batch_mode_button.invoke()
+    ui.measurement.set(str(source if batch else measurement))
+    ui.config.set(str(root / "examples/unloaded_current.example.yaml"))
+    ui.output.set(str(output))
+    ui.run_button.invoke()
+    ticks = []
+    ui.root.after(1, lambda: ticks.append(True))
+    deadline = time.monotonic() + 30
+    while (ui.batch_job if batch else ui.job) is not None and time.monotonic() < deadline:
+        ui.root.update()
+        time.sleep(0.02)
+    assert ui.batch_job is None and ui.job is None
+    assert ticks and ui.status.get().startswith(f"{status}\n")
+    results = list(output.rglob("result.json"))
+    assert len(results) == 1
+    result = json.loads(results[0].read_text(encoding="utf-8"))
+    item = result["failure_models"]["evaluations"][0]
+    assert item["code"] == "CURRENT_WHILE_UNLOADED" and item["status"] == status
+    assert len(item["events"]) == (1 if mode == "unexpected" else 0)
+    if batch:
+        import csv
+
+        summaries = list(output.rglob("summary.csv"))
+        assert len(summaries) == 1
+        with summaries[0].open(encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        assert rows[0]["status"] == status
+        assert int(rows[0]["violation_events"]) == len(item["events"])
+
+
 def test_input_inspection_surfaces_mapping_issue_without_running_analysis(ui, tmp_path):
     broken = tmp_path / "broken.csv"
     broken.write_text("timestamp_s,temp_c\n0,25\n", encoding="utf-8")

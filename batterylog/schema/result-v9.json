@@ -1724,7 +1724,8 @@
             "TEMPERATURE_RISE_HIGH",
             "CELL_SAG_UNDER_LOAD",
             "BALANCING_INEFFECTIVE",
-            "BALANCING_ACTIVE_TOO_LONG"
+            "BALANCING_ACTIVE_TOO_LONG",
+            "CURRENT_WHILE_UNLOADED"
           ]
         },
         "start_time_s": {
@@ -1759,7 +1760,8 @@
           "enum": [
             "V",
             "degC/min",
-            "s"
+            "s",
+            "A"
           ]
         },
         "signals": {
@@ -1987,6 +1989,43 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "CURRENT_WHILE_UNLOADED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "unit": {
+                "const": "A"
+              },
+              "evidence": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "current_a",
+                  "unloaded_status",
+                  "required_duration_s"
+                ],
+                "properties": {
+                  "current_a": {
+                    "type": "number"
+                  },
+                  "unloaded_status": {
+                    "const": 1
+                  },
+                  "required_duration_s": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -2008,7 +2047,8 @@
             "TEMPERATURE_RISE_HIGH",
             "CELL_SAG_UNDER_LOAD",
             "BALANCING_INEFFECTIVE",
-            "BALANCING_ACTIVE_TOO_LONG"
+            "BALANCING_ACTIVE_TOO_LONG",
+            "CURRENT_WHILE_UNLOADED"
           ]
         },
         "status": {
@@ -2269,6 +2309,35 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "CURRENT_WHILE_UNLOADED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "events": {
+                "items": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/failureEvent"
+                    },
+                    {
+                      "properties": {
+                        "code": {
+                          "const": "CURRENT_WHILE_UNLOADED"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -2431,6 +2500,36 @@
                   "type": "null"
                 }
               ]
+            },
+            "unloaded_current": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "unloaded_source",
+                    "max_abs_current_a",
+                    "duration_s"
+                  ],
+                  "properties": {
+                    "unloaded_source": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "max_abs_current_a": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "duration_s": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "anyOf": [
@@ -2473,13 +2572,23 @@
               "required": [
                 "balancing"
               ]
+            },
+            {
+              "properties": {
+                "unloaded_current": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "unloaded_current"
+              ]
             }
           ]
         },
         "evaluations": {
           "type": "array",
           "minItems": 1,
-          "maxItems": 5,
+          "maxItems": 6,
           "items": {
             "$ref": "#/$defs/failureEvaluation"
           }
@@ -2683,6 +2792,50 @@
                     "properties": {
                       "code": {
                         "const": "BALANCING_ACTIVE_TOO_LONG"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "config": {
+                "properties": {
+                  "unloaded_current": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "unloaded_current"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evaluations": {
+                "contains": {
+                  "properties": {
+                    "code": {
+                      "const": "CURRENT_WHILE_UNLOADED"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "evaluations": {
+                "not": {
+                  "contains": {
+                    "properties": {
+                      "code": {
+                        "const": "CURRENT_WHILE_UNLOADED"
                       }
                     }
                   }

@@ -17,6 +17,7 @@ from batterylog import (
     FailureModelConfig,
     SourceUnits,
     SustainedImbalanceConfig,
+    UnloadedCurrentConfig,
     ValidationConfig,
     ValidationLimits,
     inspect_measurement,
@@ -77,6 +78,16 @@ jsonschema.validate(failure_result, failure_schema)
 validate_result_semantics(failure_result)
 assert failure_result["validation_status"] == "FAIL"
 assert failure_result["failure_models"]["evaluations"][0]["events"][0]["duration_s"] == 2
+unloaded_result = analyze_battery_bytes(
+    b"timestamp_s,cell_1_v,cell_2_v,temp_c,pack_current_a,Unload\n"
+    b"0,3.5,3.5,25,-1,1\n1,3.5,3.5,25,1.5,1\n2,3.5,3.5,25,-1,1\n",
+    failure_models=FailureModelConfig(1, unloaded_current=UnloadedCurrentConfig("Unload", 0.5, 2)),
+)
+jsonschema.validate(unloaded_result, failure_schema)
+validate_result_semantics(unloaded_result)
+unloaded_event = unloaded_result["failure_models"]["evaluations"][0]["events"][0]
+assert unloaded_event["code"] == "CURRENT_WHILE_UNLOADED"
+assert unloaded_event["unit"] == "A" and unloaded_event["evidence"]["current_a"] == 1.5
 with TemporaryDirectory() as directory:
     model_source = Path(directory) / "failure-model.csv"
     model_source.write_bytes(

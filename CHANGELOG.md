@@ -4,6 +4,8 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Add opt-in `CURRENT_WHILE_UNLOADED` observation using an independently declared 0/1 state, a current-magnitude tolerance and a persistence duration. Preserve signed peak evidence, mark missing/short/interrupted observations NOT_EVALUATED, reject state/measurement role collisions, and retain both state channels through CSV/MF4 normalization without interpolation or current correction. Add a synthetic CLI/desktop example and independent interval-reference tests.
+
 - Add a reproducible CORA real-data characterization harness for the opt-in failure models, independent event-chain audits, illustrative threshold sensitivity and a traceable CLI demo. Keep absent balancing status NOT_EVALUATED and document temperature acquisition anomalies separately from physical fault diagnosis.
 
 - Show desktop batch results in a responsive per-file table with violation-event counts, diagnostics, selected-report opening and native output-folder opening. Read finalized cancellation summaries without inventing results for unprocessed files, and clear stale rows/actions on a new task.

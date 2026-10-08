@@ -18,6 +18,7 @@ from batterylog import (
     SignalMapping,
     SignalPattern,
     SourceUnits,
+    UnloadedCurrentConfig,
     ValidationConfig,
     normalize_measurement,
     validate_result_semantics,
@@ -242,3 +243,134 @@ def test_scaled_one_bit_status_is_not_silently_cast_to_true(tmp_path, grouped):
     models = FailureModelConfig(1, balancing=BalancingConfig("Bal", 2, 0.03125, 0.125, 4))
     with pytest.raises(ValueError, match="Balancing status"):
         AnalysisService(ValidationConfig(failure_models=models)).analyze_path(path)
+
+
+def _write_unloaded(
+    path, *, grouped=True, invalid=False, asynchronous=False, unit="1", scaled=False
+):
+    times = np.arange(6, dtype=float)
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": times,
+            "cell_1_v": [3.5] * 6,
+            "cell_2_v": [3.5] * 6,
+            "temp_c": [25.0] * 6,
+            "pack_current_a": [20, 1, -2, 2, 1, 20],
+            "Unload": [False, True, True, True, True, False],
+            "Bal": [False] * 6,
+        }
+    )
+    signals = [
+        Signal(frame[name].to_numpy(), times, name=name, unit=eng_unit)
+        for name, eng_unit in (
+            ("cell_1_v", "V"),
+            ("cell_2_v", "V"),
+            ("temp_c", "degC"),
+            ("pack_current_a", "A"),
+            ("Bal", "1"),
+        )
+    ]
+    statuses = frame["Unload"].to_numpy(dtype=np.uint8 if scaled else bool)
+    bits = np.array([False, False, True, False, False, False]) if invalid else None
+    if invalid:
+        frame["Unload"] = frame["Unload"].astype(object)
+        frame.loc[2, "Unload"] = np.nan
+    signal = Signal(
+        statuses[::2] if asynchronous else statuses,
+        times[::2] if asynchronous else times,
+        name="Unload",
+        unit=unit,
+        invalidation_bits=bits,
+        bit_count=1 if scaled else None,
+        conversion={"a": 2.0, "b": 0.0} if scaled else None,
+    )
+    signals.append(signal)
+    mdf = MDF(version="4.10")
+    try:
+        if grouped:
+            mdf.append(signals, common_timebase=True)
+        else:
+            for signal in signals:
+                mdf.append([signal], common_timebase=True)
+        mdf.save(path, overwrite=True)
+    finally:
+        mdf.close()
+    return frame
+
+
+@pytest.mark.parametrize("grouped", [True, False])
+@pytest.mark.parametrize("entry", ["service", "path", "file", "normalize"])
+def test_real_mf4_unloaded_current_two_statuses_match_csv(tmp_path, grouped, entry):
+    path = tmp_path / "source.mf4"
+    frame = _write_unloaded(path, grouped=grouped)
+    models = FailureModelConfig(
+        1,
+        balancing=BalancingConfig("Bal", 2, 0.01, 0.1, 4),
+        unloaded_current=UnloadedCurrentConfig("Unload", 0.5, 2),
+    )
+    config = ValidationConfig(failure_models=models)
+    expected = _analyze_battery_frame(frame, failure_models=models)
+    if entry == "service":
+        result = AnalysisService(config).analyze_path(path).result
+    elif entry == "normalize":
+        destination = tmp_path / "prepared"
+        evidence = normalize_measurement(
+            path, destination, units=SourceUnits("s", "V", "degC", "A"), config=config
+        )
+        assert {c["canonical"] for c in evidence["conversions"] if c["target_unit"] == "1"} == {
+            "Unload",
+            "Bal",
+        }
+        result = AnalysisService(config).analyze_path(destination / "normalized.csv").result
+    else:
+        loader = (
+            MdfPathLoader(path, chunk_ram_bytes=48)
+            if entry == "path"
+            else MdfFileLoader(BytesIO(path.read_bytes()), chunk_ram_bytes=48)
+        )
+        result = analyze_measurement_loader(loader, failure_models=models)
+    assert result == expected
+    assert result["validation_status"] == "FAIL"
+    validate_result_semantics(result)
+
+
+@pytest.mark.parametrize(
+    "grouped,defect",
+    [
+        (True, "invalidation"),
+        (False, "invalidation"),
+        (True, "scaled"),
+        (False, "scaled"),
+        (True, "unit"),
+        (False, "unit"),
+        (False, "async"),
+    ],
+)
+def test_real_mf4_unloaded_status_never_infers_or_fills_missing_state(tmp_path, grouped, defect):
+    path = tmp_path / "source.mf4"
+    frame = _write_unloaded(
+        path,
+        grouped=grouped,
+        invalid=defect == "invalidation",
+        scaled=defect == "scaled",
+        unit="A" if defect == "unit" else "1",
+        asynchronous=defect == "async",
+    )
+    models = FailureModelConfig(1, unloaded_current=UnloadedCurrentConfig("Unload", 0.5, 2))
+    service = AnalysisService(ValidationConfig(failure_models=models))
+    with pytest.raises(
+        ValueError, match="dimensionless" if defect == "unit" else "Unloaded status"
+    ):
+        service.analyze_path(path)
+    if defect == "unit":
+        return
+    config = ValidationConfig(
+        failure_models=models, data_quality=DataQualityConfig("exclude_invalid_rows")
+    )
+    result = AnalysisService(config).analyze_path(path).result
+    assert result["failure_models"]["evaluations"][0]["status"] == "NOT_EVALUATED"
+    assert result["rows_excluded"] == 0
+    if defect == "invalidation":
+        assert result == _analyze_battery_frame(
+            frame, failure_models=models, data_quality=config.data_quality
+        )

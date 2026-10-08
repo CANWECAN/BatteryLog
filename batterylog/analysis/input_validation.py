@@ -18,12 +18,15 @@ from batterylog.signals import (
 from .data_quality import _required_boolean_mask
 
 
-def parse_balancing_status(value: object) -> bool | None:
+def parse_binary_status(value: object) -> bool | None:
     if isinstance(value, str):
         value = {"0": 0, "1": 1, "true": True, "false": False}.get(value.strip().lower())
     if isinstance(value, (bool, int, float, np.bool_, np.integer, np.floating)) and value in (0, 1):
         return bool(value)
     return None
+
+
+parse_balancing_status = parse_binary_status
 
 
 def failure_model_loader(
@@ -32,8 +35,14 @@ def failure_model_loader(
 ) -> MeasurementLoader:
     if config is not None and not isinstance(config, FailureModelConfig):
         raise TypeError("failure_models must be a FailureModelConfig instance or null")
-    if config and config.balancing and isinstance(loader, (MdfFileLoader, MdfPathLoader)):
-        return replace(loader, balance_active_source=config.balancing.active_source)
+    if config and isinstance(loader, (MdfFileLoader, MdfPathLoader)):
+        return replace(
+            loader,
+            balance_active_source=config.balancing.active_source if config.balancing else None,
+            unloaded_source=config.unloaded_current.unloaded_source
+            if config.unloaded_current
+            else None,
+        )
     return loader
 
 
@@ -44,12 +53,29 @@ def balance_values_for_frame(
 ) -> pd.Series | None:
     if config is None or config.balancing is None:
         return None
-    source = config.balancing.active_source
+    return _status_values_for_frame(frame, mapping, config.balancing.active_source, "Balancing")
+
+
+def unloaded_values_for_frame(
+    frame: pd.DataFrame,
+    mapping: SignalMapping | None,
+    config: FailureModelConfig | None,
+) -> pd.Series | None:
+    if config is None or config.unloaded_current is None:
+        return None
+    return _status_values_for_frame(
+        frame, mapping, config.unloaded_current.unloaded_source, "Unloaded"
+    )
+
+
+def _status_values_for_frame(
+    frame: pd.DataFrame, mapping: SignalMapping | None, source: str, label: str
+) -> pd.Series | None:
     count = sum(name == source for name in frame.columns)
     if count == 0:
         return None
     if count > 1:
-        raise ValueError(f"Duplicate balancing source {source!r}")
+        raise ValueError(f"Duplicate {label.lower()} source {source!r}")
     if mapping is not None:
         resolved = resolve_signal_mapping(frame.columns, mapping)
         required = [*resolved.source_columns, *resolved.canonical_columns]
@@ -57,7 +83,7 @@ def balance_values_for_frame(
         cells, temperatures = find_canonical_signal_columns(frame.columns)
         required = ["timestamp_s", "pack_current_a", "pack_voltage_v", *cells, *temperatures]
     if source in required:
-        raise ValueError(f"Balancing source {source!r} is also assigned to a measurement role")
+        raise ValueError(f"{label} source {source!r} is also assigned to a measurement role")
     return frame[source]
 
 
@@ -228,15 +254,16 @@ def _timestamp_regression_error(
     return row_pos, ValueError("timestamp_s must be non-decreasing")
 
 
-def _invalid_balancing_error(
+def _invalid_status_error(
     balance_values: pd.Series | None,
     *,
     row_offset: int,
+    label: str,
 ) -> tuple[int, ValueError] | None:
     if balance_values is None:
         return None
     invalid = np.fromiter(
-        (parse_balancing_status(value) is None for value in balance_values.to_numpy(dtype=object)),
+        (parse_binary_status(value) is None for value in balance_values.to_numpy(dtype=object)),
         dtype=bool,
         count=len(balance_values),
     )
@@ -245,7 +272,7 @@ def _invalid_balancing_error(
         return None
     row_pos = int(positions[0])
     return row_pos, ValueError(
-        f"Balancing status must be 0/1 or boolean at data row {row_offset + row_pos + 1}"
+        f"{label} status must be 0/1 or boolean at data row {row_offset + row_pos + 1}"
     )
 
 
@@ -254,6 +281,7 @@ def raise_first_strict_input_error(
     numeric: pd.DataFrame,
     balance_values: pd.Series | None,
     *,
+    unloaded_values: pd.Series | None = None,
     row_offset: int = 0,
     previous_timestamp: float | None = None,
 ) -> None:
@@ -269,8 +297,13 @@ def raise_first_strict_input_error(
     )
     if timestamp_error is not None:
         candidates.append((timestamp_error[0], 1, timestamp_error[1]))
-    balancing_error = _invalid_balancing_error(balance_values, row_offset=row_offset)
+    balancing_error = _invalid_status_error(
+        balance_values, row_offset=row_offset, label="Balancing"
+    )
     if balancing_error is not None:
         candidates.append((balancing_error[0], 2, balancing_error[1]))
+    unloaded_error = _invalid_status_error(unloaded_values, row_offset=row_offset, label="Unloaded")
+    if unloaded_error is not None:
+        candidates.append((unloaded_error[0], 3, unloaded_error[1]))
     if candidates:
         raise min(candidates, key=lambda item: (item[0], item[1]))[2]

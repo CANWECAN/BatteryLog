@@ -16,7 +16,7 @@ from batterylog.failure_models import (
 
 from .comparison import BINARY64_REL_TOL
 from .evaluation import RuleInputs
-from .input_validation import parse_balancing_status
+from .input_validation import parse_balancing_status, parse_binary_status
 
 _BALANCING_CODES: tuple[FailureCode, ...] = (
     "BALANCING_INEFFECTIVE",
@@ -110,6 +110,7 @@ class FailureModelCollector:
                 (config.cell_sag, "CELL_SAG_UNDER_LOAD"),
                 (config.balancing, "BALANCING_INEFFECTIVE"),
                 (config.balancing, "BALANCING_ACTIVE_TOO_LONG"),
+                (config.unloaded_current, "CURRENT_WHILE_UNLOADED"),
             ]
             for enabled, code in models:
                 if enabled is not None:
@@ -138,6 +139,10 @@ class FailureModelCollector:
         self.balance_timeout_emitted = False
         self.balance_invalid_censor = False
         self.balance_presence: bool | None = None
+        self.unloaded_presence: bool | None = None
+        self.unloaded_start: float | None = None
+        self.unloaded_evaluated = False
+        self.unloaded_invalid_censor = False
 
     def _flush(self, code: FailureCode) -> None:
         run = self.runs.pop(code, None)
@@ -155,6 +160,13 @@ class FailureModelCollector:
             cfg_rise = self.config.temperature_rise
             assert cfg_rise is not None
             limit, unit = cfg_rise.max_c_per_min, "degC/min"
+        elif code == "CURRENT_WHILE_UNLOADED":
+            cfg_current = self.config.unloaded_current
+            assert cfg_current is not None
+            if not _at_least(_finite(run.end - run.start), cfg_current.duration_s):
+                return
+            limit, unit = cfg_current.max_abs_current_a, "A"
+            run.evidence["required_duration_s"] = cfg_current.duration_s
         else:
             cfg_sag = self.config.cell_sag
             assert cfg_sag is not None
@@ -185,6 +197,46 @@ class FailureModelCollector:
         self.load_baseline = None
         self.load_evaluated = False
 
+    def _end_unloaded(self, *, count_incomplete: bool = True) -> None:
+        self._flush("CURRENT_WHILE_UNLOADED")
+        if count_incomplete and self.unloaded_start is not None and not self.unloaded_evaluated:
+            self.evaluations["CURRENT_WHILE_UNLOADED"]["incomplete_intervals"] += 1
+        self.unloaded_start = None
+        self.unloaded_evaluated = False
+
+    def _censor_unloaded(self, reason: str) -> None:
+        evaluation = self.evaluations["CURRENT_WHILE_UNLOADED"]
+        if not self.unloaded_invalid_censor:
+            evaluation["incomplete_intervals"] += 1
+        self.unloaded_invalid_censor = True
+        evaluation["reason"] = reason
+        self._end_unloaded(count_incomplete=False)
+
+    def _unloaded(self, t: float, current: float | None, unloaded: bool | None) -> None:
+        assert self.config is not None
+        cfg = self.config.unloaded_current
+        if cfg is None or current is None:
+            return
+        if unloaded is not True:
+            self._end_unloaded(count_incomplete=not self.unloaded_invalid_censor)
+            if unloaded is not None:
+                self.unloaded_invalid_censor = False
+            return
+        self.unloaded_invalid_censor = False
+        if self.unloaded_start is None:
+            self.unloaded_start = t
+        if _at_least(_finite(t - self.unloaded_start), cfg.duration_s):
+            self.unloaded_evaluated = True
+            self.evaluations["CURRENT_WHILE_UNLOADED"]["evaluated_samples"] += 1
+        self._threshold(
+            "CURRENT_WHILE_UNLOADED",
+            t,
+            abs(current),
+            cfg.max_abs_current_a,
+            ["pack_current_a", cfg.unloaded_source],
+            {"current_a": current, "unloaded_status": 1.0},
+        )
+
     def _end_balance(self, *, complete: bool, count_incomplete: bool = True) -> None:
         if self.balance_start is not None:
             assert self.config is not None and self.config.balancing is not None
@@ -213,6 +265,8 @@ class FailureModelCollector:
             self._end_load()
         if self.config and self.config.balancing:
             self._end_balance(complete=False)
+        if self.config and self.config.unloaded_current:
+            self._end_unloaded(count_incomplete=not self.unloaded_invalid_censor)
         self.previous_t = self.span_start = None
         self.previous_temperatures = None
         self.baseline = None
@@ -412,6 +466,7 @@ class FailureModelCollector:
         valid_rows: pd.Series,
         balance_values: pd.Series | None,
         *,
+        unloaded_values: pd.Series | None = None,
         exclude_invalid: bool,
         row_offset: int = 0,
     ) -> None:
@@ -436,8 +491,31 @@ class FailureModelCollector:
             else None
         )
         raw_balance = balance_values.to_numpy(dtype=object) if balance_values is not None else None
+        raw_unloaded = (
+            unloaded_values.to_numpy(dtype=object) if unloaded_values is not None else None
+        )
+        if self.config.unloaded_current:
+            unloaded_present = raw_unloaded is not None
+            if self.unloaded_presence is None:
+                self.unloaded_presence = unloaded_present
+            elif self.unloaded_presence != unloaded_present:
+                raise ValueError("Unloaded signal presence changed between measurement chunks")
+            if not unloaded_present:
+                self.evaluations["CURRENT_WHILE_UNLOADED"]["reason"] = (
+                    f"Missing unloaded status source {self.config.unloaded_current.unloaded_source!r}"
+                )
+            elif current is None:
+                self.evaluations["CURRENT_WHILE_UNLOADED"]["reason"] = "Missing pack_current_a"
         for row, valid in enumerate(valid_rows.to_numpy(dtype=bool)):
             if not valid:
+                if (
+                    self.config.unloaded_current
+                    and raw_unloaded is not None
+                    and current is not None
+                ):
+                    self._censor_unloaded(
+                        "Invalid measurement rows interrupted unloaded observations"
+                    )
                 self._break()
                 continue
             t = float(times[row])
@@ -448,6 +526,15 @@ class FailureModelCollector:
             if self.span_start is None:
                 self.span_start = t
             active: bool | None = None
+            unloaded: bool | None = None
+            if self.config.unloaded_current is not None and raw_unloaded is not None:
+                unloaded = parse_binary_status(raw_unloaded[row])
+                if unloaded is None:
+                    if not exclude_invalid:
+                        raise ValueError(
+                            f"Unloaded status must be 0/1 or boolean at data row {row_offset + row + 1}"
+                        )
+                    self._censor_unloaded("Invalid unloaded status samples were excluded")
             if self.config.balancing is not None and raw_balance is not None:
                 active = parse_balancing_status(raw_balance[row])
                 if active is None and not exclude_invalid:
@@ -477,6 +564,7 @@ class FailureModelCollector:
                 active,
                 inputs.cell_cols,
             )
+            self._unloaded(t, float(current[row]) if current is not None else None, unloaded)
             self.previous_t = t
             self.previous_temperatures = temperatures[row].copy()
 
@@ -496,4 +584,7 @@ class FailureModelCollector:
                 evaluation["reason"] = (
                     evaluation["reason"] or "Insufficient eligible contiguous observations"
                 )
-        return {"config": asdict(self.config), "evaluations": list(self.evaluations.values())}
+        serialized_config = asdict(self.config)
+        if self.config.unloaded_current is None:
+            serialized_config.pop("unloaded_current")
+        return {"config": serialized_config, "evaluations": list(self.evaluations.values())}

@@ -5,6 +5,20 @@ weak cell, a bad connection, a faulty sensor, or the cause of a balancing result
 No SOC estimator, energy estimator, calibration, internal resistance measurement,
 expression language, or general state-machine framework is included.
 
+## Try the unloaded-current synthetic example
+
+```bash
+python -m batterylog examples/unloaded_current_demo.csv \
+  --config examples/unloaded_current.example.yaml \
+  --json-out result.json --report report.html
+```
+
+The expected result is FAIL, exit code 1, with one `CURRENT_WHILE_UNLOADED`
+event at 4–6 seconds. The independent `unloaded` flag is supplied by the test
+procedure. The illustrative 0.5 A tolerance and 2 s persistence are not universal
+limits. Configure these values for the intended test and acquisition system.
+The same CSV and YAML can be selected in the desktop single-file or batch mode.
+
 The pack-versus-cell-sum check already ships in v0.10.0. Enable it with
 `limits.pack_voltage.cell_sum_max_delta_v`; its event, signed error and measurement
 chain are unchanged. It assumes all series cells and the pack measurement are
@@ -55,6 +69,7 @@ it does not retain an entire log or concatenate chunks.
 | `CELL_SAG_UNDER_LOAD` | Per-cell drop from a frozen resting reference, minus the median drop across cells; compare the largest excess with `excess_sag_max_v`. | At least 3 cells and pack current. Reference current magnitude at most `baseline_max_abs_current_a`; load discharge magnitude at least `load_min_discharge_a`. Reference must precede load onset and be no older than `baseline_max_age_s`. Evaluate after `settling_s`; hold the reference for that load episode. No qualified episode means NOT_EVALUATED. Unqualified load episodes also prevent PASS. |
 | `BALANCING_INEFFECTIVE` | At the first still-active sample at or beyond `evaluation_s`, initial spread minus current spread must reach `min_improvement_v`. | Requires an observed inactive-to-active edge and initial spread at least `min_start_delta_v`. Evaluate once per episode; a shorter/interrupted eligible episode is incomplete. A spread already below the start bound is ineligible, not a failure. |
 | `BALANCING_ACTIVE_TOO_LONG` | Observed active elapsed time strictly exceeds `timeout_s`. | Requires an observed activation edge. Emit once at the first crossing, preserving detection-time evidence, not a later session-end peak. A complete shorter session can pass. An unfinished session with no crossing is incomplete. |
+| `CURRENT_WHILE_UNLOADED` | While independent `unloaded_source` is true, `abs(pack_current_a)` strictly exceeds `max_abs_current_a` at each observed sample in a contiguous run spanning at least `duration_s`. | Requires pack current and an explicit 0/1 state. Both current signs are checked. Short excursions never accumulate across a low-current sample, a loaded state, invalid data or a gap. Each observed unloaded interval must span the configured duration for PASS; shorter intervals are incomplete. A qualified interval ending at EOF can pass or fail. The event records the whole high-current run, signed peak current, magnitude, state, source and duration requirement. |
 
 Cell sag reports an observed excess drop, not internal resistance or a resistance
 proxy. Uniform sag does not fail this relative check. It is not a replacement for
@@ -84,6 +99,34 @@ conversion record. Normalization remains strict, preserves all rows, and perform
 no engineering evaluation. Analyze the resulting canonical CSV without the original
 sensor mapping; retain the failure-model parameters and balancing source name.
 
+### Unloaded-state contract
+
+`unloaded_current.unloaded_source` names a separate column/channel declaring the
+test state: true/1 means unloaded, false/0 means loaded. It is never inferred from
+the measured current, cell voltages or balancing status. The producer must define
+what unloaded means for this test. A state source assigned to a measurement role
+(including a mapped current or timestamp) is rejected.
+
+The accepted boolean/0/1 forms, dimensionless MF4 units, source-name retention,
+invalidation and no-interpolation behavior are the same as for balancing. The two
+state sources can be selected together. Normalization retains each present named
+state with an identity conversion; reanalysis uses canonical sensor names and the
+same state-source configuration.
+
+A missing state or pack-current channel gives NOT_EVALUATED. A loaded-only log
+also gives NOT_EVALUATED. A capture may start unloaded: an activation edge is not
+needed because this check observes persistence, not time since activation.
+Malformed status raises a row-numbered error in strict mode. With
+`exclude_invalid_rows`, malformed state interrupts only this model and prevents
+its PASS; valid numeric measurements remain available to other checks. Excluded
+required-measurement rows interrupt temporal continuity and prevent this model's
+PASS. Adjacent unknown samples count as one incomplete interval. Previously
+completed events are retained and still yield FAIL.
+
+This check reports unexpected measured current under the declared test state. It
+does not identify leakage, parasitic loads, sensor offset or another physical
+cause. It applies no calibration or current correction.
+
 The two balancing checks are observations of active time and spread improvement,
 not proof that balancing hardware is defective. Load, temperature and the chosen
 test conditions can affect spread; interpret the evidence with the test procedure.
@@ -105,7 +148,8 @@ models to pass. Missing data never silently disables a requested model.
 The HTML report shows individual model outcomes, their parameters and measurement
 chains. The CLI, analysis service, batch workflow, Python frame/bytes/file APIs, and
 report-series APIs pass the same effective configuration through to the collector.
-No GUI change or existing desktop PR modification is included.
+The desktop single-file and batch workflows use the same YAML and show the same
+outcomes and event counts; detailed measurement chains remain in JSON and HTML.
 
 Validate strict JSON against `batterylog/schema/result-v9.json`, then call
 `validate_result_semantics`. Structural validation checks required fields, status

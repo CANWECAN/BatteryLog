@@ -145,6 +145,36 @@
           "type": "null"
         }
       ]
+    },
+    "unloaded_current": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "unloaded_source",
+            "max_abs_current_a",
+            "duration_s"
+          ],
+          "properties": {
+            "unloaded_source": {
+              "type": "string",
+              "minLength": 1
+            },
+            "max_abs_current_a": {
+              "type": "number",
+              "minimum": 0
+            },
+            "duration_s": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "anyOf": [
@@ -186,6 +216,16 @@
       },
       "required": [
         "balancing"
+      ]
+    },
+    {
+      "properties": {
+        "unloaded_current": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "unloaded_current"
       ]
     }
   ],

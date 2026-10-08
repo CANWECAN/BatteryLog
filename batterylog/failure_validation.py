@@ -29,6 +29,8 @@ def validate_failure_report(report: FailureModelReport) -> None:
         expected.append("CELL_SAG_UNDER_LOAD")
     if config.balancing:
         expected.extend(["BALANCING_INEFFECTIVE", "BALANCING_ACTIVE_TOO_LONG"])
+    if config.unloaded_current:
+        expected.append("CURRENT_WHILE_UNLOADED")
     _require(
         [item["code"] for item in report["evaluations"]] == expected,
         "enabled model codes/order differ",
@@ -111,6 +113,26 @@ def validate_failure_report(report: FailureModelReport) -> None:
                 _require(
                     _at_least(event["peak_time_s"] - evidence["load_start_time_s"], sag.settling_s),
                     "load has not settled",
+                )
+            elif code == "CURRENT_WHILE_UNLOADED":
+                unloaded = config.unloaded_current
+                assert unloaded is not None
+                _require(_same(limit, unloaded.max_abs_current_a), "unloaded-current limit differs")
+                _require(_above(measured, limit), "unloaded current does not exceed limit")
+                _require(_same(measured, abs(evidence["current_a"])), "current magnitude differs")
+                _require(evidence["unloaded_status"] == 1, "state is not unloaded")
+                _require(
+                    "pack_current_a" in event["signals"]
+                    and unloaded.unloaded_source in event["signals"],
+                    "unloaded-current sources are missing",
+                )
+                _require(
+                    _at_least(event["duration_s"], unloaded.duration_s),
+                    "unloaded-current duration is too short",
+                )
+                _require(
+                    _same(evidence["required_duration_s"], unloaded.duration_s),
+                    "duration limit differs",
                 )
             else:
                 balance = config.balancing

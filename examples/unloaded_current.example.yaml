@@ -1,0 +1,8 @@
+# Synthetic demonstration only; choose tolerances and times for the test procedure.
+schema_version: 7
+failure_models:
+  max_gap_s: 1
+  unloaded_current:
+    unloaded_source: unloaded
+    max_abs_current_a: 0.5
+    duration_s: 2

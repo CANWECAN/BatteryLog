@@ -82,12 +82,28 @@ class BalancingConfig:
 
 
 @dataclass(frozen=True)
+class UnloadedCurrentConfig:
+    unloaded_source: str
+    max_abs_current_a: float
+    duration_s: float
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.unloaded_source, str):
+            raise TypeError("unloaded_source must be a string")
+        if not self.unloaded_source.strip():
+            raise ValueError("unloaded_source must not be empty")
+        _number("max_abs_current_a", self.max_abs_current_a, positive=False)
+        _number("duration_s", self.duration_s)
+
+
+@dataclass(frozen=True)
 class FailureModelConfig:
     max_gap_s: float
     sustained_imbalance: SustainedImbalanceConfig | None = None
     temperature_rise: TemperatureRiseConfig | None = None
     cell_sag: CellSagConfig | None = None
     balancing: BalancingConfig | None = None
+    unloaded_current: UnloadedCurrentConfig | None = None
 
     def __post_init__(self) -> None:
         _number("failure_models.max_gap_s", self.max_gap_s)
@@ -97,6 +113,7 @@ class FailureModelConfig:
             ("temperature_rise", TemperatureRiseConfig),
             ("cell_sag", CellSagConfig),
             ("balancing", BalancingConfig),
+            ("unloaded_current", UnloadedCurrentConfig),
         ):
             value = getattr(self, name)
             if value is not None:
@@ -126,6 +143,7 @@ def parse_failure_models(raw: Any) -> FailureModelConfig | None:
         ("temperature_rise", TemperatureRiseConfig),
         ("cell_sag", CellSagConfig),
         ("balancing", BalancingConfig),
+        ("unloaded_current", UnloadedCurrentConfig),
     ):
         group = raw.get(name)
         if group is None:

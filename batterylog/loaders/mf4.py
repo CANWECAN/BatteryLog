@@ -88,6 +88,7 @@ def _resolve_mdf_selection(
     signal_mapping: SignalMapping | None,
     source_units: SourceUnits | None = None,
     balance_active_source: str | None = None,
+    unloaded_source: str | None = None,
 ) -> tuple[str, list[str], list[tuple[str, int, int]]]:
     channel_names = [str(name) for name in mdf.channels_db if str(name)]
 
@@ -124,20 +125,27 @@ def _resolve_mdf_selection(
     if pack_voltage is not None:
         source_kinds[pack_voltage] = "pack-voltage"
 
-    if balance_active_source is not None and balance_active_source in channel_names:
-        if balance_active_source in source_names or balance_active_source == timestamp_source:
-            raise ValueError("Balancing source is also assigned to a measurement role")
-        source_names.append(balance_active_source)
-        source_kinds[balance_active_source] = "balancing-status"
+    measurement_sources = set(source_names) | {timestamp_source}
+    for source, label in ((balance_active_source, "balancing"), (unloaded_source, "unloaded")):
+        if source is not None and source in channel_names:
+            if source in measurement_sources:
+                raise ValueError(
+                    f"{label.capitalize()} source is also assigned to a measurement role"
+                )
+            if source not in source_names:
+                source_names.append(source)
+                source_kinds[source] = f"{label}-status"
 
     channel_specs: list[tuple[str, int, int]] = []
     for name in source_names:
         group, index = _unique_occurrence(mdf, name)
         unit = mdf.get_channel_unit(name=name, group=group, index=index)
         kind = source_kinds[name]
-        if kind == "balancing-status":
+        if kind in {"balancing-status", "unloaded-status"}:
             if _normalize_unit(unit) not in {"", "1", "bool", "boolean"}:
-                raise ValueError(f"MDF balancing channel {name!r} must be dimensionless")
+                raise ValueError(
+                    f"MDF {kind.removesuffix('-status')} channel {name!r} must be dimensionless"
+                )
             channel_specs.append((name, group, index))
             continue
         declared = source_units.for_mdf_kind(kind) if source_units is not None else None
@@ -182,6 +190,7 @@ def _iter_single_group_chunks(
     chunk_ram_bytes: int,
     boolean_sources: frozenset[str] = frozenset(),
     balance_active_source: str | None = None,
+    unloaded_source: str | None = None,
 ) -> Iterator[pd.DataFrame]:
     cycles = int(mdf.groups[group_index].channel_group.cycles_nr)
     estimated_row_bytes = (len(channel_specs) + 1) * 8
@@ -218,7 +227,7 @@ def _iter_single_group_chunks(
             samples = np.asarray(signal.samples)
             signal_timestamps = np.asarray(signal.timestamps)
 
-            accepted_kinds = "buif" if name == balance_active_source else "uif"
+            accepted_kinds = "buif" if name in {balance_active_source, unloaded_source} else "uif"
             if samples.ndim != 1 or samples.dtype.kind not in accepted_kinds:
                 raise ValueError(f"MDF extraction omitted required channel(s): {name!r}")
             if len(samples) != len(master) or not np.array_equal(signal_timestamps, master):
@@ -233,12 +242,12 @@ def _iter_single_group_chunks(
                     raise ValueError(
                         f"MDF channel {name!r} has invalidation metadata with an unexpected shape"
                     )
-                if name in boolean_sources and name != balance_active_source:
+                if name in boolean_sources and name not in {balance_active_source, unloaded_source}:
                     samples = samples.astype(bool, copy=False).astype(object)
                 else:
                     samples = samples.astype(float, copy=True)
                 samples[invalid] = np.nan
-            elif name in boolean_sources and name != balance_active_source:
+            elif name in boolean_sources and name not in {balance_active_source, unloaded_source}:
                 samples = samples.astype(bool, copy=False)
 
             data[name] = samples
@@ -255,6 +264,7 @@ def _iter_mdf_chunks(
     chunk_ram_bytes: int,
     source_units: SourceUnits | None = None,
     balance_active_source: str | None = None,
+    unloaded_source: str | None = None,
 ) -> Iterator[pd.DataFrame]:
     if (
         isinstance(chunk_ram_bytes, bool)
@@ -275,6 +285,7 @@ def _iter_mdf_chunks(
                 signal_mapping,
                 source_units,
                 balance_active_source,
+                unloaded_source,
             )
 
             boolean_sources = _boolean_channel_names(mdf, channel_specs)
@@ -289,6 +300,7 @@ def _iter_mdf_chunks(
                     chunk_ram_bytes=chunk_ram_bytes,
                     boolean_sources=boolean_sources,
                     balance_active_source=balance_active_source,
+                    unloaded_source=unloaded_source,
                 )
                 return
 
@@ -314,7 +326,7 @@ def _iter_mdf_chunks(
 
                 chunk = frame.loc[:, source_names].copy()
                 for name in boolean_sources:
-                    if name == balance_active_source:
+                    if name in {balance_active_source, unloaded_source}:
                         continue
                     values = chunk[name]
                     if values.isna().any():
@@ -338,6 +350,7 @@ class MdfPathLoader:
     chunk_ram_bytes: int = DEFAULT_MDF_CHUNK_RAM_BYTES
     source_format: str = "mf4"
     balance_active_source: str | None = None
+    unloaded_source: str | None = None
 
     def iter_chunks(
         self,
@@ -349,6 +362,7 @@ class MdfPathLoader:
             signal_mapping=signal_mapping,
             chunk_ram_bytes=self.chunk_ram_bytes,
             balance_active_source=self.balance_active_source,
+            unloaded_source=self.unloaded_source,
         )
 
 
@@ -358,6 +372,7 @@ class MdfFileLoader:
     chunk_ram_bytes: int = DEFAULT_MDF_CHUNK_RAM_BYTES
     source_format: str = "mf4"
     balance_active_source: str | None = None
+    unloaded_source: str | None = None
 
     def iter_chunks(
         self,
@@ -370,4 +385,5 @@ class MdfFileLoader:
             signal_mapping=signal_mapping,
             chunk_ram_bytes=self.chunk_ram_bytes,
             balance_active_source=self.balance_active_source,
+            unloaded_source=self.unloaded_source,
         )
