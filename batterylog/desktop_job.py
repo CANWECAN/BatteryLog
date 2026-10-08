@@ -194,12 +194,14 @@ def _validate_inspection_payload(payload: object, exit_code: int) -> InspectionR
     for key, expected in required.items():
         if payload.get(key) != expected:
             raise OSError(f"Inspection payload has invalid {key!r}.")
-    if payload.get("source_format") not in {"csv", "mf4"}:
+    source_format = payload.get("source_format")
+    if not isinstance(source_format, str) or source_format not in {"csv", "mf4"}:
         raise OSError("Inspection payload has invalid source_format.")
-    if payload.get("time_basis") not in {"csv_column", "mdf_master"}:
+    time_basis = payload.get("time_basis")
+    if not isinstance(time_basis, str) or time_basis not in {"csv_column", "mdf_master"}:
         raise OSError("Inspection payload has invalid time_basis.")
     status = payload.get("metadata_status")
-    if status not in {"OK", "ISSUES"}:
+    if not isinstance(status, str) or status not in {"OK", "ISSUES"}:
         raise OSError("Inspection payload has invalid metadata_status.")
     for key in ("channels", "bindings", "issues"):
         if not isinstance(payload.get(key), list):

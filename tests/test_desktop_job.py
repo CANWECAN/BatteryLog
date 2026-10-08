@@ -625,3 +625,34 @@ def test_batch_worker_handles_malformed_status_without_crashing_poll(monkeypatch
     finally:
         if job._directory.exists():
             module.shutil.rmtree(job._directory)
+
+
+@pytest.mark.parametrize("field", ["source_format", "time_basis", "metadata_status"])
+@pytest.mark.parametrize("invalid", [[], {"unexpected": "value"}])
+def test_inspection_rejects_unhashable_enum_and_cleans_worker(monkeypatch, field, invalid):
+    payload = {
+        "inspection_schema_version": 1,
+        "scope": "channel_metadata_only",
+        "analysis_performed": False,
+        "source_format": "csv",
+        "time_basis": "csv_column",
+        "metadata_status": "OK",
+        "channels": [],
+        "bindings": [],
+        "issues": [],
+    }
+    payload[field] = invalid
+
+    def fake_inspection_worker(command, **kwargs):
+        kwargs["stdout"].write(json.dumps(payload).encode("utf-8"))
+        return CompletedProcess(0)
+
+    monkeypatch.setattr(module.subprocess, "Popen", fake_inspection_worker)
+    job = DesktopInspectionJob(SAMPLE)
+    directory = job._directory
+    outcome = job.poll()
+    assert outcome is not None and outcome.status == "ERROR"
+    assert field in outcome.message
+    assert outcome.inspection is None
+    assert not directory.exists()
+    assert job.poll() is outcome
