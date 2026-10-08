@@ -335,7 +335,13 @@ def _validate_batch_payload(payload: object, exit_code: int) -> BatchSummary:
         if not isinstance(item, dict):
             raise OSError("Batch summary file entries must be objects.")
         status = item.get("status")
-        if status not in {"PASS", "FAIL", "NOT_EVALUATED", "ERROR", "NOT_PROCESSED"}:
+        if not isinstance(status, str) or status not in {
+            "PASS",
+            "FAIL",
+            "NOT_EVALUATED",
+            "ERROR",
+            "NOT_PROCESSED",
+        }:
             raise OSError(f"Batch summary has invalid file status: {status!r}.")
         if not isinstance(item.get("source"), str):
             raise OSError("Batch summary file source must be a string.")

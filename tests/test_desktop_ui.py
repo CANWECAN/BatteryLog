@@ -455,3 +455,207 @@ def test_demo_creation_error_preserves_current_selection(ui, tmp_path, monkeypat
     assert ui.measurement.get() == "existing.csv"
     assert ui.run_button.instate(["!disabled"])
     assert ui.demo_button.instate(["!disabled"])
+
+
+def wait_for_batch(ui):
+    deadline = time.monotonic() + 30
+    while (
+        ui.batch_job is not None or ui._render_after is not None
+    ) and time.monotonic() < deadline:
+        ui.root.update()
+        time.sleep(0.01)
+    assert ui.batch_job is None and ui._render_after is None
+    ui.root.update()
+
+
+def select_batch_file(ui, source):
+    selected = next(
+        item
+        for item in ui.batch_tree.get_children()
+        if ui.batch_tree.item(item, "values")[0] == source
+    )
+    ui.batch_tree.selection_set(selected)
+    ui.root.update()
+    return selected
+
+
+def test_batch_result_table_opens_report_shows_errors_and_clears_on_retry(
+    ui, tmp_path, monkeypatch
+):
+    from batterylog import desktop_ui
+
+    source = tmp_path / "input"
+    source.mkdir()
+    sample = Path(__file__).parents[1] / "examples/sample_battery_log.csv"
+    good = source / "ölçüm, one.csv"
+    good.write_bytes(sample.read_bytes())
+    broken = source / "broken.csv"
+    broken.write_text("timestamp_s,temp_c\n0,25\n", encoding="utf-8")
+    output = tmp_path / "output"
+    output.mkdir()
+    ui.batch_mode_button.invoke()
+    ui.measurement.set(str(source))
+    ui.output.set(str(output))
+    ui.run_button.invoke()
+    assert ui.open_folder_button.instate(["disabled"])
+    wait_for_batch(ui)
+
+    assert ui.status.get().startswith("ERROR\nBatch completed: 2 files")
+    assert {row.source: row.status for row in ui.batch_rows} == {
+        "broken.csv": "ERROR",
+        "ölçüm, one.csv": "NOT_EVALUATED",
+    }
+    select_batch_file(ui, "broken.csv")
+    assert "No cell voltage columns found" in ui.status.get()
+    assert "Violation events: Unknown" in ui.status.get()
+    assert ui.open_button.instate(["disabled"])
+    select_batch_file(ui, "ölçüm, one.csv")
+    assert ui.open_button.instate(["!disabled"])
+    opened = []
+    monkeypatch.setattr(desktop_ui.webbrowser, "open", lambda uri: opened.append(uri) or True)
+    ui.open_button.invoke()
+    assert opened == [ui.report.as_uri()]
+    first_report = ui.report
+    first_directory = ui.output_directory
+    folders = []
+    with monkeypatch.context() as opener:
+        if os.name == "nt":
+            opener.setattr(desktop_ui.os, "startfile", lambda path: folders.append(path))
+        else:
+            opener.setattr(
+                desktop_ui.subprocess, "Popen", lambda command, **kw: folders.append(command[-1])
+            )
+        ui.open_folder_button.invoke()
+    assert folders == [str(first_directory)]
+
+    # A fresh invalid-config run must not retain rows or actions from the first run.
+    config = tmp_path / "invalid.yaml"
+    config.write_text("limits: [invalid]\n", encoding="utf-8")
+    ui.config.set(str(config))
+    ui.run_button.invoke()
+    assert ui.batch_tree.get_children() == ()
+    assert ui.report is None
+    assert ui.open_button.instate(["disabled"])
+    assert ui.open_folder_button.instate(["disabled"])
+    wait_for_batch(ui)
+    assert ui.status.get().startswith("ERROR\n")
+    assert ui.batch_rows == []
+    assert ui.open_folder_button.instate(["disabled"])
+    assert first_report.is_file()
+    assert first_directory.is_dir()
+
+
+def test_cancelled_batch_table_uses_real_finalized_csv_and_preserves_report(
+    ui, tmp_path, monkeypatch
+):
+    import subprocess
+    import sys
+
+    from batterylog import desktop_job
+
+    source = tmp_path / "input"
+    source.mkdir()
+    sample = Path(__file__).parents[1] / "examples/sample_battery_log.csv"
+    (source / "a.csv").write_bytes(sample.read_bytes())
+    (source / "b.csv").write_bytes(sample.read_bytes())
+    output = tmp_path / "output"
+    output.mkdir()
+    ready = tmp_path / "ready"
+    original = subprocess.Popen
+
+    def delayed_worker(command, **kwargs):
+        child = (
+            "import runpy,sys,time\nfrom pathlib import Path\n"
+            "import batterylog.batch as batch\n"
+            "original = batch._analyze_file\n"
+            "def delayed(source, *args):\n"
+            "    if source.name == 'b.csv':\n"
+            f"        Path({str(ready)!r}).touch()\n"
+            "        while True: time.sleep(0.01)\n"
+            "    return original(source, *args)\n"
+            "batch._analyze_file = delayed\n"
+            f"sys.argv = ['batterylog', *{command[3:]!r}]\n"
+            f"runpy.run_module({command[2]!r}, run_name='__main__')\n"
+        )
+        return original([sys.executable, "-c", child], **kwargs)
+
+    monkeypatch.setattr(desktop_job.subprocess, "Popen", delayed_worker)
+    ui.batch_mode_button.invoke()
+    ui.measurement.set(str(source))
+    ui.output.set(str(output))
+    ui.run_button.invoke()
+    deadline = time.monotonic() + 15
+    while not ready.exists() and time.monotonic() < deadline:
+        ui.root.update()
+        time.sleep(0.01)
+    assert ready.exists()
+    directory = ui.batch_job.directory
+    before = (directory / "files/a.csv/report.html").read_bytes()
+    ui.cancel_button.invoke()
+    wait_for_batch(ui)
+    assert ui.status.get().startswith("CANCELLED\n")
+    assert [(row.source, row.status) for row in ui.batch_rows] == [
+        ("a.csv", "NOT_EVALUATED"),
+        ("b.csv", "NOT_PROCESSED"),
+    ]
+    pending = select_batch_file(ui, "b.csv")
+    assert ui.batch_tree.item(pending, "values")[2] == "—"
+    assert ui.open_button.instate(["disabled"])
+    select_batch_file(ui, "a.csv")
+    assert ui.open_button.instate(["!disabled"])
+    assert ui.report.read_bytes() == before
+    assert ui.open_folder_button.instate(["!disabled"])
+    ui.batch_mode_button.invoke()
+    assert not ui.batch_tree.get_children()
+    assert ui.report is None and ui.output_directory is None
+
+
+def test_large_batch_table_yields_to_tk_and_pending_render_can_be_replaced(ui, tmp_path):
+    from batterylog.batch import _pending_summary
+    from batterylog.desktop_job import DesktopBatchOutcome
+
+    files = [_pending_summary(f"file-{index:05}.csv") for index in range(10000)]
+    outcome = DesktopBatchOutcome(
+        "CANCELLED",
+        "Retained summary",
+        tmp_path,
+        {
+            "batch_schema_version": 1,
+            "config_sha256": None,
+            "summary_csv": "summary.csv",
+            "files": files,
+        },
+    )
+    ticks = []
+    ui.root.after(0, lambda: ticks.append(len(ui.batch_tree.get_children())))
+    ui._show_batch_results(outcome, "CANCELLED\n10000 files")
+    assert 0 < len(ui.batch_tree.get_children()) < len(files)
+    ui.root.update()
+    assert ticks and ticks[0] < len(files)
+    deadline = time.monotonic() + 10
+    while ui._render_after is not None and time.monotonic() < deadline:
+        ui.root.update()
+        time.sleep(0.001)
+    assert ui._render_after is None
+    assert len(ui.batch_tree.get_children()) == len(files)
+    assert ui.batch_tree.item("9999", "values") == ("file-09999.csv", "NOT_PROCESSED", "—")
+
+    ui._show_batch_results(outcome, "CANCELLED\nold run")
+    assert ui._render_after is not None
+    ui._clear_results()
+    assert ui._render_after is None
+    ui.root.update()
+    assert ui.batch_tree.get_children() == ()
+    assert ui.report is None and ui.output_directory is None
+
+
+def test_deleted_output_folder_shows_manual_path_and_disables_opener(ui, tmp_path):
+    directory = tmp_path / "deleted-output"
+    directory.mkdir()
+    ui.output_directory = directory
+    ui.open_folder_button.configure(state="normal")
+    directory.rmdir()
+    ui.open_folder_button.invoke()
+    assert "no longer available" in ui.status.get()
+    assert str(directory) in ui.status.get()
+    assert ui.open_folder_button.instate(["disabled"])

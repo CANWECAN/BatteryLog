@@ -78,6 +78,15 @@ so previous runs are not overwritten. The launcher delegates to the existing seq
 `--batch` CLI workflow and shows PASS/FAIL/NOT_EVALUATED/ERROR counts plus the generated
 `summary.csv` path when the run completes.
 
+The result table lists each file, its outcome and its violation-event count. Select a row to
+view its diagnostic and use **Open selected report** for a completed HTML report.
+**Open output folder** opens this run's directory in the system file manager. ERROR and
+NOT_PROCESSED rows do not open reports, and unknown event counts are shown as a dash rather
+than zero. After cancellation, an available finalized `summary.csv` supplies the same table;
+without a summary the launcher keeps the output-folder action but does not infer results
+from leftover files. Large tables are inserted in small groups so Tk continues handling
+input. Starting another task or changing mode clears the previous table and report actions.
+
 Cancelling a batch sends a request over the worker's private stdin pipe. The worker raises
 `KeyboardInterrupt` in its main thread so the existing CLI finalization path writes
 `summary.csv`, preserves completed per-file HTML/JSON reports and marks untouched files as

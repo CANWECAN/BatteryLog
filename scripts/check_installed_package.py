@@ -26,6 +26,7 @@ from batterylog import (
 )
 from batterylog.analysis.core import analyze_battery_bytes
 from batterylog.analysis.report_series import ReportSeriesCollector
+from batterylog.desktop_batch_results import read_batch_rows
 from batterylog.desktop_demo import create_demo
 from batterylog.desktop_job import DesktopBatchJob, DesktopJob
 
@@ -128,6 +129,9 @@ with TemporaryDirectory() as directory:
     assert batch_outcome.summary_csv is not None and batch_outcome.summary_csv.is_file()
     assert batch_outcome.summary is not None
     assert [item["source"] for item in batch_outcome.summary["files"]] == ["a.csv", "nested/b.csv"]
+    batch_rows = read_batch_rows(batch_outcome)
+    assert [row.source for row in batch_rows] == ["a.csv", "nested/b.csv"]
+    assert all(row.report is not None and row.report.is_file() for row in batch_rows)
     expected_batch_result = AnalysisService().analyze_path(sample).result
     for item in batch_outcome.summary["files"]:
         assert item["status"] == "NOT_EVALUATED"

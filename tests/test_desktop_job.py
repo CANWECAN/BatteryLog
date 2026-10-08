@@ -594,3 +594,34 @@ def test_batch_cancel_finalizes_real_cli_summary(monkeypatch, tmp_path, ignore_s
         for handle in (job._stdout, job._stderr, job._process.stdin):
             if handle is not None:
                 handle.close()
+
+
+@pytest.mark.parametrize("status", [[], {"unexpected": "status"}])
+def test_batch_worker_handles_malformed_status_without_crashing_poll(monkeypatch, tmp_path, status):
+    source = tmp_path / "input"
+    source.mkdir()
+    output = tmp_path / "output"
+    output.mkdir()
+    original = subprocess.Popen
+    payload = json.dumps(
+        {
+            "batch_schema_version": 1,
+            "summary_csv": "summary.csv",
+            "files": [{"source": "a.csv", "status": status}],
+        }
+    )
+
+    def corrupt_summary(command, **kwargs):
+        return original([sys.executable, "-c", f"print({payload!r})"], **kwargs)
+
+    monkeypatch.setattr(module.subprocess, "Popen", corrupt_summary)
+    job = DesktopBatchJob(source, output)
+    try:
+        outcome = finish_batch(job)
+        assert outcome.status == "ERROR"
+        assert "invalid file status" in outcome.message
+        assert outcome.summary is None
+        assert not job._directory.exists()
+    finally:
+        if job._directory.exists():
+            module.shutil.rmtree(job._directory)
