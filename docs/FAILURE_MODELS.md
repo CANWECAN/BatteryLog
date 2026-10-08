@@ -88,6 +88,13 @@ The two balancing checks are observations of active time and spread improvement,
 not proof that balancing hardware is defective. Load, temperature and the chosen
 test conditions can affect spread; interpret the evidence with the test procedure.
 
+## Real-data characterization
+
+See [the real-data model campaign](REAL_FAILURE_MODEL_VALIDATION.md) for source
+eligibility, independent arithmetic checks, illustrative threshold sensitivity and
+a reproducible technical demo. Real-data observation is separate from physical
+fault diagnosis and threshold calibration.
+
 ## Overall status and evidence validation
 
 Any original limit violation, required-measurement DQ defect, or model event yields

@@ -1,0 +1,160 @@
+{
+  "source_doi": "10.34810/data2395",
+  "archive_sha256": "174fccb08a8d215a1a8b1dcf8a5daeb951819ec97b8d9ff8b7d4a013763e77a3",
+  "analyzer_base_commit": "7310c0d91eee2085dbf8a1282628f573841beb33",
+  "finished_utc": "2026-10-08T10:36:50.413666+00:00",
+  "runtime_s": 584.1746228000002,
+  "cycles": [
+    125,
+    127,
+    196,
+    197,
+    229,
+    260,
+    268,
+    338,
+    343,
+    406,
+    410
+  ],
+  "unique_source_rows": 978674,
+  "branch_profiles": 99,
+  "audited_model_events": 1242226,
+  "chunk_parity_checks": 3,
+  "missing_balance_checks": 6,
+  "semicycles": {
+    "Capacity check Charge": 369486,
+    "Capacity check Discharge": 257015,
+    "Stand by": 21041,
+    "Constant Charge": 169851,
+    "WLTP": 161281
+  },
+  "profiles": {
+    "sensitive": [
+      0.02,
+      5,
+      0.01,
+      0.15
+    ],
+    "baseline": [
+      0.05,
+      10,
+      0.025,
+      0.3
+    ],
+    "relaxed": [
+      0.1,
+      30,
+      0.05,
+      0.5
+    ]
+  },
+  "aggregates": {
+    "sensitive": {
+      "CELL_IMBALANCE_SUSTAINED": {
+        "outcomes": {
+          "FAIL": 32,
+          "PASS": 1
+        },
+        "events": 557,
+        "evaluated_samples": 2932920,
+        "incomplete_intervals": 0
+      },
+      "TEMPERATURE_RISE_HIGH": {
+        "outcomes": {
+          "FAIL": 33
+        },
+        "events": 544602,
+        "evaluated_samples": 2935989,
+        "incomplete_intervals": 0
+      },
+      "CELL_SAG_UNDER_LOAD": {
+        "outcomes": {
+          "NOT_EVALUATED": 15,
+          "FAIL": 18
+        },
+        "events": 1110,
+        "evaluated_samples": 29351,
+        "incomplete_intervals": 2129
+      }
+    },
+    "baseline": {
+      "CELL_IMBALANCE_SUSTAINED": {
+        "outcomes": {
+          "PASS": 14,
+          "FAIL": 19
+        },
+        "events": 180,
+        "evaluated_samples": 2932920,
+        "incomplete_intervals": 0
+      },
+      "TEMPERATURE_RISE_HIGH": {
+        "outcomes": {
+          "FAIL": 33
+        },
+        "events": 370072,
+        "evaluated_samples": 2935989,
+        "incomplete_intervals": 0
+      },
+      "CELL_SAG_UNDER_LOAD": {
+        "outcomes": {
+          "NOT_EVALUATED": 15,
+          "FAIL": 18
+        },
+        "events": 775,
+        "evaluated_samples": 29351,
+        "incomplete_intervals": 2129
+      }
+    },
+    "relaxed": {
+      "CELL_IMBALANCE_SUSTAINED": {
+        "outcomes": {
+          "PASS": 23,
+          "FAIL": 10
+        },
+        "events": 63,
+        "evaluated_samples": 2932920,
+        "incomplete_intervals": 0
+      },
+      "TEMPERATURE_RISE_HIGH": {
+        "outcomes": {
+          "FAIL": 33
+        },
+        "events": 324410,
+        "evaluated_samples": 2935989,
+        "incomplete_intervals": 0
+      },
+      "CELL_SAG_UNDER_LOAD": {
+        "outcomes": {
+          "NOT_EVALUATED": 16,
+          "FAIL": 17
+        },
+        "events": 457,
+        "evaluated_samples": 29351,
+        "incomplete_intervals": 2129
+      }
+    }
+  },
+  "threshold_role": "illustrative software characterization; not calibrated safety or diagnosis limits",
+  "assumptions": [
+    "3P12S mapped as three independent 12S branches",
+    "Positive current is charge",
+    "Source asynchronous acquisition and ZOH retained",
+    "No ground-truth physical fault labels",
+    "No directly logged balancing-active channel"
+  ],
+  "errors": 0,
+  "source_license": "CC BY 4.0",
+  "source_authors": [
+    "Joaquín de la Vega Hernández",
+    "Juan Antonio Ortega Redondo",
+    "Jordi Roger Riba Ruiz"
+  ],
+  "profile_fields": [
+    "sustained_imbalance_max_delta_v",
+    "temperature_rise_max_c_per_min",
+    "cell_sag_excess_max_v",
+    "pack_cell_sum_max_delta_v"
+  ],
+  "scope": "11 named complete source cycles; repeated threshold profiles; event observations are not physical fault labels"
+}

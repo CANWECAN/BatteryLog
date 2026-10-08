@@ -5,6 +5,11 @@ BatteryLog **v0.9.1** package. It is evidence that the software paths were exerc
 large physical battery-pack measurements; it is **not** a certification of BatteryLog,
 the source dataset, or any engineering threshold.
 
+For the later development failure-model campaign, including source eligibility,
+independent event-chain checks and a real-data CLI demo, see
+[Real failure-model characterization](REAL_FAILURE_MODEL_VALIDATION.md).
+The v0.9.1 results below retain their original scope.
+
 ## Dataset
 
 - Dataset: *Lithium-Ion Battery Pack Cycling Dataset with CC-CV Charging and WLTP/Constant Discharge Profiles*

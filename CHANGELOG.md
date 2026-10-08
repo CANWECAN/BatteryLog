@@ -4,6 +4,8 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Add a reproducible CORA real-data characterization harness for the opt-in failure models, independent event-chain audits, illustrative threshold sensitivity and a traceable CLI demo. Keep absent balancing status NOT_EVALUATED and document temperature acquisition anomalies separately from physical fault diagnosis.
+
 - Show desktop batch results in a responsive per-file table with violation-event counts, diagnostics, selected-report opening and native output-folder opening. Read finalized cancellation summaries without inventing results for unprocessed files, and clear stale rows/actions on a new task.
 - Add opt-in sustained cell imbalance, temperature rate-of-rise, load-relative cell sag, and explicit balancing improvement/timeout observations. Reuse the released pack-versus-cell-sum mismatch rule. Preserve bounded state and whole-frame/chunk equivalence.
 - Add strict config-v7 model parameters and result-v9 model outcomes/measurement chains. Legacy-only analysis retains frozen result-v8. Insufficient or censored requested model observations prevent overall PASS.
