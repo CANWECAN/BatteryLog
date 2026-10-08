@@ -43,6 +43,9 @@ def failure_model_loader(
             if config.unloaded_current
             else None,
             status_sources=(
+                (config.precharge_current.active_source,) if config.precharge_current else ()
+            )
+            + (
                 (
                     config.contactor_response.command_source,
                     config.contactor_response.feedback_source,
@@ -73,6 +76,18 @@ def unloaded_values_for_frame(
         return None
     return _status_values_for_frame(
         frame, mapping, config.unloaded_current.unloaded_source, "Unloaded"
+    )
+
+
+def precharge_values_for_frame(
+    frame: pd.DataFrame,
+    mapping: SignalMapping | None,
+    config: FailureModelConfig | None,
+) -> pd.Series | None:
+    if config is None or config.precharge_current is None:
+        return None
+    return _status_values_for_frame(
+        frame, mapping, config.precharge_current.active_source, "Precharge"
     )
 
 
@@ -304,6 +319,7 @@ def raise_first_strict_input_error(
     balance_values: pd.Series | None,
     *,
     unloaded_values: pd.Series | None = None,
+    precharge_values: pd.Series | None = None,
     contactor_values: tuple[pd.Series | None, pd.Series | None] = (None, None),
     row_offset: int = 0,
     previous_timestamp: float | None = None,
@@ -334,5 +350,10 @@ def raise_first_strict_input_error(
         error = _invalid_status_error(values, row_offset=row_offset, label=label)
         if error is not None:
             candidates.append((error[0], priority, error[1]))
+    precharge_error = _invalid_status_error(
+        precharge_values, row_offset=row_offset, label="Precharge"
+    )
+    if precharge_error is not None:
+        candidates.append((precharge_error[0], 6, precharge_error[1]))
     if candidates:
         raise min(candidates, key=lambda item: (item[0], item[1]))[2]

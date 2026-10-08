@@ -259,3 +259,8 @@ Tagged releases publish wheel/sdist artifacts plus SHA-256 checksums through [Gi
 The opt-in contactor response check compares observed command transitions with
 independent binary feedback. Try `examples/contactor_response_demo.csv` with
 `examples/contactor_response.example.yaml`; see [the observation contract](docs/FAILURE_MODELS.md#contactor-response-contract).
+
+
+The opt-in precharge-current check measures the magnitude drop from an observed
+phase activation to an engineer-selected checkpoint. Try `examples/precharge_current_demo.csv`
+with `examples/precharge_current.example.yaml`; see [the observation contract](docs/FAILURE_MODELS.md#precharge-current-contract).

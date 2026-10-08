@@ -130,7 +130,7 @@ def _resolve_mdf_selection(
     for source, label in (
         (balance_active_source, "balancing"),
         (unloaded_source, "unloaded"),
-        *((source, "contactor") for source in status_sources),
+        *((source, "state") for source in status_sources),
     ):
         if source is not None and source in channel_names:
             if source in measurement_sources:
@@ -146,7 +146,7 @@ def _resolve_mdf_selection(
         group, index = _unique_occurrence(mdf, name)
         unit = mdf.get_channel_unit(name=name, group=group, index=index)
         kind = source_kinds[name]
-        if kind in {"balancing-status", "unloaded-status", "contactor-status"}:
+        if kind in {"balancing-status", "unloaded-status", "state-status"}:
             if _normalize_unit(unit) not in {"", "1", "bool", "boolean"}:
                 raise ValueError(
                     f"MDF {kind.removesuffix('-status')} channel {name!r} must be dimensionless"

@@ -1,7 +1,6 @@
 """Small bounded-state evaluators; the same collector handles any chunk size."""
 
 from dataclasses import asdict, dataclass
-from math import isclose, isfinite
 
 import numpy as np
 import pandas as pd
@@ -14,56 +13,15 @@ from batterylog.failure_models import (
     FailureModelReport,
 )
 
-from .comparison import BINARY64_REL_TOL
 from .evaluation import RuleInputs
+from .failure_evidence import _above, _at_least, _event, _finite
 from .input_validation import parse_balancing_status, parse_binary_status
+from .precharge import PrechargeCurrentCollector
 
 _BALANCING_CODES: tuple[FailureCode, ...] = (
     "BALANCING_INEFFECTIVE",
     "BALANCING_ACTIVE_TOO_LONG",
 )
-
-
-def _finite(value: float) -> float:
-    if not isfinite(value):
-        raise ValueError("Failure-model evidence calculation overflowed")
-    return value
-
-
-def _above(value: float, limit: float) -> bool:
-    return value > limit and not isclose(value, limit, rel_tol=BINARY64_REL_TOL, abs_tol=0)
-
-
-def _at_least(value: float, limit: float) -> bool:
-    return value >= limit or isclose(value, limit, rel_tol=BINARY64_REL_TOL, abs_tol=0)
-
-
-def _event(
-    code: FailureCode,
-    start: float,
-    end: float,
-    peak: float,
-    measured: float,
-    limit: float,
-    count: int,
-    unit: str,
-    signals: list[str],
-    evidence: dict[str, float],
-) -> FailureEvent:
-    return {
-        "code": code,
-        "start_time_s": start,
-        "end_time_s": end,
-        "peak_time_s": peak,
-        "measured_value": _finite(measured),
-        "limit_value": limit,
-        "sample_count": count,
-        "duration_s": _finite(end - start),
-        "peak_excursion": _finite(abs(measured - limit)),
-        "unit": unit,
-        "signals": signals,
-        "evidence": {name: _finite(value) for name, value in evidence.items()},
-    }
 
 
 @dataclass
@@ -122,6 +80,7 @@ class FailureModelCollector:
                 (config.balancing, "BALANCING_ACTIVE_TOO_LONG"),
                 (config.unloaded_current, "CURRENT_WHILE_UNLOADED"),
                 (config.contactor_response, "CONTACTOR_FEEDBACK_TIMEOUT"),
+                (config.precharge_current, "PRECHARGE_CURRENT_DECAY_LOW"),
             ]
             for enabled, code in models:
                 if enabled is not None:
@@ -158,6 +117,14 @@ class FailureModelCollector:
         self.contactor_previous: tuple[float, bool] | None = None
         self.contactor_pending: _Response | None = None
         self.contactor_invalid_censor = False
+        self.precharge_presence: bool | None = None
+        self.precharge = (
+            PrechargeCurrentCollector(
+                config.precharge_current, self.evaluations["PRECHARGE_CURRENT_DECAY_LOW"]
+            )
+            if config and config.precharge_current
+            else None
+        )
 
     def _end_contactor(self, *, count_incomplete: bool = True) -> None:
         pending = self.contactor_pending
@@ -353,6 +320,8 @@ class FailureModelCollector:
             self._end_unloaded(count_incomplete=not self.unloaded_invalid_censor)
         if self.config and self.config.contactor_response:
             self._end_contactor(count_incomplete=not self.contactor_invalid_censor)
+        if self.precharge:
+            self.precharge.break_continuity()
         self.previous_t = self.span_start = None
         self.previous_temperatures = None
         self.baseline = None
@@ -553,6 +522,7 @@ class FailureModelCollector:
         balance_values: pd.Series | None,
         *,
         unloaded_values: pd.Series | None = None,
+        precharge_values: pd.Series | None = None,
         contactor_values: tuple[pd.Series | None, pd.Series | None] = (None, None),
         exclude_invalid: bool,
         row_offset: int = 0,
@@ -593,6 +563,21 @@ class FailureModelCollector:
                 )
             elif current is None:
                 self.evaluations["CURRENT_WHILE_UNLOADED"]["reason"] = "Missing pack_current_a"
+        raw_precharge = (
+            precharge_values.to_numpy(dtype=object) if precharge_values is not None else None
+        )
+        if self.precharge:
+            present_precharge = raw_precharge is not None
+            if self.precharge_presence is None:
+                self.precharge_presence = present_precharge
+            elif self.precharge_presence != present_precharge:
+                raise ValueError("Precharge signal presence changed between measurement chunks")
+            if not present_precharge:
+                self.precharge.evaluation["reason"] = (
+                    f"Missing precharge status source {self.precharge.config.active_source!r}"
+                )
+            elif current is None:
+                self.precharge.evaluation["reason"] = "Missing pack_current_a"
         raw_contactor = tuple(
             v.to_numpy(dtype=object) if v is not None else None for v in contactor_values
         )
@@ -616,6 +601,10 @@ class FailureModelCollector:
                 )
         for row, valid in enumerate(valid_rows.to_numpy(dtype=bool)):
             if not valid:
+                if self.precharge and raw_precharge is not None and current is not None:
+                    self.precharge.censor(
+                        "Invalid measurement rows interrupted precharge observations"
+                    )
                 if self.config.contactor_response and all(v is not None for v in raw_contactor):
                     self._censor_contactor(
                         "Invalid measurement rows interrupted contactor observations"
@@ -636,6 +625,8 @@ class FailureModelCollector:
             ):
                 if self.config.contactor_response and all(v is not None for v in raw_contactor):
                     self._censor_contactor("Measurement gap interrupted contactor observations")
+                if self.precharge and raw_precharge is not None and current is not None:
+                    self.precharge.censor("Measurement gap interrupted precharge observations")
                 self._break()
             if self.span_start is None:
                 self.span_start = t
@@ -691,6 +682,16 @@ class FailureModelCollector:
                 else:
                     assert states[0] is not None and states[1] is not None
                     self._contactor(t, states[0], states[1])
+            if self.precharge and raw_precharge is not None:
+                precharge_active = parse_binary_status(raw_precharge[row])
+                if precharge_active is None:
+                    if not exclude_invalid:
+                        raise ValueError(
+                            f"Precharge status must be 0/1 or boolean at data row {row_offset + row + 1}"
+                        )
+                    self.precharge.censor("Invalid precharge status samples were excluded")
+                elif current is not None:
+                    self.precharge.consume(t, float(current[row]), precharge_active)
             self.previous_t = t
             self.previous_temperatures = temperatures[row].copy()
 
@@ -715,4 +716,6 @@ class FailureModelCollector:
             serialized_config.pop("unloaded_current")
         if self.config.contactor_response is None:
             serialized_config.pop("contactor_response")
+        if self.config.precharge_current is None:
+            serialized_config.pop("precharge_current")
         return {"config": serialized_config, "evaluations": list(self.evaluations.values())}

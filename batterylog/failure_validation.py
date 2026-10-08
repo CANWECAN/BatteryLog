@@ -3,7 +3,7 @@
 from math import isclose, isfinite
 
 from .analysis.comparison import BINARY64_REL_TOL
-from .analysis.failure_models import _above, _at_least
+from .analysis.failure_evidence import _above, _at_least
 from .failure_config import parse_failure_models
 from .failure_models import FailureCode, FailureEvent, FailureModelReport
 
@@ -33,6 +33,8 @@ def validate_failure_report(report: FailureModelReport) -> None:
         expected.append("CURRENT_WHILE_UNLOADED")
     if config.contactor_response:
         expected.append("CONTACTOR_FEEDBACK_TIMEOUT")
+    if config.precharge_current:
+        expected.append("PRECHARGE_CURRENT_DECAY_LOW")
     _require(
         [item["code"] for item in report["evaluations"]] == expected,
         "enabled model codes/order differ",
@@ -177,6 +179,50 @@ def validate_failure_report(report: FailureModelReport) -> None:
                 _require(
                     event["signals"] == [contactor.command_source, contactor.feedback_source],
                     "contactor sources differ",
+                )
+            elif code == "PRECHARGE_CURRENT_DECAY_LOW":
+                precharge = config.precharge_current
+                assert precharge is not None
+                _require(_same(limit, precharge.min_drop_a), "precharge current-drop limit differs")
+                _require(
+                    _same(evidence["required_evaluation_s"], precharge.evaluation_s),
+                    "precharge checkpoint differs",
+                )
+                _require(
+                    _at_least(event["duration_s"], precharge.evaluation_s),
+                    "precharge observation is too short",
+                )
+                _require(
+                    event["peak_time_s"] == event["end_time_s"],
+                    "precharge checkpoint observation differs",
+                )
+                _require(
+                    _at_least(
+                        abs(evidence["initial_current_a"]), precharge.min_start_abs_current_a
+                    ),
+                    "initial precharge current is ineligible",
+                )
+                drop = abs(evidence["initial_current_a"]) - abs(evidence["current_a"])
+                _require(
+                    _same(measured, drop) and _same(evidence["current_drop_a"], drop),
+                    "precharge current reduction differs",
+                )
+                _require(
+                    not _at_least(measured, limit), "precharge current reduction meets the target"
+                )
+                age = event["start_time_s"] - evidence["previous_time_s"]
+                _require(
+                    age >= 0 and not _above(age, config.max_gap_s),
+                    "precharge activation crosses an ineligible gap",
+                )
+                _require(
+                    evidence["previous_precharge_active"] == 0
+                    and evidence["precharge_active"] == 1,
+                    "precharge activation is not observed",
+                )
+                _require(
+                    event["signals"] == ["pack_current_a", precharge.active_source],
+                    "precharge sources differ",
                 )
             else:
                 balance = config.balancing

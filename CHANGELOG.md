@@ -4,6 +4,8 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Add opt-in `PRECHARGE_CURRENT_DECAY_LOW` for a sampled pack-current magnitude reduction after an observed, independently declared precharge activation. Require explicit checkpoint, initial-reference bound and drop target; retain signed currents and sampled timing; mark missing, left-censored, short, low-reference and interrupted observations NOT_EVALUATED. Preserve phase channels across CSV/MF4 and normalization, with synthetic CLI/desktop examples and independent episode-reference tests.
+
 - Add opt-in `CONTACTOR_FEEDBACK_TIMEOUT` for observed opening/closing command responses with distinct binary command and feedback sources and an explicit deadline. Preserve detection-time chains across CSV/MF4, normalization and desktop single/batch workflows. Missing edges, late first matching feedback, reversed unfinished commands and interrupted observations remain NOT_EVALUATED. Add a synthetic example and independent response-window tests.
 
 - Reject result-v9 model evidence whose observation counts cannot support event duration, exceed analyzed source rows, or contain more events than eligible observations. The desktop inherits these checks before accepting a worker result; valid duplicate timestamps and binary64 gap boundaries remain supported.

@@ -5,6 +5,20 @@ weak cell, a bad connection, a faulty sensor, or the cause of a balancing result
 No SOC estimator, energy estimator, calibration, internal resistance measurement,
 expression language, or general state-machine framework is included.
 
+## Try the precharge-current synthetic example
+
+```bash
+python -m batterylog examples/precharge_current_demo.csv \
+  --config examples/precharge_current.example.yaml \
+  --json-out result.json --report report.html
+```
+
+The expected result is FAIL, exit code 1, with one `PRECHARGE_CURRENT_DECAY_LOW`
+event at the first checkpoint: precharge starts at 1 s with 6 A; at 3 s the
+current is 4.5 A, a 1.5 A drop below the configured 3 A target. The later 1 A
+sample does not replace this observation. All limits and timings are illustrative.
+The same CSV and YAML can be selected in desktop single-file or batch mode.
+
 ## Try the contactor-response synthetic example
 
 ```bash
@@ -63,7 +77,7 @@ events live under `failure_models.evaluations[].events`. Use both collections.
 ## Observation and continuity contract
 
 `failure_models.max_gap_s` is mandatory and positive. It bounds every interval
-used for continuity, derivatives, resting references, balancing sessions and contactor responses.
+used for continuity, derivatives, resting references, balancing sessions, contactor responses and precharge checkpoints.
 Invalid measurement rows and larger gaps reset the state; no interpolation or
 zero-order hold across missing observations is performed. Duplicate timestamps
 do not add elapsed time. Rates need a positive qualifying interval; a duplicate
@@ -84,6 +98,8 @@ it does not retain an entire log or concatenate chunks.
 | `BALANCING_INEFFECTIVE` | At the first still-active sample at or beyond `evaluation_s`, initial spread minus current spread must reach `min_improvement_v`. | Requires an observed inactive-to-active edge and initial spread at least `min_start_delta_v`. Evaluate once per episode; a shorter/interrupted eligible episode is incomplete. A spread already below the start bound is ineligible, not a failure. |
 | `BALANCING_ACTIVE_TOO_LONG` | Observed active elapsed time strictly exceeds `timeout_s`. | Requires an observed activation edge. Emit once at the first crossing, preserving detection-time evidence, not a later session-end peak. A complete shorter session can pass. An unfinished session with no crossing is incomplete. |
 | `CURRENT_WHILE_UNLOADED` | While independent `unloaded_source` is true, `abs(pack_current_a)` strictly exceeds `max_abs_current_a` at each observed sample in a contiguous run spanning at least `duration_s`. | Requires pack current and an explicit 0/1 state. Both current signs are checked. Short excursions never accumulate across a low-current sample, a loaded state, invalid data or a gap. Each observed unloaded interval must span the configured duration for PASS; shorter intervals are incomplete. A qualified interval ending at EOF can pass or fail. The event records the whole high-current run, signed peak current, magnitude, state, source and duration requirement. |
+
+| `PRECHARGE_CURRENT_DECAY_LOW` | At the first still-active sample at or beyond `evaluation_s`, `abs(I_start) - abs(I_now)` must reach `min_drop_a`. | Requires pack current, an observed inactive-to-active edge and initial magnitude at least `min_start_abs_current_a`. One checkpoint per episode; missing, left-censored, low-reference or short/interrupted episodes prevent PASS. The event retains both signed currents and the observed magnitude reduction. |
 
 Cell sag reports an observed excess drop, not internal resistance or a resistance
 proxy. Uniform sag does not fail this relative check. It is not a replacement for
@@ -112,6 +128,45 @@ status is retained as 0/1 under its original name with a dimensionless identity
 conversion record. Normalization remains strict, preserves all rows, and performs
 no engineering evaluation. Analyze the resulting canonical CSV without the original
 sensor mapping; retain the failure-model parameters and balancing source name.
+
+### Precharge-current contract
+
+`precharge_current.active_source` names an independent binary phase declaration:
+true/1 means precharge active, false/0 means inactive. It is never inferred from
+pack current, voltage, contactor feedback or an elapsed timer. The producer must
+ensure the mapped `pack_current_a` measures the current intended for this test;
+this model does not isolate precharge current from other simultaneous pack loads.
+The state cannot share a measurement role. CSV boolean/0/1 forms, unique
+dimensionless MF4 channels, invalidation, source-name retention and strict
+normalization behavior match the other status checks. No status is interpolated
+or forward-filled.
+
+Set positive `evaluation_s`, `min_start_abs_current_a` and `min_drop_a` explicitly.
+The drop target cannot exceed the minimum eligible initial magnitude. An observed
+inactive-to-active edge freezes the signed initial current. An initial magnitude
+below the eligibility bound makes that episode NOT_EVALUATED; a later peak is not
+substituted as a new reference. At the first still-active sample whose observed
+elapsed time reaches `evaluation_s`, compare the magnitude reduction with the
+selected target. Equality passes under the binary64 guard. A rising current
+magnitude gives a negative reduction and can fail. Both current signs are checked;
+the original signs remain in the evidence chain.
+
+A missing state/current, inactive-only capture, capture starting active, short
+phase, interruption or unqualified initial reference gives NOT_EVALUATED. The
+inactive sample ending a phase cannot prove a precharge reduction. A completed
+checkpoint at EOF can pass or fail. Each phase contributes at most one eligible
+observation and event. Later samples do not change the outcome at that checkpoint.
+Unknown status interrupts only this model in exclude-invalid mode; valid numeric
+rows remain available to sibling checks. Excluded measurement rows and excessive
+gaps break continuity and prevent PASS, including gaps outside a pending phase.
+Adjacent unknown samples count once; previously completed events remain FAIL.
+
+This is one sampled current-drop checkpoint, not a fit or validation of the full
+precharge curve. It does not enforce monotonic decay, infer an RC time constant,
+prove DC-link voltage convergence, diagnose resistor/contact faults, or apply
+calibration. The checkpoint is evaluated at the observed sample time; it does not
+assert what happened at the exact configured time between samples. Select the
+sampling gap, current reference and checkpoint according to the actual procedure.
 
 ### Contactor-response contract
 

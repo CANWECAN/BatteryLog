@@ -16,6 +16,7 @@ from batterylog import (
     AnalysisService,
     ContactorResponseConfig,
     FailureModelConfig,
+    PrechargeCurrentConfig,
     SourceUnits,
     SustainedImbalanceConfig,
     UnloadedCurrentConfig,
@@ -102,6 +103,20 @@ validate_result_semantics(contactor_result)
 contactor_event = contactor_result["failure_models"]["evaluations"][0]["events"][0]
 assert contactor_event["code"] == "CONTACTOR_FEEDBACK_TIMEOUT"
 assert contactor_event["duration_s"] == 3 and contactor_event["evidence"]["command_time_s"] == 1
+precharge_result = analyze_battery_bytes(
+    b"timestamp_s,cell_1_v,cell_2_v,temp_c,pack_current_a,Pre\n"
+    b"0,3.5,3.5,25,0,0\n1,3.5,3.5,25,-6,1\n2,3.5,3.5,25,-5,1\n"
+    b"3,3.5,3.5,25,-4.5,1\n",
+    failure_models=FailureModelConfig(1, precharge_current=PrechargeCurrentConfig("Pre", 2, 4, 3)),
+)
+jsonschema.validate(precharge_result, failure_schema)
+validate_result_semantics(precharge_result)
+precharge_event = precharge_result["failure_models"]["evaluations"][0]["events"][0]
+assert precharge_event["code"] == "PRECHARGE_CURRENT_DECAY_LOW"
+assert (
+    precharge_event["measured_value"] == 1.5
+    and precharge_event["evidence"]["initial_current_a"] == -6
+)
 with TemporaryDirectory() as directory:
     model_source = Path(directory) / "failure-model.csv"
     model_source.write_bytes(

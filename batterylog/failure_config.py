@@ -117,6 +117,26 @@ class ContactorResponseConfig:
 
 
 @dataclass(frozen=True)
+class PrechargeCurrentConfig:
+    """Sampled magnitude reduction during an independently declared precharge phase."""
+
+    active_source: str
+    evaluation_s: float
+    min_start_abs_current_a: float
+    min_drop_a: float
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.active_source, str):
+            raise TypeError("active_source must be a string")
+        if not self.active_source.strip():
+            raise ValueError("active_source must not be empty")
+        for name in ("evaluation_s", "min_start_abs_current_a", "min_drop_a"):
+            _number(name, getattr(self, name))
+        if self.min_drop_a > self.min_start_abs_current_a:
+            raise ValueError("min_drop_a must not exceed min_start_abs_current_a")
+
+
+@dataclass(frozen=True)
 class FailureModelConfig:
     max_gap_s: float
     sustained_imbalance: SustainedImbalanceConfig | None = None
@@ -125,6 +145,7 @@ class FailureModelConfig:
     balancing: BalancingConfig | None = None
     unloaded_current: UnloadedCurrentConfig | None = None
     contactor_response: ContactorResponseConfig | None = None
+    precharge_current: PrechargeCurrentConfig | None = None
 
     def __post_init__(self) -> None:
         _number("failure_models.max_gap_s", self.max_gap_s)
@@ -136,6 +157,7 @@ class FailureModelConfig:
             ("balancing", BalancingConfig),
             ("unloaded_current", UnloadedCurrentConfig),
             ("contactor_response", ContactorResponseConfig),
+            ("precharge_current", PrechargeCurrentConfig),
         ):
             value = getattr(self, name)
             if value is not None:
@@ -167,6 +189,7 @@ def parse_failure_models(raw: Any) -> FailureModelConfig | None:
         ("balancing", BalancingConfig),
         ("unloaded_current", UnloadedCurrentConfig),
         ("contactor_response", ContactorResponseConfig),
+        ("precharge_current", PrechargeCurrentConfig),
     ):
         group = raw.get(name)
         if group is None:

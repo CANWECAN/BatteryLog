@@ -1726,7 +1726,8 @@
             "BALANCING_INEFFECTIVE",
             "BALANCING_ACTIVE_TOO_LONG",
             "CURRENT_WHILE_UNLOADED",
-            "CONTACTOR_FEEDBACK_TIMEOUT"
+            "CONTACTOR_FEEDBACK_TIMEOUT",
+            "PRECHARGE_CURRENT_DECAY_LOW"
           ]
         },
         "start_time_s": {
@@ -2085,6 +2086,59 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "PRECHARGE_CURRENT_DECAY_LOW"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "unit": {
+                "const": "A"
+              },
+              "evidence": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "previous_time_s",
+                  "previous_precharge_active",
+                  "precharge_active",
+                  "initial_current_a",
+                  "current_a",
+                  "current_drop_a",
+                  "required_evaluation_s"
+                ],
+                "properties": {
+                  "previous_time_s": {
+                    "type": "number"
+                  },
+                  "previous_precharge_active": {
+                    "const": 0
+                  },
+                  "precharge_active": {
+                    "const": 1
+                  },
+                  "initial_current_a": {
+                    "type": "number"
+                  },
+                  "current_a": {
+                    "type": "number"
+                  },
+                  "current_drop_a": {
+                    "type": "number"
+                  },
+                  "required_evaluation_s": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -2108,7 +2162,8 @@
             "BALANCING_INEFFECTIVE",
             "BALANCING_ACTIVE_TOO_LONG",
             "CURRENT_WHILE_UNLOADED",
-            "CONTACTOR_FEEDBACK_TIMEOUT"
+            "CONTACTOR_FEEDBACK_TIMEOUT",
+            "PRECHARGE_CURRENT_DECAY_LOW"
           ]
         },
         "status": {
@@ -2427,6 +2482,35 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "PRECHARGE_CURRENT_DECAY_LOW"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "events": {
+                "items": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/failureEvent"
+                    },
+                    {
+                      "properties": {
+                        "code": {
+                          "const": "PRECHARGE_CURRENT_DECAY_LOW"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -2651,6 +2735,42 @@
                   "type": "null"
                 }
               ]
+            },
+            "precharge_current": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "active_source",
+                    "evaluation_s",
+                    "min_start_abs_current_a",
+                    "min_drop_a"
+                  ],
+                  "properties": {
+                    "active_source": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "\\S"
+                    },
+                    "evaluation_s": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "min_start_abs_current_a": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "min_drop_a": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "anyOf": [
@@ -2713,13 +2833,23 @@
               "required": [
                 "contactor_response"
               ]
+            },
+            {
+              "properties": {
+                "precharge_current": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "precharge_current"
+              ]
             }
           ]
         },
         "evaluations": {
           "type": "array",
           "minItems": 1,
-          "maxItems": 7,
+          "maxItems": 8,
           "items": {
             "$ref": "#/$defs/failureEvaluation"
           }
@@ -3011,6 +3141,50 @@
                     "properties": {
                       "code": {
                         "const": "CONTACTOR_FEEDBACK_TIMEOUT"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "config": {
+                "properties": {
+                  "precharge_current": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "precharge_current"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evaluations": {
+                "contains": {
+                  "properties": {
+                    "code": {
+                      "const": "PRECHARGE_CURRENT_DECAY_LOW"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "evaluations": {
+                "not": {
+                  "contains": {
+                    "properties": {
+                      "code": {
+                        "const": "PRECHARGE_CURRENT_DECAY_LOW"
                       }
                     }
                   }

@@ -16,6 +16,7 @@ from batterylog import (
     ContactorResponseConfig,
     DataQualityConfig,
     FailureModelConfig,
+    PrechargeCurrentConfig,
     SignalMapping,
     SignalPattern,
     SourceUnits,
@@ -531,3 +532,203 @@ def test_real_mf4_contactor_async_feedback_is_not_interpolated(tmp_path):
     assert result["rows_excluded"] == 0
     assert result["failure_models"]["evaluations"][0]["status"] == "NOT_EVALUATED"
     assert result["failure_models"]["evaluations"][0]["events"] == []
+
+
+def _write_precharge(
+    path,
+    *,
+    grouped=True,
+    mapped=False,
+    status=True,
+    unit="1",
+    invalid=False,
+    scaled=False,
+    asynchronous=False,
+    duplicate=False,
+):
+    times = np.arange(6, dtype=float)
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": times,
+            "cell_1_v": [3.5] * 6,
+            "cell_2_v": [3.5] * 6,
+            "temp_c": [25.0] * 6,
+            "pack_current_a": [0, -6, -5, -4.5, -1, 0],
+            "Pre": [False, True, True, True, True, False],
+        }
+    )
+    sources = (
+        ["U1", "U2", "T1", "I"] if mapped else ["cell_1_v", "cell_2_v", "temp_c", "pack_current_a"]
+    )
+    signals = [
+        Signal(frame[canonical].to_numpy(), times, name=source, unit=unit)
+        for source, canonical, unit in zip(
+            sources,
+            ["cell_1_v", "cell_2_v", "temp_c", "pack_current_a"],
+            ["V", "V", "degC", "A"],
+            strict=True,
+        )
+    ]
+    if status:
+        bits = np.array([False, False, True, False, False, False]) if invalid else None
+        selected = times[::2] if asynchronous else times
+        samples = frame["Pre"].to_numpy()[::2] if asynchronous else frame["Pre"].to_numpy()
+        phase = Signal(samples, selected, name="Pre", unit=unit, invalidation_bits=bits)
+        if scaled:
+            from asammdf.blocks.v4_blocks import ChannelConversion
+            from asammdf.blocks.v4_constants import CONVERSION_TYPE_LIN
+
+            phase.conversion = ChannelConversion(conversion_type=CONVERSION_TYPE_LIN, a=2, b=0)
+        signals.append(phase)
+    else:
+        frame = frame.drop(columns="Pre")
+    if invalid:
+        frame["Pre"] = frame["Pre"].astype(object)
+        frame.loc[2, "Pre"] = np.nan
+    mdf = MDF(version="4.10")
+    try:
+        if grouped:
+            mdf.append(signals, common_timebase=True)
+        else:
+            for signal in signals:
+                mdf.append([signal], common_timebase=True)
+        if duplicate:
+            mdf.append([signals[-1]], common_timebase=True)
+        mdf.save(path, overwrite=True)
+    finally:
+        mdf.close()
+    return frame
+
+
+@pytest.mark.parametrize("grouped", [True, False])
+@pytest.mark.parametrize("mapped", [True, False])
+@pytest.mark.parametrize("entry", ["service", "path", "file", "normalize"])
+def test_real_mf4_precharge_matches_csv_across_mapping_and_adapters(
+    tmp_path, grouped, mapped, entry
+):
+    path = tmp_path / "precharge.mf4"
+    frame = _write_precharge(path, grouped=grouped, mapped=mapped)
+    mapping = (
+        SignalMapping(
+            "clock",
+            SignalPattern(r"U(?P<index>\d+)"),
+            SignalPattern(r"T(?P<index>\d+)"),
+            pack_current="I",
+        )
+        if mapped
+        else None
+    )
+    models = FailureModelConfig(1, precharge_current=PrechargeCurrentConfig("Pre", 2, 4, 3))
+    config = ValidationConfig(signals=mapping, failure_models=models)
+    if mapped:
+        frame = frame.rename(
+            columns={
+                "timestamp_s": "clock",
+                "cell_1_v": "U1",
+                "cell_2_v": "U2",
+                "temp_c": "T1",
+                "pack_current_a": "I",
+            }
+        )
+    expected = _analyze_battery_frame(frame, signal_mapping=mapping, failure_models=models)
+    if entry == "service":
+        result = AnalysisService(config).analyze_path(path).result
+    elif entry == "normalize":
+        destination = tmp_path / "prepared"
+        evidence = normalize_measurement(
+            path, destination, units=SourceUnits("s", "V", "degC", "A"), config=config
+        )
+        assert next(c for c in evidence["conversions"] if c["canonical"] == "Pre") == {
+            "source": "Pre",
+            "canonical": "Pre",
+            "source_unit": "1",
+            "target_unit": "1",
+            "divisor": 1.0,
+            "offset": 0.0,
+        }
+        normalized = pd.read_csv(destination / "normalized.csv")
+        assert normalized["pack_current_a"].tolist() == [0, -6, -5, -4.5, -1, 0]
+        result = (
+            AnalysisService(replace(config, signals=None))
+            .analyze_path(destination / "normalized.csv")
+            .result
+        )
+        # Canonical analysis has different mapping provenance but identical model evidence.
+        assert result["failure_models"] == expected["failure_models"]
+        assert result["validation_status"] == "FAIL"
+        validate_result_semantics(result)
+        return
+    else:
+        loader = (
+            MdfPathLoader(path, chunk_ram_bytes=40)
+            if entry == "path"
+            else MdfFileLoader(BytesIO(path.read_bytes()), chunk_ram_bytes=40)
+        )
+        result = analyze_measurement_loader(loader, signal_mapping=mapping, failure_models=models)
+    assert result == expected and result["validation_status"] == "FAIL"
+    validate_result_semantics(result)
+
+
+@pytest.mark.parametrize("grouped", [True, False])
+@pytest.mark.parametrize("defect", ["invalidation", "scaled", "unit", "missing", "duplicate"])
+def test_real_mf4_precharge_state_selection_and_unknown_observations(tmp_path, grouped, defect):
+    path = tmp_path / "precharge.mf4"
+    frame = _write_precharge(
+        path,
+        grouped=grouped,
+        invalid=defect == "invalidation",
+        scaled=defect == "scaled",
+        unit="A" if defect == "unit" else "1",
+        status=defect != "missing",
+        duplicate=defect == "duplicate",
+    )
+    models = FailureModelConfig(1, precharge_current=PrechargeCurrentConfig("Pre", 2, 4, 3))
+    config = ValidationConfig(failure_models=models)
+    if defect == "missing":
+        result = AnalysisService(config).analyze_path(path).result
+        assert result == _analyze_battery_frame(frame, failure_models=models)
+        assert result["failure_models"]["evaluations"][0]["status"] == "NOT_EVALUATED"
+        return
+    with pytest.raises(
+        ValueError,
+        match="dimensionless"
+        if defect == "unit"
+        else "ambiguous"
+        if defect == "duplicate"
+        else "Precharge status",
+    ):
+        AnalysisService(config).analyze_path(path)
+    if defect in ("unit", "duplicate"):
+        return
+    config = replace(config, data_quality=DataQualityConfig("exclude_invalid_rows"))
+    result = AnalysisService(config).analyze_path(path).result
+    assert (
+        result["rows_excluded"] == 0
+        and result["failure_models"]["evaluations"][0]["status"] == "NOT_EVALUATED"
+    )
+    if defect == "invalidation":
+        assert result == _analyze_battery_frame(
+            frame, failure_models=models, data_quality=config.data_quality
+        )
+
+
+def test_real_mf4_precharge_async_status_is_not_filled(tmp_path):
+    path = tmp_path / "precharge.mf4"
+    _write_precharge(path, grouped=False, asynchronous=True)
+    models = FailureModelConfig(1, precharge_current=PrechargeCurrentConfig("Pre", 2, 4, 3))
+    with pytest.raises(ValueError, match="Precharge status.*data row 2"):
+        AnalysisService(ValidationConfig(failure_models=models)).analyze_path(path)
+    result = (
+        AnalysisService(
+            ValidationConfig(
+                failure_models=models, data_quality=DataQualityConfig("exclude_invalid_rows")
+            )
+        )
+        .analyze_path(path)
+        .result
+    )
+    assert (
+        result["rows_excluded"] == 0
+        and result["failure_models"]["evaluations"][0]["status"] == "NOT_EVALUATED"
+    )
+    assert not result["failure_models"]["evaluations"][0]["events"]

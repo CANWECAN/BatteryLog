@@ -14,6 +14,7 @@ from .analysis.input_validation import (
     coerce_required_numeric,
     contactor_values_for_frame,
     parse_binary_status,
+    precharge_values_for_frame,
     raise_invalid_numeric_value,
     unloaded_values_for_frame,
 )
@@ -97,6 +98,11 @@ def normalize_measurement(
                     else None
                 ),
                 status_sources=(
+                    (config.failure_models.precharge_current.active_source,)
+                    if config.failure_models and config.failure_models.precharge_current
+                    else ()
+                )
+                + (
                     (
                         config.failure_models.contactor_response.command_source,
                         config.failure_models.contactor_response.feedback_source,
@@ -131,6 +137,15 @@ def normalize_measurement(
                         config.failure_models.contactor_response if config.failure_models else None
                     )
                     for label, values, state_source in (
+                        (
+                            "Precharge",
+                            precharge_values_for_frame(
+                                frame, config.signals, config.failure_models
+                            ),
+                            config.failure_models.precharge_current.active_source
+                            if config.failure_models and config.failure_models.precharge_current
+                            else None,
+                        ),
                         (
                             "Balancing",
                             balance_values_for_frame(frame, config.signals, config.failure_models),
