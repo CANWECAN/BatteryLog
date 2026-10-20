@@ -4,6 +4,30 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Combine Core and experimental offline CAN/precharge/replay tools in one free Apache-2.0 distribution, with retained third-party attribution and optional CAN/MF4 backends. Expose `batterylog experimental can|precharge|replay`; retire the separate Research wheel and evaluation license.
+- Reject source timestamp regressions before binary64 rounding, including mapped CSV and streaming chunk boundaries. Analysis/report arithmetic remains binary64.
+
+- Add opt-in `PRECHARGE_CURRENT_DECAY_LOW` for a sampled pack-current magnitude reduction after an observed, independently declared precharge activation. Require explicit checkpoint, initial-reference bound and drop target; retain signed currents and sampled timing; mark missing, left-censored, short, low-reference and interrupted observations NOT_EVALUATED. Preserve phase channels across CSV/MF4 and normalization, with synthetic CLI/desktop examples and independent episode-reference tests.
+
+- Add opt-in `CONTACTOR_FEEDBACK_TIMEOUT` for observed opening/closing command responses with distinct binary command and feedback sources and an explicit deadline. Preserve detection-time chains across CSV/MF4, normalization and desktop single/batch workflows. Missing edges, late first matching feedback, reversed unfinished commands and interrupted observations remain NOT_EVALUATED. Add a synthetic example and independent response-window tests.
+
+- Reject result-v9 model evidence whose observation counts cannot support event duration, exceed analyzed source rows, or contain more events than eligible observations. The desktop inherits these checks before accepting a worker result; valid duplicate timestamps and binary64 gap boundaries remain supported.
+
+- Add opt-in `CURRENT_WHILE_UNLOADED` observation using an independently declared 0/1 state, a current-magnitude tolerance and a persistence duration. Preserve signed peak evidence, mark missing/short/interrupted observations NOT_EVALUATED, reject state/measurement role collisions, and retain both state channels through CSV/MF4 normalization without interpolation or current correction. Add a synthetic CLI/desktop example and independent interval-reference tests.
+
+- Add a reproducible CORA real-data characterization harness for the opt-in failure models, independent event-chain audits, illustrative threshold sensitivity and a traceable CLI demo. Keep absent balancing status NOT_EVALUATED and document temperature acquisition anomalies separately from physical fault diagnosis.
+
+- Show desktop batch results in a responsive per-file table with violation-event counts, diagnostics, selected-report opening and native output-folder opening. Read finalized cancellation summaries without inventing results for unprocessed files, and clear stale rows/actions on a new task.
+- Add opt-in sustained cell imbalance, temperature rate-of-rise, load-relative cell sag, and explicit balancing improvement/timeout observations. Reuse the released pack-versus-cell-sum mismatch rule. Preserve bounded state and whole-frame/chunk equivalence.
+- Add strict config-v7 model parameters and result-v9 model outcomes/measurement chains. Legacy-only analysis retains frozen result-v8. Insufficient or censored requested model observations prevent overall PASS.
+- Select and validate an explicitly named dimensionless balancing status from CSV/MF4 without interpolation. Preserve missing status as NOT_EVALUATED.
+- Add model outcomes to HTML and event totals to batch summaries. Document semantics, limitations and a small five-model synthetic example.
+- Add an initial `batterylog-gui` single-file desktop launcher with measurement/configuration/output selection, cancellable CLI analysis and report opening. Preserve engineering/evidence semantics and publish HTML/JSON together only after completed analysis; remove owned partial outputs after errors or cancellation.
+- Keep the desktop dependency optional: CLI/Python usage and desktop help work without Tkinter or a graphical session.
+- Add a built-in synthetic desktop demo with illustrative limits and two expected violations. Create separate demo files, then reuse the existing analysis/report workflow without changing validation semantics.
+- Add non-blocking desktop input inspection through the existing CLI metadata path. Show channel inventory, canonical bindings and blocking selection issues before analysis without decoding samples or requiring an output folder.
+- Add desktop batch mode for sequential folder analysis with optional recursion, unique output directories and visible batch summary paths. Use a private cancellation pipe so the existing CLI finalization preserves completed per-file reports and summary evidence even without a Windows console; retain a bounded hard-kill fallback.
+
 ## 0.10.0 - 2026-10-02
 
 ### Measurement workflows

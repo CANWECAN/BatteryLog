@@ -9,7 +9,9 @@ from batterylog.config import (
     EventDetectionConfig,
     SignalMapping,
     ValidationLimits,
+    validate_failure_current_direction,
 )
+from batterylog.failure_config import FailureModelConfig
 from batterylog.loaders import (
     MeasurementLoader,
     measurement_loader_for_file,
@@ -26,11 +28,18 @@ from .configuration import (
 )
 from .data_quality import DataQualityCollector
 from .evaluation import active_rule_codes, evaluate_rules
+from .failure_models import FailureModelCollector
 from .input_validation import (
     SignalLayout,
+    Timestamp,
+    balance_values_for_frame,
     canonicalize_analysis_frame,
     coerce_required_numeric,
-    raise_invalid_numeric_value,
+    contactor_values_for_frame,
+    failure_model_loader,
+    precharge_values_for_frame,
+    raise_first_strict_input_error,
+    unloaded_values_for_frame,
     valid_timestamp_values,
 )
 from .preparation import PreparedMeasurements, prepare_measurements
@@ -99,6 +108,7 @@ def _analyze_battery_chunks(
     event_detection: EventDetectionConfig | None = None,
     data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
+    failure_models: FailureModelConfig | None = None,
     report_series_collector: ReportSeriesCollector | None = None,
 ) -> AnalysisResult:
     warn_legacy_threshold_arguments(
@@ -113,6 +123,8 @@ def _analyze_battery_chunks(
     resolved_event_detection = resolve_event_detection(event_detection)
     resolved_data_quality = resolve_data_quality(data_quality)
     validate_signal_mapping(signal_mapping)
+    failure_collector = FailureModelCollector(failure_models)
+    validate_failure_current_direction(resolved_limits, failure_models)
 
     rules_evaluated = active_rule_codes(resolved_limits)
     event_accumulator = StreamingEventAccumulator.for_rules(
@@ -127,7 +139,7 @@ def _analyze_battery_chunks(
         DataQualityCollector() if resolved_data_quality.mode == "exclude_invalid_rows" else None
     )
     expected_layout: SignalLayout | None = None
-    previous_timestamp: float | None = None
+    previous_timestamp: Timestamp | None = None
 
     measurement_summary = MeasurementSummary()
 
@@ -137,6 +149,10 @@ def _analyze_battery_chunks(
             if frame.empty:
                 continue
 
+            balance_values = balance_values_for_frame(frame, signal_mapping, failure_models)
+            unloaded_values = unloaded_values_for_frame(frame, signal_mapping, failure_models)
+            contactor_values = contactor_values_for_frame(frame, signal_mapping, failure_models)
+            precharge_values = precharge_values_for_frame(frame, signal_mapping, failure_models)
             frame, layout = canonicalize_analysis_frame(frame, signal_mapping, resolved_limits)
             cell_cols = layout.cell_cols
             temp_cols = layout.temp_cols
@@ -152,10 +168,15 @@ def _analyze_battery_chunks(
             chunk_row_offset = rows_input
             numeric = coerce_required_numeric(frame[layout.numeric_cols])
             if data_quality_collector is None:
-                raise_invalid_numeric_value(
+                raise_first_strict_input_error(
                     frame,
                     numeric,
+                    balance_values,
+                    unloaded_values=unloaded_values,
+                    contactor_values=contactor_values,
+                    precharge_values=precharge_values,
                     row_offset=chunk_row_offset,
+                    previous_timestamp=previous_timestamp,
                 )
                 invalid_rows = pd.Series(False, index=numeric.index, dtype=bool)
             else:
@@ -170,10 +191,10 @@ def _analyze_battery_chunks(
             if not ordering_timestamps.is_monotonic_increasing:
                 raise ValueError("timestamp_s must be non-decreasing")
             if len(ordering_timestamps):
-                first_timestamp = float(ordering_timestamps.iloc[0])
+                first_timestamp = ordering_timestamps.iloc[0]
                 if previous_timestamp is not None and first_timestamp < previous_timestamp:
                     raise ValueError("timestamp_s must be non-decreasing")
-                previous_timestamp = float(ordering_timestamps.iloc[-1])
+                previous_timestamp = ordering_timestamps.iloc[-1]
 
             rows_input += len(frame)
             chunk_rows_excluded = int(invalid_rows.sum())
@@ -189,6 +210,16 @@ def _analyze_battery_chunks(
                 row_offset=chunk_row_offset,
             )
             rule_inputs = prepared.rule_inputs
+            failure_collector.consume(
+                rule_inputs,
+                prepared.valid_rows,
+                balance_values,
+                unloaded_values=unloaded_values,
+                contactor_values=contactor_values,
+                precharge_values=precharge_values,
+                exclude_invalid=resolved_data_quality.mode == "exclude_invalid_rows",
+                row_offset=chunk_row_offset,
+            )
             timestamps = rule_inputs.timestamps
 
             if report_series_collector is not None:
@@ -237,6 +268,7 @@ def _analyze_battery_chunks(
         event_detection=resolved_event_detection,
         data_quality=resolved_data_quality,
         signal_mapping=signal_mapping,
+        failure_models=failure_collector.finish(),
         rules_evaluated=rules_evaluated,
         data_quality_events=data_quality_events,
         violations=violations,
@@ -260,7 +292,9 @@ def analyze_measurement_loader(
     event_detection: EventDetectionConfig | None = None,
     data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
+    failure_models: FailureModelConfig | None = None,
 ) -> AnalysisResult:
+    loader = failure_model_loader(loader, failure_models)
     return _analyze_battery_chunks(
         loader.iter_chunks(signal_mapping=signal_mapping),
         imbalance_limit_v,
@@ -269,6 +303,7 @@ def analyze_measurement_loader(
         event_detection=event_detection,
         data_quality=data_quality,
         signal_mapping=signal_mapping,
+        failure_models=failure_models,
     )
 
 
@@ -281,9 +316,11 @@ def analyze_measurement_loader_with_report_series(
     event_detection: EventDetectionConfig | None = None,
     data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
+    failure_models: FailureModelConfig | None = None,
     max_points: int = DEFAULT_REPORT_SERIES_MAX_POINTS,
 ) -> tuple[AnalysisResult, ReportSeries]:
     collector = ReportSeriesCollector(max_points=max_points)
+    loader = failure_model_loader(loader, failure_models)
     result = _analyze_battery_chunks(
         loader.iter_chunks(signal_mapping=signal_mapping),
         imbalance_limit_v,
@@ -292,6 +329,7 @@ def analyze_measurement_loader_with_report_series(
         event_detection=event_detection,
         data_quality=data_quality,
         signal_mapping=signal_mapping,
+        failure_models=failure_models,
         report_series_collector=collector,
     )
     return result, collector.finish()
@@ -306,6 +344,7 @@ def analyze_battery_log_streaming(
     event_detection: EventDetectionConfig | None = None,
     data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
+    failure_models: FailureModelConfig | None = None,
 ) -> AnalysisResult:
     return analyze_measurement_loader(
         measurement_loader_for_path(path),
@@ -315,6 +354,7 @@ def analyze_battery_log_streaming(
         event_detection=event_detection,
         data_quality=data_quality,
         signal_mapping=signal_mapping,
+        failure_models=failure_models,
     )
 
 
@@ -328,6 +368,7 @@ def analyze_battery_file_streaming(
     event_detection: EventDetectionConfig | None = None,
     data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
+    failure_models: FailureModelConfig | None = None,
 ) -> AnalysisResult:
     return analyze_measurement_loader(
         measurement_loader_for_file(handle, source_name=source_name),
@@ -337,6 +378,7 @@ def analyze_battery_file_streaming(
         event_detection=event_detection,
         data_quality=data_quality,
         signal_mapping=signal_mapping,
+        failure_models=failure_models,
     )
 
 
@@ -350,6 +392,7 @@ def analyze_battery_file_with_report_series(
     event_detection: EventDetectionConfig | None = None,
     data_quality: DataQualityConfig | None = None,
     signal_mapping: SignalMapping | None = None,
+    failure_models: FailureModelConfig | None = None,
     max_points: int = DEFAULT_REPORT_SERIES_MAX_POINTS,
 ) -> tuple[AnalysisResult, ReportSeries]:
     return analyze_measurement_loader_with_report_series(
@@ -360,5 +403,6 @@ def analyze_battery_file_with_report_series(
         event_detection=event_detection,
         data_quality=data_quality,
         signal_mapping=signal_mapping,
+        failure_models=failure_models,
         max_points=max_points,
     )

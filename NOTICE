@@ -2,3 +2,8 @@ BatteryLog
 Copyright 2026 Berk Ozfiliz
 
 Project source: https://github.com/CANWECAN/BatteryLog
+
+The source-specific Model 3 signal profiles retain the MIT notice for
+Josh Wardell's model3dbc definitions in
+batterylog_research/third_party_model3dbc_NOTICE.txt.
+Original third-party DBC files and raw capture datasets are not bundled.

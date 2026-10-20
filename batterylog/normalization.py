@@ -6,10 +6,18 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Literal, TypedDict
 
+import pandas as pd
+
 from .analysis.input_validation import (
+    balance_values_for_frame,
     canonicalize_analysis_frame,
     coerce_required_numeric,
+    contactor_values_for_frame,
+    parse_binary_status,
+    precharge_values_for_frame,
+    raise_first_strict_input_error,
     raise_invalid_numeric_value,
+    unloaded_values_for_frame,
 )
 from .config import ValidationConfig
 from .loaders.csv import DEFAULT_CSV_CHUNK_ROWS, iter_battery_csv_file
@@ -21,7 +29,7 @@ from .reporting.evidence import (
     sha256_file,
     verify_file_unchanged,
 )
-from .signals import resolve_signal_mapping
+from .signals import find_canonical_signal_columns, resolve_signal_mapping
 from .units import SourceUnits, unit_transform
 
 
@@ -85,6 +93,29 @@ def normalize_measurement(
                 signal_mapping=config.signals,
                 chunk_ram_bytes=DEFAULT_MDF_CHUNK_RAM_BYTES,
                 source_units=units,
+                balance_active_source=(
+                    config.failure_models.balancing.active_source
+                    if config.failure_models and config.failure_models.balancing
+                    else None
+                ),
+                status_sources=(
+                    (config.failure_models.precharge_current.active_source,)
+                    if config.failure_models and config.failure_models.precharge_current
+                    else ()
+                )
+                + (
+                    (
+                        config.failure_models.contactor_response.command_source,
+                        config.failure_models.contactor_response.feedback_source,
+                    )
+                    if config.failure_models and config.failure_models.contactor_response
+                    else ()
+                ),
+                unloaded_source=(
+                    config.failure_models.unloaded_current.unloaded_source
+                    if config.failure_models and config.failure_models.unloaded_current
+                    else None
+                ),
             )
             if is_mdf_path(source)
             else iter_battery_csv_file(snapshot.handle, chunk_rows=DEFAULT_CSV_CHUNK_ROWS)
@@ -94,9 +125,74 @@ def normalize_measurement(
         previous_source_time: float | None = None
         conversions: list[UnitConversion] = []
         selected_columns: list[str] | None = None
+        status_presence: dict[str, bool] = {}
         try:
             with csv_path.open("w", encoding="utf-8", newline="") as output:
                 for frame in chunks:
+                    status_values: dict[str, pd.Series] = {}
+                    status_labels: dict[str, str] = {}
+                    status_by_label: dict[str, pd.Series | None] = {}
+                    contactor_values = contactor_values_for_frame(
+                        frame, config.signals, config.failure_models
+                    )
+                    contactor = (
+                        config.failure_models.contactor_response if config.failure_models else None
+                    )
+                    for label, values, state_source in (
+                        (
+                            "Precharge",
+                            precharge_values_for_frame(
+                                frame, config.signals, config.failure_models
+                            ),
+                            config.failure_models.precharge_current.active_source
+                            if config.failure_models and config.failure_models.precharge_current
+                            else None,
+                        ),
+                        (
+                            "Balancing",
+                            balance_values_for_frame(frame, config.signals, config.failure_models),
+                            config.failure_models.balancing.active_source
+                            if config.failure_models and config.failure_models.balancing
+                            else None,
+                        ),
+                        (
+                            "Unloaded",
+                            unloaded_values_for_frame(frame, config.signals, config.failure_models),
+                            config.failure_models.unloaded_current.unloaded_source
+                            if config.failure_models and config.failure_models.unloaded_current
+                            else None,
+                        ),
+                        (
+                            "Contactor command",
+                            contactor_values[0],
+                            contactor.command_source if contactor else None,
+                        ),
+                        (
+                            "Contactor feedback",
+                            contactor_values[1],
+                            contactor.feedback_source if contactor else None,
+                        ),
+                    ):
+                        present = values is not None
+                        if label in status_presence and status_presence[label] != present:
+                            raise ValueError(
+                                f"{label} signal presence changed during normalization"
+                            )
+                        status_presence[label] = present
+                        status_by_label[label] = values
+                        if values is not None and state_source is not None:
+                            cells, temperatures = find_canonical_signal_columns([state_source])
+                            if (
+                                cells
+                                or temperatures
+                                or state_source
+                                in {"timestamp_s", "pack_current_a", "pack_voltage_v"}
+                            ):
+                                raise ValueError(
+                                    f"{label} source {state_source!r} conflicts with a canonical measurement name; rename the state source before normalization"
+                                )
+                            status_values[state_source] = values
+                            status_labels[state_source] = label
                     canonical, layout = canonicalize_analysis_frame(
                         frame, config.signals, config.limits
                     )
@@ -140,23 +236,39 @@ def normalize_measurement(
                                     "offset": offset,
                                 }
                             )
+                        for state_source in status_values:
+                            conversions.append(
+                                {
+                                    "source": state_source,
+                                    "canonical": state_source,
+                                    "source_unit": "1",
+                                    "target_unit": "1",
+                                    "divisor": 1.0,
+                                    "offset": 0.0,
+                                }
+                            )
                     elif layout.numeric_cols != selected_columns:
                         raise ValueError("Selected channel layout changed between chunks")
                     selected = canonical.loc[:, selected_columns]
                     numeric = coerce_required_numeric(selected)
-                    raise_invalid_numeric_value(selected, numeric, row_offset=rows)
+                    raise_first_strict_input_error(
+                        selected,
+                        numeric,
+                        status_by_label["Balancing"],
+                        unloaded_values=status_by_label["Unloaded"],
+                        precharge_values=status_by_label["Precharge"],
+                        contactor_values=contactor_values,
+                        row_offset=rows,
+                        previous_timestamp=previous_source_time,
+                    )
                     if numeric.empty:
                         continue
                     source_times = numeric["timestamp_s"].to_numpy(dtype=float)
-                    if (source_times[1:] < source_times[:-1]).any() or (
-                        previous_source_time is not None and source_times[0] < previous_source_time
-                    ):
-                        raise ValueError(
-                            "Source timestamps must be non-decreasing during normalization"
-                        )
                     previous_source_time = float(source_times[-1])
                     for conversion in conversions:
                         name = conversion["canonical"]
+                        if name in status_values:
+                            continue
                         original = numeric[name].to_numpy(dtype=float)
                         scaled = original / conversion["divisor"]
                         if ((original != 0) & (scaled == 0)).any():
@@ -172,6 +284,16 @@ def normalize_measurement(
                                 "Timestamps must be non-decreasing during normalization"
                             )
                         previous_time = float(times[-1])
+                    for state_source, values in status_values.items():
+                        statuses = []
+                        for position, value in enumerate(values.to_numpy(dtype=object)):
+                            active = parse_binary_status(value)
+                            if active is None:
+                                raise ValueError(
+                                    f"{status_labels[state_source]} status must be 0/1 or boolean at data row {rows + position + 1}"
+                                )
+                            statuses.append(int(active))
+                        numeric[state_source] = statuses
                     numeric.to_csv(output, index=False, header=rows == 0, lineterminator="\n")
                     rows += len(numeric)
         finally:

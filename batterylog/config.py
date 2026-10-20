@@ -6,6 +6,7 @@ from typing import Any
 
 import yaml
 
+from batterylog.failure_config import FailureModelConfig, parse_failure_models
 from batterylog.models import CurrentDirection, DataQualityMode
 
 
@@ -191,6 +192,7 @@ class ValidationConfig:
     event_detection: EventDetectionConfig = field(default_factory=EventDetectionConfig)
     signals: SignalMapping | None = None
     data_quality: DataQualityConfig = field(default_factory=DataQualityConfig, kw_only=True)
+    failure_models: FailureModelConfig | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         if not isinstance(self.limits, ValidationLimits):
@@ -201,6 +203,24 @@ class ValidationConfig:
             raise TypeError("data_quality must be a DataQualityConfig instance")
         if self.signals is not None and not isinstance(self.signals, SignalMapping):
             raise TypeError("signals must be a SignalMapping instance or null")
+        if self.failure_models is not None and not isinstance(
+            self.failure_models, FailureModelConfig
+        ):
+            raise TypeError("failure_models must be a FailureModelConfig instance or null")
+        validate_failure_current_direction(self.limits, self.failure_models)
+
+
+def validate_failure_current_direction(
+    limits: ValidationLimits,
+    models: FailureModelConfig | None,
+) -> None:
+    if (
+        models is not None
+        and models.cell_sag is not None
+        and limits.pack_current_positive_direction is not None
+        and models.cell_sag.positive_direction != limits.pack_current_positive_direction
+    ):
+        raise ValueError("cell_sag and pack-current limits must use the same positive_direction")
 
 
 def _require_mapping(name: str, value: Any) -> dict[str, Any]:
@@ -262,12 +282,14 @@ def _load_config_root_bytes(
     schema_version = root.get("schema_version", 1)
     if isinstance(schema_version, bool) or not isinstance(schema_version, int):
         raise TypeError("schema_version must be an integer")
-    if schema_version not in {1, 2, 3, 4, 5, 6}:
+    if schema_version not in {1, 2, 3, 4, 5, 6, 7}:
         raise ValueError(f"Unsupported schema_version: {schema_version!r}")
 
     allowed = {"schema_version", "limits", "event_detection", "signals"}
     if schema_version >= 2:
         allowed.add("data_quality")
+    if schema_version >= 7:
+        allowed.add("failure_models")
     _reject_unknown_keys("top-level", root, allowed)
 
     return root, schema_version
@@ -454,6 +476,7 @@ def load_validation_config_bytes(
         event_detection=_parse_event_detection(root),
         data_quality=_parse_data_quality(root, schema_version=schema_version),
         signals=_parse_signals(root, schema_version=schema_version),
+        failure_models=parse_failure_models(root.get("failure_models")),
     )
 
 

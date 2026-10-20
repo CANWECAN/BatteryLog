@@ -8,14 +8,185 @@ import pytest
 
 from batterylog import (
     AnalysisService,
+    BalancingConfig,
+    ContactorResponseConfig,
     DataQualityConfig,
+    FailureModelConfig,
+    PrechargeCurrentConfig,
+    SignalMapping,
+    SignalPattern,
     SourceUnits,
+    UnloadedCurrentConfig,
     ValidationConfig,
     ValidationLimits,
     normalize_measurement,
 )
 from batterylog import normalization as module
 from batterylog.__main__ import run
+
+STATE_MODELS = FailureModelConfig(
+    1,
+    balancing=BalancingConfig("Bal", 2, 0.1, 0.2, 3),
+    unloaded_current=UnloadedCurrentConfig("Unload", 0.5, 2),
+    contactor_response=ContactorResponseConfig("Cmd", "Feedback", 2),
+    precharge_current=PrechargeCurrentConfig("Phase", 2, 4, 3),
+)
+STATE_ROLES = (
+    ("Bal", "Balancing"),
+    ("Unload", "Unloaded"),
+    ("Cmd", "Contactor command"),
+    ("Feedback", "Contactor feedback"),
+    ("Phase", "Precharge"),
+)
+
+
+def _state_frame():
+    return pd.DataFrame(
+        {
+            "timestamp_s": [0.0, 1.0, 2.0, 3.0],
+            "cell_1_v": [3.5] * 4,
+            "cell_2_v": [3.25] * 4,
+            "temp_c": [25.0] * 4,
+            "pack_current_a": [0.0, 6.0, 5.0, 4.0],
+            "Bal": [0, 1, 1, 1],
+            "Unload": [0, 1, 1, 1],
+            "Cmd": [0, 1, 1, 1],
+            "Feedback": [0, 0, 0, 0],
+            "Phase": [0, 1, 1, 1],
+        }
+    )
+
+
+@pytest.mark.parametrize("chunk_rows", [1, 2, 100])
+@pytest.mark.parametrize("source,label", STATE_ROLES)
+@pytest.mark.parametrize("later", ["numeric", "other_state"])
+def test_normalization_reports_first_invalid_state_across_roles_and_chunks(
+    tmp_path, monkeypatch, chunk_rows, source, label, later
+):
+    monkeypatch.setattr(module, "DEFAULT_CSV_CHUNK_ROWS", chunk_rows)
+    frame = _state_frame()
+    frame.loc[1, source] = 2
+    if later == "numeric":
+        frame.loc[2, "temp_c"] = np.nan
+    else:
+        other = "Bal" if source != "Bal" else "Phase"
+        frame.loc[2, other] = 2
+    path = tmp_path / "source.csv"
+    frame.to_csv(path, index=False)
+    with pytest.raises(ValueError, match=f"^{label} status.*data row 2$"):
+        normalize_measurement(
+            path,
+            tmp_path / "out",
+            units=SourceUnits("s", "V", "degC", "A"),
+            config=ValidationConfig(failure_models=STATE_MODELS),
+        )
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["source.csv"]
+
+
+@pytest.mark.parametrize("chunk_rows", [1, 2, 100])
+@pytest.mark.parametrize("earlier", ["numeric", "timestamp", "same_row"])
+def test_normalization_strict_error_priority_matches_analysis(
+    tmp_path, monkeypatch, chunk_rows, earlier
+):
+    monkeypatch.setattr(module, "DEFAULT_CSV_CHUNK_ROWS", chunk_rows)
+    frame = _state_frame()
+    frame.loc[2, "Phase"] = 2
+    if earlier == "numeric":
+        frame.loc[1, "temp_c"] = np.nan
+        expected = "numeric.*data row 2"
+    elif earlier == "timestamp":
+        frame.loc[1, "timestamp_s"] = -1
+        frame.loc[3, "temp_c"] = np.nan
+        expected = "non-decreasing"
+    else:
+        for name, _ in STATE_ROLES:
+            frame.loc[1, name] = 2
+        expected = "^Balancing status.*data row 2$"
+    path = tmp_path / "source.csv"
+    frame.to_csv(path, index=False)
+    with pytest.raises(ValueError, match=expected):
+        normalize_measurement(
+            path,
+            tmp_path / "out",
+            units=SourceUnits("s", "V", "degC", "A"),
+            config=ValidationConfig(failure_models=STATE_MODELS),
+        )
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["source.csv"]
+
+
+@pytest.mark.parametrize("chunk_rows", [1, 100])
+@pytest.mark.parametrize("role", ["balancing", "unloaded", "command", "feedback", "precharge"])
+@pytest.mark.parametrize("reserved", ["temp_c", "cell_99_v", "pack_current_a", "pack_voltage_v"])
+def test_normalization_rejects_state_names_that_become_canonical_measurements(
+    tmp_path, monkeypatch, chunk_rows, role, reserved
+):
+    monkeypatch.setattr(module, "DEFAULT_CSV_CHUNK_ROWS", chunk_rows)
+    models = {
+        "balancing": FailureModelConfig(1, balancing=BalancingConfig(reserved, 2, 0.1, 0.2, 3)),
+        "unloaded": FailureModelConfig(1, unloaded_current=UnloadedCurrentConfig(reserved, 0.5, 2)),
+        "command": FailureModelConfig(
+            1, contactor_response=ContactorResponseConfig(reserved, "Feedback", 2)
+        ),
+        "feedback": FailureModelConfig(
+            1, contactor_response=ContactorResponseConfig("Cmd", reserved, 2)
+        ),
+        "precharge": FailureModelConfig(
+            1, precharge_current=PrechargeCurrentConfig(reserved, 2, 4, 3)
+        ),
+    }[role]
+    frame = (
+        _state_frame()
+        .rename(
+            columns={"timestamp_s": "clock", "cell_1_v": "U1", "cell_2_v": "U2", "temp_c": "T1"}
+        )
+        .drop(columns="pack_current_a")
+    )
+    frame[reserved] = [0, 1, 1, 1]
+    mapping = SignalMapping(
+        "clock", SignalPattern(r"U(?P<index>\d+)"), SignalPattern(r"T(?P<index>\d+)")
+    )
+    config = ValidationConfig(signals=mapping, failure_models=models)
+    path = tmp_path / "source.csv"
+    frame.to_csv(path, index=False)
+    # Explicit selection makes the original source valid; canonical CSV would
+    # reinterpret this state as a sensor. Reject publication, retain the source.
+    assert AnalysisService(config).analyze_path(path).result["rows_analyzed"] == 4
+    with pytest.raises(ValueError, match="canonical measurement"):
+        normalize_measurement(
+            path, tmp_path / "out", units=SourceUnits("s", "V", "degC"), config=config
+        )
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["source.csv"]
+
+
+def test_unused_canonical_sensor_names_do_not_restrict_explicit_mapping(tmp_path):
+    frame = _state_frame().rename(
+        columns={
+            "timestamp_s": "clock",
+            "cell_1_v": "U1",
+            "cell_2_v": "U2",
+            "temp_c": "T1",
+            "pack_current_a": "I",
+        }
+    )
+    frame["temp_c"] = 0  # Unselected vendor columns are omitted, not state sources.
+    frame["temp_2_c"] = 0
+    mapping = SignalMapping(
+        "clock", SignalPattern(r"U(?P<index>\d+)"), SignalPattern(r"T(?P<index>\d+)"), "I"
+    )
+    path = tmp_path / "source.csv"
+    frame.to_csv(path, index=False)
+    config = ValidationConfig(signals=mapping, failure_models=STATE_MODELS)
+    expected = AnalysisService(config).analyze_path(path).result
+    output = tmp_path / "out"
+    normalize_measurement(path, output, units=SourceUnits("s", "V", "degC", "A"), config=config)
+    actual = (
+        AnalysisService(ValidationConfig(failure_models=STATE_MODELS))
+        .analyze_path(output / "normalized.csv")
+        .result
+    )
+    assert actual["failure_models"] == expected["failure_models"]
+    assert actual["rows_analyzed"] == expected["rows_analyzed"]
+
 
 UNITS = SourceUnits("ms", "mV", "K", "mA", "mV")
 HEADER = "timestamp_s,cell_1_v,cell_2_v,temp_c,pack_current_a,pack_voltage_v,ignored\n"
@@ -145,7 +316,7 @@ def test_source_regression_cannot_be_hidden_by_scaling_rounding(tmp_path, monkey
         )
 
     monkeypatch.setattr(module, "iter_battery_csv_file", chunks)
-    with pytest.raises(ValueError, match="Source timestamps"):
+    with pytest.raises(ValueError, match="non-decreasing"):
         normalize_measurement(source, tmp_path / "out", units=SourceUnits("ms", "mV", "K"))
 
 

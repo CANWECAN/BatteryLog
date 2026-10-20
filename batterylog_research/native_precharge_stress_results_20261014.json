@@ -1,0 +1,108 @@
+{
+  "campaign_wall_s": 76.61402339999995,
+  "numpy": "2.3.5",
+  "oracle_scope": "independent manual scanner and constant reference bands",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "profiles": [
+    {
+      "covered_reference_intervals": 1,
+      "curve_reviews": null,
+      "observed_activations": 1,
+      "outside_envelope_samples": 142857,
+      "peak_process_rss_mib": null,
+      "profile": "million_full",
+      "rejection": null,
+      "review_wall_s": 9.142294499999934,
+      "reviewed_samples": 999999,
+      "rows": 1000000,
+      "serialized_result_bytes": 1355,
+      "source_unchanged": true
+    },
+    {
+      "covered_reference_intervals": 1,
+      "curve_reviews": null,
+      "observed_activations": 1,
+      "outside_envelope_samples": 714285,
+      "peak_process_rss_mib": null,
+      "profile": "five_million_full",
+      "rejection": null,
+      "review_wall_s": 46.566291099999944,
+      "reviewed_samples": 4999999,
+      "rows": 5000000,
+      "serialized_result_bytes": 1363,
+      "source_unchanged": true
+    },
+    {
+      "covered_reference_intervals": 1000,
+      "curve_reviews": null,
+      "observed_activations": 1000,
+      "outside_envelope_samples": 142000,
+      "peak_process_rss_mib": null,
+      "profile": "million_1000_spans",
+      "rejection": null,
+      "review_wall_s": 9.355989399999999,
+      "reviewed_samples": 1000000,
+      "rows": 1001000,
+      "serialized_result_bytes": 1010257,
+      "source_unchanged": true
+    },
+    {
+      "covered_reference_intervals": null,
+      "curve_reviews": 0,
+      "observed_activations": null,
+      "outside_envelope_samples": null,
+      "peak_process_rss_mib": null,
+      "profile": "million_over_bound",
+      "rejection": "Capture has 500000 active spans; max_spans is 1000",
+      "review_wall_s": 0.3361877999996068,
+      "reviewed_samples": null,
+      "rows": 1000000,
+      "serialized_result_bytes": 84,
+      "source_unchanged": true
+    },
+    {
+      "covered_reference_intervals": 20000,
+      "curve_reviews": null,
+      "observed_activations": 20000,
+      "outside_envelope_samples": 8571,
+      "peak_process_rss_mib": null,
+      "profile": "twenty_thousand_spans",
+      "rejection": null,
+      "review_wall_s": 1.7032427999997708,
+      "reviewed_samples": 60000,
+      "rows": 100000,
+      "serialized_result_bytes": 16742695,
+      "source_unchanged": true
+    }
+  ],
+  "python": "3.13.14",
+  "random": {
+    "cases": 5000,
+    "outside_samples": 48405,
+    "repeat_checks": 50,
+    "reviewed_samples": 75402,
+    "rows": 1022061,
+    "slice_checks": 396,
+    "spans": 39018
+  },
+  "rss_scope": "whole isolated worker including imports, inputs, review, hashing and JSON",
+  "scales": {
+    "cases": 343,
+    "exponents": [
+      -300,
+      -150,
+      -10,
+      0,
+      10,
+      150,
+      300
+    ]
+  },
+  "scope": "synthetic_software_stress_not_physical_fault_validation",
+  "seed": 20261014,
+  "source_sha256": {
+    "precharge_capture_review.py": "39263f726538b9424c6f9cea5acca9b6453224428aafcc14896fa1c7b55847c9",
+    "precharge_curve_review.py": "ec22c51ac1a10f7b5c9220d9800bdd4f9f2383e1ae6bd1907b2a425dad7e1d2a",
+    "precharge_stress.py": "5d1a5840156d0e69122939fdf305c13f77dfb6671b28fec9adad869202e4d07f"
+  }
+}

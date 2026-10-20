@@ -1,0 +1,185 @@
+{
+  "aligned_rows_created": false,
+  "csv_source": {
+    "bytes": 5348227,
+    "commit": "9cbfc24528d9dfb2923c532f987ce1f3c278908f",
+    "git_blob": "3b66c4239cc4537f8ac68c4a5c2a0f63378684c6",
+    "path": "BMW i3/2017-60AH-REX-PT-CAN2-startcharge.csv",
+    "repository": "dalathegreat/EV-CANlogs",
+    "sha256": "d6bd56a3f0f60d7cfffa708a18b287c5802cc42fd5261e01b58d40e7c5c68ebf"
+  },
+  "current_positive_direction": null,
+  "curve_review_eligible": false,
+  "dbc_source": {
+    "bytes": 64000,
+    "commit": "9cbfc24528d9dfb2923c532f987ce1f3c278908f",
+    "path": "BMW i3/BMW-i3-PT-CAN2.dbc",
+    "sha256": "667a43048f80fc6eb71a212bd90494379347a073d632056705374974eef73626"
+  },
+  "definitions": {
+    "Battery_Current": {
+      "candidate_lsb": "0.1",
+      "choices": {},
+      "comment": "-819.2 ... 819 A\n(PH) = 0.1 * (HEX) - 819.2 [A]",
+      "declared_max": "819.2",
+      "declared_min": "0",
+      "frame_id": 274,
+      "offset": "-819.2",
+      "scale": "0.1",
+      "start_bit": 0,
+      "unit": "Amps",
+      "width_bits": 16
+    },
+    "Battery_Volts": {
+      "candidate_lsb": "0.1",
+      "choices": {},
+      "comment": null,
+      "declared_max": "819",
+      "declared_min": "0",
+      "frame_id": 274,
+      "offset": "0",
+      "scale": "0.1",
+      "start_bit": 16,
+      "unit": "Volts",
+      "width_bits": 16
+    },
+    "DC_link": {
+      "candidate_lsb": "4",
+      "choices": {},
+      "comment": "actual-value_voltage_Link",
+      "declared_max": "820",
+      "declared_min": "0",
+      "frame_id": 274,
+      "offset": "0",
+      "scale": "4",
+      "start_bit": 56,
+      "unit": "Volts",
+      "width_bits": 8
+    },
+    "ST_DCSW_HVSTO": {
+      "candidate_lsb": "1",
+      "choices": {
+        "0": "Circuit breaker open OPN",
+        "1": "Circuit breaker on pre-charge PRECHRG",
+        "2": "circuit breaker closed CLS",
+        "3": "Signal invalid SNA"
+      },
+      "comment": "status_disconnecting-switch_high-voltage-storage",
+      "declared_max": "3",
+      "declared_min": "0",
+      "frame_id": 506,
+      "offset": "0",
+      "scale": "1",
+      "start_bit": 12,
+      "unit": "status",
+      "width_bits": 2
+    }
+  },
+  "execution": {
+    "full_core_suite_manually_rerun": false,
+    "host": "Kali r0t",
+    "probe_sha256": "0a36a043ecb396699323e088b78914319333208814bf55532a242311b62935c3",
+    "ruff_check": true,
+    "ruff_format_check": true,
+    "source_parent": "9ecfb27fb49336d30475285f7be8c08ffac578f9"
+  },
+  "first_negative_current_examples": [
+    {
+      "candidate_a": "-13.0",
+      "line": 2192,
+      "raw": 8062
+    },
+    {
+      "candidate_a": "-12.3",
+      "line": 2205,
+      "raw": 8069
+    },
+    {
+      "candidate_a": "-8.8",
+      "line": 2227,
+      "raw": 8104
+    },
+    {
+      "candidate_a": "-5.7",
+      "line": 2243,
+      "raw": 8135
+    },
+    {
+      "candidate_a": "-3.7",
+      "line": 2259,
+      "raw": 8155
+    }
+  ],
+  "independent_value_comparisons": 24450,
+  "malformed_ids_not_repaired": 2304,
+  "measurement_nodes_authenticated": false,
+  "negative_current_samples": 419,
+  "observations": {
+    "Battery_Current": {
+      "all_ones_count": 19,
+      "count": 8120,
+      "outside_declared_range_count": 438,
+      "raw_max": 65535,
+      "raw_min": 8062
+    },
+    "Battery_Volts": {
+      "all_ones_count": 51,
+      "count": 8120,
+      "outside_declared_range_count": 51,
+      "raw_max": 65535,
+      "raw_min": 3892
+    },
+    "DC_link": {
+      "all_ones_count": 20,
+      "count": 8120,
+      "outside_declared_range_count": 20,
+      "raw_max": 255,
+      "raw_min": 0
+    },
+    "ST_DCSW_HVSTO": {
+      "all_ones_count": 0,
+      "count": 90,
+      "outside_declared_range_count": 0,
+      "raw_max": 2,
+      "raw_min": 0
+    }
+  },
+  "phase_latency_authenticated": false,
+  "raw_analog_validity_authenticated": false,
+  "raw_tick_delta_histograms": {
+    "0x112": {
+      "10": 7705,
+      "11": 207,
+      "42949683": 1,
+      "7": 1,
+      "9": 205
+    },
+    "0x1fa": {
+      "1000": 59,
+      "1001": 9,
+      "1002": 1,
+      "149": 1,
+      "220": 1,
+      "289": 1,
+      "368": 1,
+      "388": 1,
+      "42950673": 1,
+      "51": 2,
+      "511": 1,
+      "580": 1,
+      "632": 1,
+      "712": 1,
+      "81": 1,
+      "998": 1,
+      "999": 6
+    }
+  },
+  "scope": "Candidate encoding and metadata contradictions; physical acceptance blocked",
+  "selected_frames": 8210,
+  "state_code_counts": {
+    "0": 5,
+    "1": 2,
+    "2": 83
+  },
+  "tick_unit": null
+}

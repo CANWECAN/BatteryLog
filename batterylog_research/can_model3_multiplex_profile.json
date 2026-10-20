@@ -1,0 +1,12 @@
+{
+  "bus": "can0",
+  "dbc_sha256": "d54df533fc82f3dab11ddd0f5ae4d846f22c0a24b111d8cba2b93e79caf60151",
+  "frame_id": 1025,
+  "extended": false,
+  "selector": "MultiplexSelector",
+  "required_groups": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
+  "ignored_groups": [32, 33, 34, 35],
+  "max_frame_gap_s": 5,
+  "max_sweep_span_s": 1,
+  "freshness_budgets_s": [1, 5, 10, 30, 60]
+}

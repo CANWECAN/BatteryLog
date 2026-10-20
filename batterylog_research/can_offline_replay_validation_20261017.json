@@ -1,0 +1,741 @@
+{
+  "base_commit": "83e37c34edc5b3e5e961da0fa55a14ae6560cdab",
+  "baseline_selected_coverage": {
+    "branch_enabled": true,
+    "files": {
+      "batterylog_research\\can_capture_review.py": {
+        "missing_branches": [
+          [
+            52,
+            53
+          ],
+          [
+            88,
+            89
+          ],
+          [
+            112,
+            113
+          ],
+          [
+            188,
+            199
+          ],
+          [
+            220,
+            225
+          ],
+          [
+            245,
+            246
+          ],
+          [
+            318,
+            319
+          ],
+          [
+            344,
+            345
+          ]
+        ],
+        "missing_lines": [
+          53,
+          89,
+          113,
+          225,
+          246,
+          319,
+          331,
+          332,
+          333,
+          334,
+          335,
+          336,
+          337,
+          338,
+          341,
+          345
+        ],
+        "summary": {
+          "covered_branches": 74,
+          "covered_lines": 187,
+          "excluded_lines": 0,
+          "missing_branches": 8,
+          "missing_lines": 16,
+          "num_branches": 82,
+          "num_partial_branches": 8,
+          "num_statements": 203,
+          "percent_branches_covered": 90.2439024390244,
+          "percent_branches_covered_display": "90",
+          "percent_covered": 91.57894736842105,
+          "percent_covered_display": "92",
+          "percent_statements_covered": 92.11822660098522,
+          "percent_statements_covered_display": "92"
+        }
+      },
+      "batterylog_research\\can_multiplex_audit.py": {
+        "missing_branches": [
+          [
+            40,
+            41
+          ],
+          [
+            42,
+            43
+          ],
+          [
+            66,
+            67
+          ],
+          [
+            68,
+            71
+          ],
+          [
+            73,
+            74
+          ],
+          [
+            75,
+            76
+          ],
+          [
+            78,
+            79
+          ],
+          [
+            81,
+            82
+          ],
+          [
+            100,
+            101
+          ],
+          [
+            172,
+            173
+          ],
+          [
+            292,
+            293
+          ],
+          [
+            296,
+            297
+          ],
+          [
+            301,
+            302
+          ],
+          [
+            328,
+            329
+          ]
+        ],
+        "missing_lines": [
+          32,
+          33,
+          41,
+          43,
+          67,
+          71,
+          74,
+          76,
+          79,
+          82,
+          101,
+          173,
+          293,
+          297,
+          302,
+          314,
+          315,
+          316,
+          317,
+          318,
+          319,
+          320,
+          321,
+          329
+        ],
+        "summary": {
+          "covered_branches": 70,
+          "covered_lines": 162,
+          "excluded_lines": 0,
+          "missing_branches": 14,
+          "missing_lines": 24,
+          "num_branches": 84,
+          "num_partial_branches": 14,
+          "num_statements": 186,
+          "percent_branches_covered": 83.33333333333333,
+          "percent_branches_covered_display": "83",
+          "percent_covered": 85.92592592592592,
+          "percent_covered_display": "86",
+          "percent_statements_covered": 87.09677419354838,
+          "percent_statements_covered_display": "87"
+        }
+      },
+      "batterylog_research\\can_prepare.py": {
+        "missing_branches": [
+          [
+            69,
+            70
+          ],
+          [
+            142,
+            143
+          ],
+          [
+            144,
+            147
+          ],
+          [
+            151,
+            152
+          ],
+          [
+            153,
+            154
+          ],
+          [
+            158,
+            159
+          ],
+          [
+            162,
+            163
+          ],
+          [
+            163,
+            164
+          ],
+          [
+            163,
+            177
+          ],
+          [
+            166,
+            171
+          ],
+          [
+            173,
+            174
+          ],
+          [
+            175,
+            176
+          ],
+          [
+            177,
+            178
+          ],
+          [
+            186,
+            187
+          ],
+          [
+            192,
+            195
+          ],
+          [
+            197,
+            198
+          ],
+          [
+            199,
+            200
+          ],
+          [
+            202,
+            203
+          ],
+          [
+            204,
+            205
+          ],
+          [
+            301,
+            306
+          ],
+          [
+            362,
+            363
+          ],
+          [
+            396,
+            397
+          ],
+          [
+            413,
+            414
+          ],
+          [
+            436,
+            437
+          ]
+        ],
+        "missing_lines": [
+          70,
+          143,
+          147,
+          152,
+          154,
+          159,
+          163,
+          164,
+          171,
+          174,
+          176,
+          178,
+          187,
+          195,
+          198,
+          200,
+          203,
+          205,
+          306,
+          363,
+          397,
+          414,
+          426,
+          427,
+          428,
+          429,
+          430,
+          431,
+          432,
+          433,
+          437
+        ],
+        "summary": {
+          "covered_branches": 110,
+          "covered_lines": 261,
+          "excluded_lines": 0,
+          "missing_branches": 24,
+          "missing_lines": 31,
+          "num_branches": 134,
+          "num_partial_branches": 22,
+          "num_statements": 292,
+          "percent_branches_covered": 82.08955223880596,
+          "percent_branches_covered_display": "82",
+          "percent_covered": 87.08920187793427,
+          "percent_covered_display": "87",
+          "percent_statements_covered": 89.38356164383562,
+          "percent_statements_covered_display": "89"
+        }
+      },
+      "batterylog_research\\precharge_capture_review.py": {
+        "missing_branches": [],
+        "missing_lines": [],
+        "summary": {
+          "covered_branches": 8,
+          "covered_lines": 25,
+          "excluded_lines": 0,
+          "missing_branches": 0,
+          "missing_lines": 0,
+          "num_branches": 8,
+          "num_partial_branches": 0,
+          "num_statements": 25,
+          "percent_branches_covered": 100.0,
+          "percent_branches_covered_display": "100",
+          "percent_covered": 100.0,
+          "percent_covered_display": "100",
+          "percent_statements_covered": 100.0,
+          "percent_statements_covered_display": "100"
+        }
+      },
+      "batterylog_research\\precharge_curve_review.py": {
+        "missing_branches": [
+          [
+            99,
+            104
+          ],
+          [
+            218,
+            219
+          ],
+          [
+            245,
+            246
+          ],
+          [
+            409,
+            410
+          ]
+        ],
+        "missing_lines": [
+          104,
+          219,
+          246,
+          410
+        ],
+        "summary": {
+          "covered_branches": 72,
+          "covered_lines": 209,
+          "excluded_lines": 0,
+          "missing_branches": 4,
+          "missing_lines": 4,
+          "num_branches": 76,
+          "num_partial_branches": 4,
+          "num_statements": 213,
+          "percent_branches_covered": 94.73684210526316,
+          "percent_branches_covered_display": "95",
+          "percent_covered": 97.2318339100346,
+          "percent_covered_display": "97",
+          "percent_statements_covered": 98.12206572769954,
+          "percent_statements_covered_display": "98"
+        }
+      },
+      "batterylog_research\\precharge_file_review.py": {
+        "missing_branches": [
+          [
+            248,
+            249
+          ]
+        ],
+        "missing_lines": [
+          85,
+          236,
+          237,
+          238,
+          239,
+          240,
+          241,
+          242,
+          243,
+          244,
+          245,
+          249
+        ],
+        "summary": {
+          "covered_branches": 43,
+          "covered_lines": 128,
+          "excluded_lines": 0,
+          "missing_branches": 1,
+          "missing_lines": 12,
+          "num_branches": 44,
+          "num_partial_branches": 1,
+          "num_statements": 140,
+          "percent_branches_covered": 97.72727272727273,
+          "percent_branches_covered_display": "98",
+          "percent_covered": 92.93478260869566,
+          "percent_covered_display": "93",
+          "percent_statements_covered": 91.42857142857143,
+          "percent_statements_covered_display": "91"
+        }
+      }
+    },
+    "test_cases": 421,
+    "totals": {
+      "covered_branches": 377,
+      "covered_lines": 972,
+      "excluded_lines": 0,
+      "missing_branches": 51,
+      "missing_lines": 87,
+      "num_branches": 428,
+      "num_partial_branches": 49,
+      "num_statements": 1059,
+      "percent_branches_covered": 88.08411214953271,
+      "percent_branches_covered_display": "88",
+      "percent_covered": 90.71956960322798,
+      "percent_covered_display": "91",
+      "percent_statements_covered": 91.78470254957507,
+      "percent_statements_covered_display": "92"
+    }
+  },
+  "cli_cases": [
+    {
+      "case": "cli-full",
+      "returncode": 0,
+      "stdout": "{\"status\": \"complete\", \"written_frames\": 2}\n"
+    },
+    {
+      "case": "cli-stopped",
+      "returncode": 1,
+      "stdout": "{\"status\": \"stopped\", \"written_frames\": 1}\n"
+    },
+    {
+      "case": "cli-failed",
+      "returncode": 2,
+      "stdout": ""
+    },
+    {
+      "case": "cli-full",
+      "returncode": 2,
+      "stdout": ""
+    },
+    {
+      "case": "cli-invalid-capacity",
+      "returncode": 2,
+      "stdout": ""
+    },
+    {
+      "case": "cli-missing",
+      "returncode": 2,
+      "stdout": ""
+    }
+  ],
+  "core_ci_dependency_packaging_license_diff_empty": true,
+  "date_utc": "2026-10-17",
+  "evidence_directory": "batterylog-can-offline-replay-20261017-evidence",
+  "existing_six_observer_modules_unchanged": true,
+  "final_selected_coverage": {
+    "cli_cases": 6,
+    "files": {
+      "batterylog_research\\can_capture_review.py": {
+        "covered_branches": 74,
+        "covered_lines": 187,
+        "excluded_lines": 0,
+        "missing_branches": 8,
+        "missing_lines": 16,
+        "num_branches": 82,
+        "num_partial_branches": 8,
+        "num_statements": 203,
+        "percent_branches_covered": 90.2439024390244,
+        "percent_branches_covered_display": "90",
+        "percent_covered": 91.57894736842105,
+        "percent_covered_display": "92",
+        "percent_statements_covered": 92.11822660098522,
+        "percent_statements_covered_display": "92"
+      },
+      "batterylog_research\\can_multiplex_audit.py": {
+        "covered_branches": 70,
+        "covered_lines": 162,
+        "excluded_lines": 0,
+        "missing_branches": 14,
+        "missing_lines": 24,
+        "num_branches": 84,
+        "num_partial_branches": 14,
+        "num_statements": 186,
+        "percent_branches_covered": 83.33333333333333,
+        "percent_branches_covered_display": "83",
+        "percent_covered": 85.92592592592592,
+        "percent_covered_display": "86",
+        "percent_statements_covered": 87.09677419354838,
+        "percent_statements_covered_display": "87"
+      },
+      "batterylog_research\\can_prepare.py": {
+        "covered_branches": 110,
+        "covered_lines": 261,
+        "excluded_lines": 0,
+        "missing_branches": 24,
+        "missing_lines": 31,
+        "num_branches": 134,
+        "num_partial_branches": 22,
+        "num_statements": 292,
+        "percent_branches_covered": 82.08955223880596,
+        "percent_branches_covered_display": "82",
+        "percent_covered": 87.08920187793427,
+        "percent_covered_display": "87",
+        "percent_statements_covered": 89.38356164383562,
+        "percent_statements_covered_display": "89"
+      },
+      "batterylog_research\\can_replay.py": {
+        "covered_branches": 69,
+        "covered_lines": 216,
+        "excluded_lines": 0,
+        "missing_branches": 1,
+        "missing_lines": 2,
+        "num_branches": 70,
+        "num_partial_branches": 1,
+        "num_statements": 218,
+        "percent_branches_covered": 98.57142857142857,
+        "percent_branches_covered_display": "99",
+        "percent_covered": 98.95833333333333,
+        "percent_covered_display": "99",
+        "percent_statements_covered": 99.08256880733946,
+        "percent_statements_covered_display": "99"
+      },
+      "batterylog_research\\precharge_capture_review.py": {
+        "covered_branches": 8,
+        "covered_lines": 25,
+        "excluded_lines": 0,
+        "missing_branches": 0,
+        "missing_lines": 0,
+        "num_branches": 8,
+        "num_partial_branches": 0,
+        "num_statements": 25,
+        "percent_branches_covered": 100.0,
+        "percent_branches_covered_display": "100",
+        "percent_covered": 100.0,
+        "percent_covered_display": "100",
+        "percent_statements_covered": 100.0,
+        "percent_statements_covered_display": "100"
+      },
+      "batterylog_research\\precharge_curve_review.py": {
+        "covered_branches": 73,
+        "covered_lines": 210,
+        "excluded_lines": 0,
+        "missing_branches": 3,
+        "missing_lines": 3,
+        "num_branches": 76,
+        "num_partial_branches": 3,
+        "num_statements": 213,
+        "percent_branches_covered": 96.05263157894737,
+        "percent_branches_covered_display": "96",
+        "percent_covered": 97.92387543252595,
+        "percent_covered_display": "98",
+        "percent_statements_covered": 98.59154929577464,
+        "percent_statements_covered_display": "99"
+      },
+      "batterylog_research\\precharge_file_review.py": {
+        "covered_branches": 43,
+        "covered_lines": 128,
+        "excluded_lines": 0,
+        "missing_branches": 1,
+        "missing_lines": 12,
+        "num_branches": 44,
+        "num_partial_branches": 1,
+        "num_statements": 140,
+        "percent_branches_covered": 97.72727272727273,
+        "percent_branches_covered_display": "98",
+        "percent_covered": 92.93478260869566,
+        "percent_covered_display": "93",
+        "percent_statements_covered": 91.42857142857143,
+        "percent_statements_covered_display": "91"
+      }
+    },
+    "scope": "seven_selected_operational_modules_with_branches_and_explicit_cli_coverage",
+    "totals": {
+      "covered_branches": 447,
+      "covered_lines": 1189,
+      "excluded_lines": 0,
+      "missing_branches": 51,
+      "missing_lines": 88,
+      "num_branches": 498,
+      "num_partial_branches": 49,
+      "num_statements": 1277,
+      "percent_branches_covered": 89.75903614457832,
+      "percent_branches_covered_display": "90",
+      "percent_covered": 92.16901408450704,
+      "percent_covered_display": "92",
+      "percent_statements_covered": 93.10884886452624,
+      "percent_statements_covered_display": "93"
+    }
+  },
+  "final_targeted_cases": 482,
+  "hardware_validated": false,
+  "hosted_ci": "Exact saved-head closure is recorded separately in the draft PR",
+  "independent": {
+    "batch_cases": 600,
+    "batch_dropped_frames": 43013,
+    "batch_mismatches": 0,
+    "batch_offered_frames": 96224,
+    "real_field_mismatches": 0,
+    "real_runs": [
+      {
+        "capacity": 1,
+        "frames": 118053,
+        "journal_bytes": 22582719,
+        "journal_sha256": "19008b96d9f536c7befef94a6fcab7de59d0b60d1db3d3e2e4178ca03cc83ab9",
+        "seconds_including_comparison": 2.412
+      },
+      {
+        "capacity": 1024,
+        "frames": 118053,
+        "journal_bytes": 22582719,
+        "journal_sha256": "19008b96d9f536c7befef94a6fcab7de59d0b60d1db3d3e2e4178ca03cc83ab9",
+        "seconds_including_comparison": 1.93
+      }
+    ],
+    "real_source_frames_per_run": 118053,
+    "scope": "software_lifecycle_only",
+    "stress": {
+      "frames": 500000,
+      "journal_bytes": 98506552,
+      "journal_sha256": "58aedaec7ca4bed2aebeea1d41dcfcb95c022ecbdb33243ebcc1e92f254bca75",
+      "peak_pending": 32,
+      "peak_process_rss_mib": 35.95,
+      "scope": "authored_software_unpaced_stress_not_bus_rate",
+      "seconds": 4.913,
+      "source_bytes": 24500000,
+      "source_sha256": "ee430b9721fc154aba13856ebff70189e31caee7ad676745769b09547f1edd28"
+    }
+  },
+  "logs_and_campaigns_sha256": {
+    "actual-cli-results.json": "fad44ffa2c617946227170b0342c612f2a1ac666b8816ffa1aeef08c3b10e0bb",
+    "batch-campaign-results.json": "ea0a8210760219e3a49ba48f4e2137782823e0ab0fa9bcab88e6e62b4afa1329",
+    "final_research_coverage.py": "82c00614d33da0370f6b6ee8ccb9943cd20db20bb31ac5ab763de978661b6305",
+    "full-native.log": "f81e526c36beecf588ff0de03bb09c1d1340338ae31c9fa2bf90b69519265bd0",
+    "independent_replay_campaign.py": "6d96cff3054d4555ad20e259185aae0e475567a0b8d0afa2630d579c0d5b7acb",
+    "quality-checks.json": "88874e3c834d82b780c9566b5511e7ebeb7045842726b0334c638b4cdc58dca6",
+    "real-model3-replay.json": "46e7221f058eed7961075cf541f5aaff31bbd5c9d6f4496733b4655ee748ca24",
+    "replay-stress.json": "5d86cc888ec36f08090e5fe0bed4440c0e970ff2b4815479febf5ebf937a8b18",
+    "research-six-module-baseline.json": "87c737d0193ecafd64bafb838b449f748200d19adf02fa21e52bab81ec48af5a",
+    "research-six-module-baseline.log": "b7ee4052ee1c9df79c74d199203fb60faad4d52b5c93681e4d7d5e47b56e32b5",
+    "selected-final-coverage.json": "9ec08cd82eabb7fe7a71ccd30822540bde4ac8c215fa2696697225f45ee47620",
+    "selected-final-pytest.log": "f89f4f3b40a79a231df660d745975c7cc85bd55a3cf8b8938910b7d9c991ffdb"
+  },
+  "native_full_suite": {
+    "capture_mode": "sys",
+    "core_coverage_percent": 96.67,
+    "passed": 3000,
+    "required_real_desktop": true,
+    "seconds": 168.76,
+    "single_process": true,
+    "skipped": 2,
+    "warnings": 9
+  },
+  "new_decimal_clock_rejection_cases": 8,
+  "new_replay_cases": 53,
+  "original_physical_steps": {
+    "7": "open",
+    "8": "open",
+    "9": "deferred_no_adapter"
+  },
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.13.14",
+  "quality_checks": [
+    {
+      "arguments": [
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "All checks passed!\n"
+    },
+    {
+      "arguments": [
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "236 files already formatted\n"
+    },
+    {
+      "arguments": [
+        "-m",
+        "mypy",
+        "--follow-imports=silent",
+        "--ignore-missing-imports",
+        "batterylog"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Success: no issues found in 48 source files\n"
+    },
+    {
+      "arguments": [
+        "-m",
+        "pip",
+        "check"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "No broken requirements found.\n"
+    }
+  ],
+  "scope": "hardware_free_roadmap_H1_H3_software_only",
+  "source_sha256": {
+    "batterylog_research/can_replay.py": "76d9a7b6f6b771144918e28c554a22784bc76499a67bac14ad868c0414000d6b",
+    "tests/test_research_can_replay.py": "1d0bbab22b460d107ba79adb93e56d409b1ea054eb6a0b28b1731f661c4d3856",
+    "tests/test_research_precharge_csv_clock.py": "b9bf154767503a948df239772574c04eb48eea0d9f179f898bc58bb5fd663ca5"
+  }
+}

@@ -1,0 +1,257 @@
+{
+  "scope": "private_research_alpha_preparation_not_external_release",
+  "measured_source_revision": "851953af26093d23d4a5e2e351cc1dde4d153143",
+  "targeted_h4": {
+    "passed": 155,
+    "seconds": 2.09,
+    "new_fault_cases": 27,
+    "can_prepare_coverage": {
+      "covered_lines": 277,
+      "num_statements": 292,
+      "percent_covered": 94.83568075117371,
+      "percent_covered_display": "95",
+      "missing_lines": 15,
+      "excluded_lines": 0,
+      "percent_statements_covered": 94.86301369863014,
+      "percent_statements_covered_display": "95",
+      "num_branches": 134,
+      "num_partial_branches": 7,
+      "covered_branches": 127,
+      "missing_branches": 7,
+      "percent_branches_covered": 94.77611940298507,
+      "percent_branches_covered_display": "95"
+    }
+  },
+  "initial_native_full": {
+    "passed": 3042,
+    "failed": 1,
+    "skipped": 2,
+    "warnings": 9,
+    "seconds": 203.68,
+    "core_coverage_percent": 96.67,
+    "failure": "test_active_workflow_matches_reviewed_template",
+    "resolution": "Synchronized ci-templates/ci.yml to active workflow; nine CI-template checks pass.",
+    "final_full_and_hosted_closure": "PR #19 records final exact-head results."
+  },
+  "distribution_verification": {
+    "source_revision": "851953af26093d23d4a5e2e351cc1dde4d153143",
+    "commands": [
+      {
+        "name": "stage",
+        "exit_code": 0,
+        "seconds": 0.178
+      },
+      {
+        "name": "build-core",
+        "exit_code": 0,
+        "seconds": 10.621
+      },
+      {
+        "name": "core-private-exclusion",
+        "exit_code": 0,
+        "seconds": 0.114
+      },
+      {
+        "name": "build-research",
+        "exit_code": 0,
+        "seconds": 7.429
+      },
+      {
+        "name": "twine",
+        "exit_code": 0,
+        "seconds": 1.174
+      },
+      {
+        "name": "audit",
+        "exit_code": 0,
+        "seconds": 0.138
+      },
+      {
+        "name": "venv-wheel",
+        "exit_code": 0,
+        "seconds": 5.254
+      },
+      {
+        "name": "install-wheel",
+        "exit_code": 0,
+        "seconds": 32.816
+      },
+      {
+        "name": "pip-check-wheel",
+        "exit_code": 0,
+        "seconds": 0.554
+      },
+      {
+        "name": "smoke-wheel",
+        "exit_code": 0,
+        "seconds": 3.802
+      },
+      {
+        "name": "venv-sdist",
+        "exit_code": 0,
+        "seconds": 4.288
+      },
+      {
+        "name": "install-sdist",
+        "exit_code": 0,
+        "seconds": 32.327
+      },
+      {
+        "name": "pip-check-sdist",
+        "exit_code": 0,
+        "seconds": 0.59
+      },
+      {
+        "name": "smoke-sdist",
+        "exit_code": 0,
+        "seconds": 4.037
+      }
+    ],
+    "sibling8_exact_copies": {
+      "batterylog_research/precharge_can_source_audit.py": true,
+      "batterylog_research/precharge_can_source_audit_results_20261014.json": true,
+      "docs/RESEARCH_PRECHARGE_CAN_SOURCE_ELIGIBILITY_2026_10_14.md": true,
+      "tests/test_research_precharge_can_source_audit.py": true
+    },
+    "artifacts": [
+      {
+        "artifact": "batterylog_research-0.1.0a1-py3-none-any.whl",
+        "bytes": 39472,
+        "sha256": "65456d4a1768f8dc1f49137f51d917dc0926610720b7a5257519ef079a0cba7c",
+        "members": 19,
+        "source_revision": "851953af26093d23d4a5e2e351cc1dde4d153143"
+      },
+      {
+        "artifact": "batterylog_research-0.1.0a1.tar.gz",
+        "bytes": 32733,
+        "sha256": "27511b4dc9acc08f3528accdcec9edd2d140a079b6840f3c543292cc476a8b48",
+        "members": 25,
+        "source_revision": "851953af26093d23d4a5e2e351cc1dde4d153143"
+      }
+    ],
+    "core_artifacts": [
+      {
+        "artifact": "batterylog-0.11.0.dev0-py3-none-any.whl",
+        "bytes": 138837,
+        "sha256": "14011c20697a0e63c6bc5556564053c2e188d26ac2d01ea436d08aa303ccf077"
+      },
+      {
+        "artifact": "batterylog-0.11.0.dev0.tar.gz",
+        "bytes": 520045,
+        "sha256": "3c72a3a3c2afac6a157c47cca2fb9c80038d1edacc569f21f8a16ec0824bb2cb"
+      }
+    ],
+    "installed_wheel": {
+      "installed": "<checkout>-evidence\\install-wheel\\Lib\\site-packages",
+      "source_revision": "851953af26093d23d4a5e2e351cc1dde4d153143",
+      "console_smokes": 3
+    },
+    "installed_sdist": {
+      "installed": "<checkout>-evidence\\install-sdist\\Lib\\site-packages",
+      "source_revision": "851953af26093d23d4a5e2e351cc1dde4d153143",
+      "console_smokes": 3
+    },
+    "status": "passed"
+  },
+  "license_provenance": {
+    "batterylog_research/__init__.py": {
+      "sha256": "70fe4cbd9480d3cf0377e6ff27e7ab25cde4307b83163f06ade4cfccf8e712b9",
+      "absent_from_public_baselines": {
+        "ad051793a9d3b72af8a5647234ea968bd4387b18": true,
+        "310e4294ca7b57bf7d517bb6e5f8b68d7533120a": true
+      },
+      "private_introduction": [
+        "d8a3d0f6254f809f041163bcd5bead97f805ac93"
+      ]
+    },
+    "batterylog_research/can_prepare.py": {
+      "sha256": "4b1a3418c0e9b15447ea780945383bb779e95ab1388a8af6cf94a43d7f1e8812",
+      "absent_from_public_baselines": {
+        "ad051793a9d3b72af8a5647234ea968bd4387b18": true,
+        "310e4294ca7b57bf7d517bb6e5f8b68d7533120a": true
+      },
+      "private_introduction": [
+        "a1215fa7bb72561985bbfc0fbd1bc6bacbe85151"
+      ]
+    },
+    "batterylog_research/can_replay.py": {
+      "sha256": "76d9a7b6f6b771144918e28c554a22784bc76499a67bac14ad868c0414000d6b",
+      "absent_from_public_baselines": {
+        "ad051793a9d3b72af8a5647234ea968bd4387b18": true,
+        "310e4294ca7b57bf7d517bb6e5f8b68d7533120a": true
+      },
+      "private_introduction": [
+        "a7d77d01f474f20bb2600a17e79bad7208bc47ff"
+      ]
+    },
+    "batterylog_research/can_capture_review.py": {
+      "sha256": "57e5299c4097303d7aade84f35b41c7c4a4c7fcb0903e67b643ef57da8d04f3f",
+      "absent_from_public_baselines": {
+        "ad051793a9d3b72af8a5647234ea968bd4387b18": true,
+        "310e4294ca7b57bf7d517bb6e5f8b68d7533120a": true
+      },
+      "private_introduction": [
+        "f97e74ac481dad9fd059937df3ed27888538a594"
+      ]
+    },
+    "batterylog_research/can_multiplex_audit.py": {
+      "sha256": "a0305244974be6f66cf34f6f3d44c7018975f41c6c2ff3dd37187c83dcbe6c16",
+      "absent_from_public_baselines": {
+        "ad051793a9d3b72af8a5647234ea968bd4387b18": true,
+        "310e4294ca7b57bf7d517bb6e5f8b68d7533120a": true
+      },
+      "private_introduction": [
+        "b8b4e59d101d520fb4296c19198020c15f3d7eac"
+      ]
+    },
+    "batterylog_research/precharge_curve_review.py": {
+      "sha256": "2c5b8c2fc61dad9d52122500a012028d8945c62f117f765bdbc59b6ec1a5a4c2",
+      "absent_from_public_baselines": {
+        "ad051793a9d3b72af8a5647234ea968bd4387b18": true,
+        "310e4294ca7b57bf7d517bb6e5f8b68d7533120a": true
+      },
+      "private_introduction": [
+        "6c2bce5eda663ca22b10ee472686cb9bcecb7a35"
+      ]
+    },
+    "batterylog_research/precharge_capture_review.py": {
+      "sha256": "130f004342f64d264721d1f5ed0870dfe02ea8ea9e6962df48e13c7bb4a67755",
+      "absent_from_public_baselines": {
+        "ad051793a9d3b72af8a5647234ea968bd4387b18": true,
+        "310e4294ca7b57bf7d517bb6e5f8b68d7533120a": true
+      },
+      "private_introduction": [
+        "abbe91cf69255962e70d3681e81be7d8bc8193f1"
+      ]
+    },
+    "batterylog_research/precharge_file_review.py": {
+      "sha256": "a73a304f9c0870b4f50031cdce12f2fc7c31327254909859ebc7506ad533b145",
+      "absent_from_public_baselines": {
+        "ad051793a9d3b72af8a5647234ea968bd4387b18": true,
+        "310e4294ca7b57bf7d517bb6e5f8b68d7533120a": true
+      },
+      "private_introduction": [
+        "7c40d64666937e96f4a43333a6063275b6fd83dc"
+      ]
+    }
+  },
+  "archive_fault_campaign": {
+    "extra_private_file": {
+      "rejected": true,
+      "last_error": "ValueError: Unexpected/missing archive members: {'batterylog_research/accidental_raw_data.json'}"
+    },
+    "apache_relabel": {
+      "rejected": true,
+      "last_error": "ValueError: Research license expression is missing or changed"
+    },
+    "dirty_provenance": {
+      "rejected": true,
+      "last_error": "ValueError: Dirty-source build is not a release candidate"
+    }
+  },
+  "merge_performed": false,
+  "external_release_performed": false,
+  "physical_precharge_7_8": "open",
+  "adapter_9": "deferred",
+  "public_metadata_redaction": "Local checkout paths and personal host names were replaced; recorded revisions, measurements and test outcomes are unchanged."
+}

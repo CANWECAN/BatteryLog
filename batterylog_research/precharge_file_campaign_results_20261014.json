@@ -1,0 +1,25 @@
+{
+  "campaign_sha256": "7c9e7c46391714f72de4d30947695502b0357f7610fd4fa2d8e932a97ec668eb",
+  "implementation_sha256": {
+    "precharge_capture_review.py": "39263f726538b9424c6f9cea5acca9b6453224428aafcc14896fa1c7b55847c9",
+    "precharge_curve_review.py": "ec22c51ac1a10f7b5c9220d9800bdd4f9f2383e1ae6bd1907b2a425dad7e1d2a",
+    "precharge_file_review.py": "15c7322a8c58c634ac9ebccca97fe9950735a92312d70de7cec08e457da6952a"
+  },
+  "input_hashes_unchanged": true,
+  "large_profile": {
+    "capture_bytes": 2842377,
+    "outside_envelope_samples": 1,
+    "report_bytes": 4501,
+    "review_seconds": 1.4252219999980298,
+    "reviewed_samples": 100000,
+    "source_rows": 100001
+  },
+  "random_active_spans": 7076,
+  "random_captures": 500,
+  "random_seconds": 10.109976499999902,
+  "random_source_rows": 37665,
+  "random_wrapper_observer_parity": true,
+  "scope": "software_file_boundary_not_physical_battery_accuracy",
+  "seed": 20261014,
+  "whole_process_peak_working_set_bytes": 161501184
+}

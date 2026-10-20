@@ -1,6 +1,13 @@
 include CHANGELOG.md CITATION.cff
+include RESEARCH_LICENSE.md RESEARCH_BOUNDARY.md
+recursive-include batterylog_research *.py *.json *.csv *.md *.txt
 recursive-include examples *.csv *.yaml
 recursive-include docs *.md *.png *.json
 recursive-include tests *.py *.json *.md
 recursive-include scripts *.py
 recursive-include benchmarks *.py
+
+# Internal notes and the retired evaluation template are not distribution inputs.
+exclude docs/BUG_HUNT_*.md
+exclude docs/RESEARCH_ACCESS_TERMS_DRAFT.md
+global-exclude *.dbc *.log *.blf *.mf4 *.mdf *.parquet *.pcap *.pcapng

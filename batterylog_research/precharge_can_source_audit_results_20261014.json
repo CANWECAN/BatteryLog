@@ -1,0 +1,656 @@
+{
+  "scope": "pinned_precharge_can_source_eligibility_audit",
+  "script_sha256": "c64969a9ced48e4098db2431ba81869ee1ec27cfb02b85e662609fd69c17fb03",
+  "input_sha256": {
+    "ex30-battery.csv": "a6d1cd20e186a1c0018fa17b09cb053bc93d9374c52649edc940b8293c4f81d2",
+    "Geely-SEA-platform.dbc": "e0b5c25bbba12a6b9fe7cab2279b7b07bf52e4a621ba00cc1d5d78ab2dc6f79c",
+    "bmw-charge.csv": "d6bd56a3f0f60d7cfffa708a18b287c5802cc42fd5261e01b58d40e7c5c68ebf",
+    "BMW-i3-PT-CAN2.dbc": "667a43048f80fc6eb71a212bd90494379347a073d632056705374974eef73626",
+    "model3.log": "709dd42efa4c43cc97cfc5cd05a488641b22949c9db3697c11c4b0cd588c36b4",
+    "Model3CAN.dbc": "d54df533fc82f3dab11ddd0f5ae4d846f22c0a24b111d8cba2b93e79caf60151"
+  },
+  "runtime": {
+    "cantools": "44.2.1"
+  },
+  "physical_validation": false,
+  "curve_review_executed": false,
+  "sources": [
+    {
+      "vehicle": "model3",
+      "scope": "candidate_dbc_source_inventory_only",
+      "curve_review_eligible": false,
+      "production_decisions_changed": false,
+      "clock_basis": "recorded_candump_decimal",
+      "counts": {
+        "records_input": 118053,
+        "malformed_records": 0,
+        "valid_transport_records": 118053,
+        "selected_frames_decoded": 33467,
+        "independent_values_compared": 69950,
+        "reported_code_transitions": 0,
+        "precharge_label_observations": 0
+      },
+      "frames_by_identifier": {
+        "0x132": 30150,
+        "0x204": 3017,
+        "0x20A": 301,
+        "0x212": 3002,
+        "0x221": 36300,
+        "0x224": 3006,
+        "0x22A": 3016,
+        "0x232": 302,
+        "0x24A": 301,
+        "0x252": 3016,
+        "0x264": 3016,
+        "0x292": 3001,
+        "0x2A4": 302,
+        "0x2B4": 3005,
+        "0x2D2": 3016,
+        "0x2F2": 3003,
+        "0x300": 300,
+        "0x310": 181,
+        "0x312": 302,
+        "0x320": 905,
+        "0x332": 301,
+        "0x352": 301,
+        "0x364": 300,
+        "0x372": 5730,
+        "0x374": 302,
+        "0x392": 600,
+        "0x3AA": 300,
+        "0x3B2": 390,
+        "0x3C4": 362,
+        "0x3D2": 300,
+        "0x3F2": 298,
+        "0x401": 181,
+        "0x452": 299,
+        "0x472": 300,
+        "0x50A": 202,
+        "0x712": 30,
+        "0x72A": 58,
+        "0x752": 302,
+        "0x76A": 1005,
+        "0x772": 903,
+        "0x77A": 602,
+        "0x782": 120,
+        "0x78A": 3015,
+        "0x7AA": 2410
+      },
+      "signals": {
+        "can0/0x132/BattVoltage132": {
+          "role": "measurement",
+          "unit_as_declared": "V",
+          "samples": 30150,
+          "min": 335.8,
+          "max": 337.74,
+          "all_ones_bit_patterns": 0,
+          "choices_as_declared": {},
+          "raw_code_counts": {}
+        },
+        "can0/0x132/SmoothBattCurrent132": {
+          "role": "measurement",
+          "unit_as_declared": "A",
+          "samples": 30150,
+          "min": 3.4000000000000004,
+          "max": 5.4,
+          "all_ones_bit_patterns": 0,
+          "choices_as_declared": {},
+          "raw_code_counts": {}
+        },
+        "can0/0x22A/HVP_pcsControlRequest": {
+          "role": "command",
+          "unit_as_declared": null,
+          "samples": 3016,
+          "min": 0,
+          "max": 0,
+          "all_ones_bit_patterns": 0,
+          "choices_as_declared": {
+            "3": "DISCHARGE",
+            "2": "PRECHARGE",
+            "0": "SHUTDOWN",
+            "1": "SUPPORT"
+          },
+          "raw_code_counts": {
+            "0": 3016
+          }
+        },
+        "can0/0x22A/HVP_dcLinkVoltageRequest": {
+          "role": "setpoint",
+          "unit_as_declared": "V",
+          "samples": 3016,
+          "min": 0.0,
+          "max": 0.0,
+          "all_ones_bit_patterns": 0,
+          "choices_as_declared": {},
+          "raw_code_counts": {}
+        },
+        "can0/0x22A/HVP_dcLinkVoltageFiltered": {
+          "role": "measurement",
+          "unit_as_declared": "V",
+          "samples": 3016,
+          "min": 9,
+          "max": 9,
+          "all_ones_bit_patterns": 0,
+          "choices_as_declared": {
+            "550": "SNA"
+          },
+          "raw_code_counts": {}
+        },
+        "can0/0x20A/HVP_packContNegativeState": {
+          "role": "reported_state",
+          "unit_as_declared": null,
+          "samples": 301,
+          "min": 1,
+          "max": 1,
+          "all_ones_bit_patterns": 0,
+          "choices_as_declared": {
+            "3": "CONTACTOR_STATE_BLOCKED",
+            "6": "CONTACTOR_STATE_ECONOMIZED",
+            "1": "CONTACTOR_STATE_OPEN",
+            "5": "CONTACTOR_STATE_OPENING",
+            "2": "CONTACTOR_STATE_PRECHARGE",
+            "4": "CONTACTOR_STATE_PULLED_IN",
+            "0": "CONTACTOR_STATE_SNA",
+            "7": "CONTACTOR_STATE_WELDED"
+          },
+          "raw_code_counts": {
+            "1": 301
+          }
+        },
+        "can0/0x20A/HVP_packContPositiveState": {
+          "role": "reported_state",
+          "unit_as_declared": null,
+          "samples": 301,
+          "min": 1,
+          "max": 1,
+          "all_ones_bit_patterns": 0,
+          "choices_as_declared": {
+            "3": "CONTACTOR_STATE_BLOCKED",
+            "6": "CONTACTOR_STATE_ECONOMIZED",
+            "1": "CONTACTOR_STATE_OPEN",
+            "5": "CONTACTOR_STATE_OPENING",
+            "2": "CONTACTOR_STATE_PRECHARGE",
+            "4": "CONTACTOR_STATE_PULLED_IN",
+            "0": "CONTACTOR_STATE_SNA",
+            "7": "CONTACTOR_STATE_WELDED"
+          },
+          "raw_code_counts": {
+            "1": 301
+          }
+        }
+      },
+      "malformed_examples": [],
+      "reported_code_transition_examples": [],
+      "precharge_label_examples": [],
+      "neighbours_are_aligned_measurements": false
+    },
+    {
+      "vehicle": "bmw",
+      "scope": "candidate_dbc_source_inventory_only",
+      "curve_review_eligible": false,
+      "production_decisions_changed": false,
+      "clock_basis": "unverified_integer_ticks",
+      "counts": {
+        "records_input": 132941,
+        "malformed_records": 2304,
+        "valid_transport_records": 130637,
+        "selected_frames_decoded": 8210,
+        "independent_values_compared": 24450,
+        "reported_code_transitions": 2,
+        "precharge_label_observations": 2
+      },
+      "frames_by_identifier": {
+        "0x0": 1,
+        "0x100": 8120,
+        "0x105": 8118,
+        "0x108": 812,
+        "0x10B": 4060,
+        "0x10E": 4058,
+        "0x112": 8120,
+        "0x12F": 820,
+        "0x13D": 8120,
+        "0x13E": 629,
+        "0x150": 8106,
+        "0x153": 4060,
+        "0x192": 84,
+        "0x197": 2709,
+        "0x19E": 169,
+        "0x1A1": 4059,
+        "0x1AA": 1621,
+        "0x1D0": 82,
+        "0x1FA": 90,
+        "0x211": 811,
+        "0x239": 521,
+        "0x29B": 814,
+        "0x29C": 814,
+        "0x29D": 814,
+        "0x2B3": 813,
+        "0x2B7": 814,
+        "0x2BD": 812,
+        "0x2BE": 810,
+        "0x2C0": 813,
+        "0x2CA": 84,
+        "0x2EC": 41,
+        "0x2F5": 900,
+        "0x2FF": 812,
+        "0x326": 163,
+        "0x328": 81,
+        "0x32F": 406,
+        "0x330": 11,
+        "0x363": 82,
+        "0x37B": 8,
+        "0x380": 3,
+        "0x397": 81,
+        "0x3A0": 22,
+        "0x3A4": 765,
+        "0x3A7": 81,
+        "0x3C9": 153,
+        "0x3CA": 81,
+        "0x3D0": 82,
+        "0x3EB": 879,
+        "0x3EC": 89,
+        "0x3F9": 87,
+        "0x3FB": 83,
+        "0x3FC": 18,
+        "0x3FD": 812,
+        "0x40D": 877,
+        "0x418": 83,
+        "0x41C": 83,
+        "0x41D": 83,
+        "0x429": 1624,
+        "0x430": 102,
+        "0x431": 424,
+        "0x432": 409,
+        "0x433": 83,
+        "0x507": 5,
+        "0x509": 5,
+        "0x50A": 127,
+        "0x512": 129,
+        "0x515": 5,
+        "0x51A": 127,
+        "0x55E": 5,
+        "0x587": 17,
+        "0x59A": 13,
+        "0x5F8": 96,
+        "0x607": 21,
+        "0x61A": 64,
+        "0x6F0": 27,
+        "0xA5": 8115,
+        "0xA8": 8130,
+        "0xAA": 8115,
+        "0xAD": 8120,
+        "0xBB": 8120,
+        "0xCD": 8130
+      },
+      "signals": {
+        "1/0x112/Battery_Current": {
+          "role": "measurement",
+          "unit_as_declared": "Amps",
+          "samples": 8120,
+          "min": -13.0,
+          "max": 5734.3,
+          "all_ones_bit_patterns": 19,
+          "choices_as_declared": {},
+          "raw_code_counts": {}
+        },
+        "1/0x112/Battery_Volts": {
+          "role": "measurement",
+          "unit_as_declared": "Volts",
+          "samples": 8120,
+          "min": 389.20000000000005,
+          "max": 6553.5,
+          "all_ones_bit_patterns": 51,
+          "choices_as_declared": {},
+          "raw_code_counts": {}
+        },
+        "1/0x112/DC_link": {
+          "role": "measurement",
+          "unit_as_declared": "Volts",
+          "samples": 8120,
+          "min": 0,
+          "max": 1020,
+          "all_ones_bit_patterns": 20,
+          "choices_as_declared": {},
+          "raw_code_counts": {}
+        },
+        "1/0x1FA/ST_DCSW_HVSTO": {
+          "role": "reported_state",
+          "unit_as_declared": "status",
+          "samples": 90,
+          "min": 0,
+          "max": 2,
+          "all_ones_bit_patterns": 0,
+          "choices_as_declared": {
+            "0": "Circuit breaker open OPN",
+            "1": "Circuit breaker on pre-charge PRECHRG",
+            "2": "circuit breaker closed CLS",
+            "3": "Signal invalid SNA"
+          },
+          "raw_code_counts": {
+            "0": 5,
+            "1": 2,
+            "2": 83
+          }
+        }
+      },
+      "malformed_examples": [
+        {
+          "source_line": 49,
+          "reason": "INVALID_CAPTURE_RECORD"
+        },
+        {
+          "source_line": 50,
+          "reason": "INVALID_CAPTURE_RECORD"
+        },
+        {
+          "source_line": 53,
+          "reason": "INVALID_CAPTURE_RECORD"
+        },
+        {
+          "source_line": 54,
+          "reason": "INVALID_CAPTURE_RECORD"
+        },
+        {
+          "source_line": 55,
+          "reason": "INVALID_CAPTURE_RECORD"
+        },
+        {
+          "source_line": 114,
+          "reason": "INVALID_CAPTURE_RECORD"
+        },
+        {
+          "source_line": 118,
+          "reason": "INVALID_CAPTURE_RECORD"
+        },
+        {
+          "source_line": 139,
+          "reason": "INVALID_CAPTURE_RECORD"
+        },
+        {
+          "source_line": 175,
+          "reason": "INVALID_CAPTURE_RECORD"
+        },
+        {
+          "source_line": 228,
+          "reason": "INVALID_CAPTURE_RECORD"
+        }
+      ],
+      "reported_code_transition_examples": [
+        {
+          "previous": {
+            "source_line": 1880,
+            "recorded_clock": 2621457,
+            "frame_id": "0x1FA",
+            "bus": 1,
+            "signal": "ST_DCSW_HVSTO",
+            "raw_code": 0,
+            "label_as_declared": "Circuit breaker open OPN"
+          },
+          "current": {
+            "source_line": 2124,
+            "recorded_clock": 2621606,
+            "frame_id": "0x1FA",
+            "bus": 1,
+            "signal": "ST_DCSW_HVSTO",
+            "raw_code": 1,
+            "label_as_declared": "Circuit breaker on pre-charge PRECHRG",
+            "preceding_measurement_frame": {
+              "source_line": 2111,
+              "recorded_clock": 2621597,
+              "frame_id": "0x112",
+              "bus": 1,
+              "measurements": {
+                "Battery_Current": {
+                  "raw": 8192,
+                  "value_as_declared": 0.0
+                },
+                "Battery_Volts": {
+                  "raw": 3905,
+                  "value_as_declared": 390.5
+                },
+                "DC_link": {
+                  "raw": 0,
+                  "value_as_declared": 0
+                }
+              }
+            },
+            "following_measurement_frame": {
+              "source_line": 2125,
+              "recorded_clock": 2621607,
+              "frame_id": "0x112",
+              "bus": 1,
+              "measurements": {
+                "Battery_Current": {
+                  "raw": 8192,
+                  "value_as_declared": 0.0
+                },
+                "Battery_Volts": {
+                  "raw": 3905,
+                  "value_as_declared": 390.5
+                },
+                "DC_link": {
+                  "raw": 0,
+                  "value_as_declared": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "previous": {
+            "source_line": 2486,
+            "recorded_clock": 2621826,
+            "frame_id": "0x1FA",
+            "bus": 1,
+            "signal": "ST_DCSW_HVSTO",
+            "raw_code": 1,
+            "label_as_declared": "Circuit breaker on pre-charge PRECHRG",
+            "preceding_measurement_frame": {
+              "source_line": 2471,
+              "recorded_clock": 2621817,
+              "frame_id": "0x112",
+              "bus": 1,
+              "measurements": {
+                "Battery_Current": {
+                  "raw": 8191,
+                  "value_as_declared": -0.10000000000002274
+                },
+                "Battery_Volts": {
+                  "raw": 3904,
+                  "value_as_declared": 390.40000000000003
+                },
+                "DC_link": {
+                  "raw": 97,
+                  "value_as_declared": 388
+                }
+              }
+            },
+            "following_measurement_frame": {
+              "source_line": 2488,
+              "recorded_clock": 2621827,
+              "frame_id": "0x112",
+              "bus": 1,
+              "measurements": {
+                "Battery_Current": {
+                  "raw": 8190,
+                  "value_as_declared": -0.20000000000004547
+                },
+                "Battery_Volts": {
+                  "raw": 3904,
+                  "value_as_declared": 390.40000000000003
+                },
+                "DC_link": {
+                  "raw": 97,
+                  "value_as_declared": 388
+                }
+              }
+            }
+          },
+          "current": {
+            "source_line": 2575,
+            "recorded_clock": 2621877,
+            "frame_id": "0x1FA",
+            "bus": 1,
+            "signal": "ST_DCSW_HVSTO",
+            "raw_code": 2,
+            "label_as_declared": "circuit breaker closed CLS"
+          }
+        }
+      ],
+      "precharge_label_examples": [
+        {
+          "source_line": 2124,
+          "recorded_clock": 2621606,
+          "frame_id": "0x1FA",
+          "bus": 1,
+          "signal": "ST_DCSW_HVSTO",
+          "raw_code": 1,
+          "label_as_declared": "Circuit breaker on pre-charge PRECHRG",
+          "preceding_measurement_frame": {
+            "source_line": 2111,
+            "recorded_clock": 2621597,
+            "frame_id": "0x112",
+            "bus": 1,
+            "measurements": {
+              "Battery_Current": {
+                "raw": 8192,
+                "value_as_declared": 0.0
+              },
+              "Battery_Volts": {
+                "raw": 3905,
+                "value_as_declared": 390.5
+              },
+              "DC_link": {
+                "raw": 0,
+                "value_as_declared": 0
+              }
+            }
+          },
+          "following_measurement_frame": {
+            "source_line": 2125,
+            "recorded_clock": 2621607,
+            "frame_id": "0x112",
+            "bus": 1,
+            "measurements": {
+              "Battery_Current": {
+                "raw": 8192,
+                "value_as_declared": 0.0
+              },
+              "Battery_Volts": {
+                "raw": 3905,
+                "value_as_declared": 390.5
+              },
+              "DC_link": {
+                "raw": 0,
+                "value_as_declared": 0
+              }
+            }
+          }
+        },
+        {
+          "source_line": 2486,
+          "recorded_clock": 2621826,
+          "frame_id": "0x1FA",
+          "bus": 1,
+          "signal": "ST_DCSW_HVSTO",
+          "raw_code": 1,
+          "label_as_declared": "Circuit breaker on pre-charge PRECHRG",
+          "preceding_measurement_frame": {
+            "source_line": 2471,
+            "recorded_clock": 2621817,
+            "frame_id": "0x112",
+            "bus": 1,
+            "measurements": {
+              "Battery_Current": {
+                "raw": 8191,
+                "value_as_declared": -0.10000000000002274
+              },
+              "Battery_Volts": {
+                "raw": 3904,
+                "value_as_declared": 390.40000000000003
+              },
+              "DC_link": {
+                "raw": 97,
+                "value_as_declared": 388
+              }
+            }
+          },
+          "following_measurement_frame": {
+            "source_line": 2488,
+            "recorded_clock": 2621827,
+            "frame_id": "0x112",
+            "bus": 1,
+            "measurements": {
+              "Battery_Current": {
+                "raw": 8190,
+                "value_as_declared": -0.20000000000004547
+              },
+              "Battery_Volts": {
+                "raw": 3904,
+                "value_as_declared": 390.40000000000003
+              },
+              "DC_link": {
+                "raw": 97,
+                "value_as_declared": 388
+              }
+            }
+          }
+        }
+      ],
+      "neighbours_are_aligned_measurements": false
+    },
+    {
+      "vehicle": "ex30",
+      "scope": "candidate_dbc_source_inventory_only",
+      "curve_review_eligible": false,
+      "production_decisions_changed": false,
+      "clock_basis": "absent",
+      "counts": {
+        "records_input": 184494,
+        "malformed_records": 0,
+        "valid_transport_records": 184494,
+        "selected_frames_decoded": 0,
+        "independent_values_compared": 0,
+        "reported_code_transitions": 0,
+        "precharge_label_observations": 0
+      },
+      "frames_by_identifier": {
+        "0x140": 30562,
+        "0x141": 25467,
+        "0x142": 16978,
+        "0x143": 25467,
+        "0x145": 5095,
+        "0x175": 5093,
+        "0x178": 7277,
+        "0x17B": 10187,
+        "0x183": 10187,
+        "0x18A": 5093,
+        "0x286": 3639,
+        "0x288": 5092,
+        "0x290": 5093,
+        "0x293": 1273,
+        "0x295": 850,
+        "0x296": 850,
+        "0x298": 850,
+        "0x301": 850,
+        "0x302": 2038,
+        "0x309": 2038,
+        "0x313": 2038,
+        "0x315": 636,
+        "0x331": 511,
+        "0x341": 511,
+        "0x345": 510,
+        "0x346": 511,
+        "0x372": 5096,
+        "0x473": 511,
+        "0x53": 5095,
+        "0x536": 5096
+      },
+      "signals": {},
+      "malformed_examples": [],
+      "reported_code_transition_examples": [],
+      "precharge_label_examples": [],
+      "neighbours_are_aligned_measurements": false
+    }
+  ]
+}

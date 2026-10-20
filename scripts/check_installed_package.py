@@ -1,8 +1,10 @@
 """Smoke-test an installed distribution from outside the source checkout."""
 
+import hashlib
 import json
 import subprocess
 import sys
+import time
 from importlib.metadata import version
 from importlib.resources import files
 from pathlib import Path
@@ -12,17 +14,34 @@ import jsonschema
 
 from batterylog import (
     AnalysisService,
+    ContactorResponseConfig,
+    FailureModelConfig,
+    PrechargeCurrentConfig,
     SourceUnits,
+    SustainedImbalanceConfig,
+    UnloadedCurrentConfig,
     ValidationConfig,
     ValidationLimits,
     inspect_measurement,
+    load_validation_config,
     normalize_measurement,
     validate_result_semantics,
 )
+from batterylog.analysis.core import analyze_battery_bytes
 from batterylog.analysis.report_series import ReportSeriesCollector
+from batterylog.desktop_batch_results import read_batch_rows
+from batterylog.desktop_demo import create_demo
+from batterylog.desktop_job import DesktopBatchJob, DesktopJob
 
 expected_version, sample = sys.argv[1:]
 assert version("batterylog") == expected_version
+gui_help = subprocess.run(
+    [str(Path(sys.executable).with_name("batterylog-gui")), "--help"],
+    check=True,
+    capture_output=True,
+    text=True,
+)
+assert "desktop launcher" in gui_help.stdout
 empty_series = ReportSeriesCollector(max_points=14).finish()
 assert empty_series.source_rows == 0
 assert empty_series.points == ()
@@ -47,7 +66,144 @@ assert legacy_v5["properties"]["schema_version"]["const"] == 5
 assert legacy_v4["properties"]["schema_version"]["const"] == 4
 assert legacy_v3["properties"]["schema_version"]["const"] == 3
 assert legacy_v2["properties"]["schema_version"]["const"] == 2
+failure_schema = json.loads(files("batterylog").joinpath("schema/result-v9.json").read_text())
+model_config_schema = json.loads(
+    files("batterylog").joinpath("schema/failure-config-v1.json").read_text()
+)
+jsonschema.Draft202012Validator.check_schema(failure_schema)
+jsonschema.Draft202012Validator.check_schema(model_config_schema)
+failure_result = analyze_battery_bytes(
+    b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,3.5,3.25,25\n1,3.5,3.25,25\n2,3.5,3.25,25\n",
+    failure_models=FailureModelConfig(1, sustained_imbalance=SustainedImbalanceConfig(0.125, 2)),
+)
+jsonschema.validate(failure_result, failure_schema)
+validate_result_semantics(failure_result)
+assert failure_result["validation_status"] == "FAIL"
+assert failure_result["failure_models"]["evaluations"][0]["events"][0]["duration_s"] == 2
+unloaded_result = analyze_battery_bytes(
+    b"timestamp_s,cell_1_v,cell_2_v,temp_c,pack_current_a,Unload\n"
+    b"0,3.5,3.5,25,-1,1\n1,3.5,3.5,25,1.5,1\n2,3.5,3.5,25,-1,1\n",
+    failure_models=FailureModelConfig(1, unloaded_current=UnloadedCurrentConfig("Unload", 0.5, 2)),
+)
+jsonschema.validate(unloaded_result, failure_schema)
+validate_result_semantics(unloaded_result)
+unloaded_event = unloaded_result["failure_models"]["evaluations"][0]["events"][0]
+assert unloaded_event["code"] == "CURRENT_WHILE_UNLOADED"
+assert unloaded_event["unit"] == "A" and unloaded_event["evidence"]["current_a"] == 1.5
+contactor_result = analyze_battery_bytes(
+    b"timestamp_s,cell_1_v,cell_2_v,temp_c,Cmd,Feedback\n"
+    b"0,3.5,3.5,25,0,0\n1,3.5,3.5,25,1,0\n2,3.5,3.5,25,1,0\n"
+    b"3,3.5,3.5,25,1,0\n4,3.5,3.5,25,1,0\n",
+    failure_models=FailureModelConfig(
+        1, contactor_response=ContactorResponseConfig("Cmd", "Feedback", 2)
+    ),
+)
+jsonschema.validate(contactor_result, failure_schema)
+validate_result_semantics(contactor_result)
+contactor_event = contactor_result["failure_models"]["evaluations"][0]["events"][0]
+assert contactor_event["code"] == "CONTACTOR_FEEDBACK_TIMEOUT"
+assert contactor_event["duration_s"] == 3 and contactor_event["evidence"]["command_time_s"] == 1
+precharge_result = analyze_battery_bytes(
+    b"timestamp_s,cell_1_v,cell_2_v,temp_c,pack_current_a,Pre\n"
+    b"0,3.5,3.5,25,0,0\n1,3.5,3.5,25,-6,1\n2,3.5,3.5,25,-5,1\n"
+    b"3,3.5,3.5,25,-4.5,1\n",
+    failure_models=FailureModelConfig(1, precharge_current=PrechargeCurrentConfig("Pre", 2, 4, 3)),
+)
+jsonschema.validate(precharge_result, failure_schema)
+validate_result_semantics(precharge_result)
+precharge_event = precharge_result["failure_models"]["evaluations"][0]["events"][0]
+assert precharge_event["code"] == "PRECHARGE_CURRENT_DECAY_LOW"
+assert (
+    precharge_event["measured_value"] == 1.5
+    and precharge_event["evidence"]["initial_current_a"] == -6
+)
 with TemporaryDirectory() as directory:
+    model_source = Path(directory) / "failure-model.csv"
+    model_source.write_bytes(
+        b"timestamp_s,cell_1_v,cell_2_v,temp_c\n0,3.5,3.25,25\n1,3.5,3.25,25\n2,3.5,3.25,25\n"
+    )
+    for limit, duration, status in [(0.125, 2, "FAIL"), (1, 2, "PASS"), (1, 3, "NOT_EVALUATED")]:
+        model_config = Path(directory) / "failure-model.yaml"
+        model_config.write_text(
+            "schema_version: 7\nfailure_models:\n  max_gap_s: 1\n"
+            f"  sustained_imbalance:\n    max_delta_v: {limit}\n    duration_s: {duration}\n",
+            encoding="utf-8",
+        )
+        model_expected = (
+            AnalysisService(load_validation_config(model_config)).analyze_path(model_source).result
+        )
+        job = DesktopJob(model_source, Path(directory), model_config)
+        deadline = time.monotonic() + 30
+        outcome = None
+        while outcome is None and time.monotonic() < deadline:
+            outcome = job.poll()
+            time.sleep(0.02)
+        if outcome is None:
+            job.cancel()
+            raise AssertionError("Installed desktop worker did not finish within 30 seconds")
+        assert outcome.status == status
+        assert outcome.report is not None
+        model_payload = json.loads(
+            outcome.report.with_name("result.json").read_text(encoding="utf-8")
+        )
+        assert model_payload == model_expected
+        jsonschema.validate(model_payload, failure_schema)
+        validate_result_semantics(model_payload)
+        model_html = outcome.report.read_text(encoding="utf-8")
+        assert hashlib.sha256(model_source.read_bytes()).hexdigest() in model_html
+        assert hashlib.sha256(model_config.read_bytes()).hexdigest() in model_html
+    batch_input = Path(directory) / "batch-input"
+    (batch_input / "nested").mkdir(parents=True)
+    for relative in ("a.csv", "nested/b.csv"):
+        (batch_input / relative).write_bytes(Path(sample).read_bytes())
+    batch_job = DesktopBatchJob(batch_input, Path(directory), recursive=True)
+    batch_outcome = None
+    deadline = time.monotonic() + 30
+    while batch_outcome is None and time.monotonic() < deadline:
+        batch_outcome = batch_job.poll()
+        time.sleep(0.02)
+    if batch_outcome is None:
+        batch_job.cancel()
+        raise AssertionError("Installed desktop batch worker did not finish within 30 seconds")
+    assert batch_outcome.status == "NOT_EVALUATED"
+    assert batch_outcome.summary_csv is not None and batch_outcome.summary_csv.is_file()
+    assert batch_outcome.summary is not None
+    assert [item["source"] for item in batch_outcome.summary["files"]] == ["a.csv", "nested/b.csv"]
+    batch_rows = read_batch_rows(batch_outcome)
+    assert [row.source for row in batch_rows] == ["a.csv", "nested/b.csv"]
+    assert all(row.report is not None and row.report.is_file() for row in batch_rows)
+    expected_batch_result = AnalysisService().analyze_path(sample).result
+    for item in batch_outcome.summary["files"]:
+        assert item["status"] == "NOT_EVALUATED"
+        result_path = batch_job.directory / item["result_json"]
+        assert json.loads(result_path.read_text(encoding="utf-8")) == expected_batch_result
+
+    demo = create_demo(Path(directory))
+    demo_report = demo / "report.html"
+    demo_run = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "batterylog",
+            str(demo / "synthetic_demo.csv"),
+            "--config",
+            str(demo / "validation.yaml"),
+            "--report",
+            str(demo_report),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert demo_run.returncode == 1
+    demo_result = json.loads(demo_run.stdout)
+    assert demo_result["validation_status"] == "FAIL"
+    assert {v["code"] for v in demo_result["violations"]} == {
+        "CELL_IMBALANCE_HIGH",
+        "TEMPERATURE_HIGH",
+    }
+    assert len(demo_result["violations"]) == 2
+    assert demo_report.is_file()
     normalized = normalize_measurement(
         sample, Path(directory) / "prepared", units=SourceUnits("s", "V", "degC")
     )

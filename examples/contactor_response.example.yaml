@@ -1,0 +1,8 @@
+# Synthetic demonstration only; choose timing for the test procedure and acquisition.
+schema_version: 7
+failure_models:
+  max_gap_s: 1
+  contactor_response:
+    command_source: cmd
+    feedback_source: feedback
+    response_timeout_s: 2

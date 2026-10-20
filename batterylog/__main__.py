@@ -37,7 +37,10 @@ EXIT_RUNTIME_ERROR = 4
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Analyze EV battery test data.")
+    parser = argparse.ArgumentParser(
+        description="Analyze EV battery test data.",
+        epilog="Experimental offline workflows: batterylog experimental --help",
+    )
     parser.add_argument("path", help="Measurement path, or input directory with --batch")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--batch", action="store_true", help="Analyze a directory of measurements")
@@ -294,6 +297,7 @@ def _resolve_cli_config(
         event_detection=event_detection,
         data_quality=base.data_quality,
         signals=base.signals,
+        failure_models=base.failure_models,
     )
 
 
@@ -331,8 +335,13 @@ def _batch_exit_code(summary: BatchSummary) -> int:
 
 
 def run(argv: Sequence[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
     parser = build_parser()
     try:
+        if argv[:1] == ["experimental"]:
+            from .experimental import run as run_experimental
+
+            return run_experimental(argv[1:])
         args = parser.parse_args(argv)
         if args.inspect and (args.report or args.json_out):
             parser.error(

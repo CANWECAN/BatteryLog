@@ -1,0 +1,6 @@
+timestamp_s,precharge_active,current_a,pack_voltage_v,dc_link_voltage_v
+-0.1,0,0,400,0
+0,1,8,400,0
+0.1,1,7,400,40
+0.2,1,6,400,80
+0.3,0,0,400,80

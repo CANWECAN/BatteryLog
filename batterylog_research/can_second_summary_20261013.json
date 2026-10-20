@@ -1,0 +1,828 @@
+{
+  "scope": "second_vehicle_can_compatibility_not_native_battery_analysis",
+  "source_repository": "https://github.com/dalathegreat/EV-CANlogs",
+  "source_commit": "9cbfc24528d9dfb2923c532f987ce1f3c278908f",
+  "source_license": "GPL-3.0; original captures/DBCs are not copied into Research",
+  "sources": {
+    "ex30-battery.csv": {
+      "path": "Geely SEA platform/Volvo EX30/EX30_battery_only.csv",
+      "bytes": 6457305,
+      "sha256": "a6d1cd20e186a1c0018fa17b09cb053bc93d9374c52649edc940b8293c4f81d2",
+      "git_blob": "dba882cf9069c08b4b4a88dfb78f0fd4aa4f1737"
+    },
+    "Geely-SEA-platform.dbc": {
+      "path": "Geely SEA platform/Geely-SEA-platform.dbc",
+      "bytes": 4124,
+      "sha256": "e0b5c25bbba12a6b9fe7cab2279b7b07bf52e4a621ba00cc1d5d78ab2dc6f79c",
+      "git_blob": "eee935e6d2b40619d42e24e5fb57c2edf881ceb9"
+    },
+    "bmw-charge.csv": {
+      "path": "BMW i3/2017-60AH-REX-PT-CAN2-startcharge.csv",
+      "bytes": 5348227,
+      "sha256": "d6bd56a3f0f60d7cfffa708a18b287c5802cc42fd5261e01b58d40e7c5c68ebf",
+      "git_blob": "3b66c4239cc4537f8ac68c4a5c2a0f63378684c6"
+    },
+    "BMW-i3-PT-CAN2.dbc": {
+      "path": "BMW i3/BMW-i3-PT-CAN2.dbc",
+      "bytes": 64000,
+      "sha256": "667a43048f80fc6eb71a212bd90494379347a073d632056705374974eef73626",
+      "git_blob": "ef3336686ea9021c161d31116646ba36f2f14527"
+    }
+  },
+  "limits": [
+    "Different vehicles from the same public collection, not independent collector/OEM validation.",
+    "Decoder and byte agreement verifies candidate DBC arithmetic only, not source/firmware matching.",
+    "Neither recording has a verified complete canonical battery mapping and acquisition timeline."
+  ],
+  "vehicles": {
+    "ex30": {
+      "review": {
+        "scope": "research_can_capture_compatibility_review",
+        "diagnostic_claim": false,
+        "layout": "id_payload",
+        "counts": {
+          "records_input": 184494,
+          "syntactically_valid_frames": 184494,
+          "malformed_records": 0,
+          "unselected_frames": 167516,
+          "selected_frames": 16978,
+          "selected_frame_type_mismatches": 0,
+          "strict_dbc_decode_rejections": 16358,
+          "canmatrix_returned_fields_after_strict_rejection": 16358,
+          "selected_frames_decoded_by_both": 620,
+          "independent_signal_values_compared": 1395
+        },
+        "records_by_identifier": {
+          "0x53": 5095,
+          "0x140": 30562,
+          "0x141": 25467,
+          "0x142": 16978,
+          "0x143": 25467,
+          "0x145": 5095,
+          "0x175": 5093,
+          "0x178": 7277,
+          "0x17B": 10187,
+          "0x183": 10187,
+          "0x18A": 5093,
+          "0x286": 3639,
+          "0x288": 5092,
+          "0x290": 5093,
+          "0x293": 1273,
+          "0x295": 850,
+          "0x296": 850,
+          "0x298": 850,
+          "0x301": 850,
+          "0x302": 2038,
+          "0x309": 2038,
+          "0x313": 2038,
+          "0x315": 636,
+          "0x331": 511,
+          "0x341": 511,
+          "0x345": 510,
+          "0x346": 511,
+          "0x372": 5096,
+          "0x473": 511,
+          "0x536": 5096
+        },
+        "malformed_by_reason": {},
+        "malformed_examples": [],
+        "strict_decode_rejection_examples": [
+          {
+            "source_line": 2,
+            "frame_id": 322,
+            "strict_error": "expected multiplexer id 0, 1, 2 or 3, but got 98",
+            "other_decoder_field_names": [
+              "mux_142"
+            ]
+          },
+          {
+            "source_line": 18,
+            "frame_id": 322,
+            "strict_error": "expected multiplexer id 0, 1, 2 or 3, but got 99",
+            "other_decoder_field_names": [
+              "mux_142"
+            ]
+          },
+          {
+            "source_line": 26,
+            "frame_id": 322,
+            "strict_error": "expected multiplexer id 0, 1, 2 or 3, but got 100",
+            "other_decoder_field_names": [
+              "mux_142"
+            ]
+          },
+          {
+            "source_line": 39,
+            "frame_id": 322,
+            "strict_error": "expected multiplexer id 0, 1, 2 or 3, but got 101",
+            "other_decoder_field_names": [
+              "mux_142"
+            ]
+          },
+          {
+            "source_line": 50,
+            "frame_id": 322,
+            "strict_error": "expected multiplexer id 0, 1, 2 or 3, but got 102",
+            "other_decoder_field_names": [
+              "mux_142"
+            ]
+          },
+          {
+            "source_line": 64,
+            "frame_id": 322,
+            "strict_error": "expected multiplexer id 0, 1, 2 or 3, but got 103",
+            "other_decoder_field_names": [
+              "mux_142"
+            ]
+          },
+          {
+            "source_line": 70,
+            "frame_id": 322,
+            "strict_error": "expected multiplexer id 0, 1, 2 or 3, but got 104",
+            "other_decoder_field_names": [
+              "mux_142"
+            ]
+          },
+          {
+            "source_line": 77,
+            "frame_id": 322,
+            "strict_error": "expected multiplexer id 0, 1, 2 or 3, but got 105",
+            "other_decoder_field_names": [
+              "mux_142"
+            ]
+          },
+          {
+            "source_line": 89,
+            "frame_id": 322,
+            "strict_error": "expected multiplexer id 0, 1, 2 or 3, but got 106",
+            "other_decoder_field_names": [
+              "mux_142"
+            ]
+          },
+          {
+            "source_line": 100,
+            "frame_id": 322,
+            "strict_error": "expected multiplexer id 0, 1, 2 or 3, but got 107",
+            "other_decoder_field_names": [
+              "mux_142"
+            ]
+          }
+        ],
+        "selected_identifiers_not_observed": [],
+        "selectors_observed": {
+          "0x142": {
+            "0": 155,
+            "1": 155,
+            "2": 155,
+            "3": 155,
+            "4": 155,
+            "5": 155,
+            "6": 155,
+            "7": 155,
+            "8": 155,
+            "9": 155,
+            "10": 155,
+            "11": 155,
+            "12": 155,
+            "13": 155,
+            "14": 155,
+            "15": 155,
+            "16": 155,
+            "17": 155,
+            "18": 155,
+            "19": 154,
+            "20": 153,
+            "21": 153,
+            "22": 153,
+            "23": 153,
+            "24": 153,
+            "25": 153,
+            "26": 153,
+            "27": 153,
+            "28": 153,
+            "29": 153,
+            "30": 153,
+            "31": 153,
+            "32": 153,
+            "33": 153,
+            "34": 153,
+            "35": 153,
+            "36": 153,
+            "37": 153,
+            "38": 153,
+            "39": 153,
+            "40": 153,
+            "41": 153,
+            "42": 153,
+            "43": 153,
+            "44": 153,
+            "45": 153,
+            "46": 153,
+            "47": 153,
+            "48": 153,
+            "49": 153,
+            "50": 153,
+            "51": 153,
+            "52": 153,
+            "53": 153,
+            "54": 153,
+            "55": 153,
+            "56": 154,
+            "57": 154,
+            "58": 154,
+            "59": 154,
+            "60": 154,
+            "61": 154,
+            "62": 154,
+            "63": 154,
+            "64": 154,
+            "65": 154,
+            "66": 155,
+            "67": 155,
+            "68": 155,
+            "69": 155,
+            "70": 155,
+            "71": 155,
+            "72": 155,
+            "73": 155,
+            "74": 155,
+            "75": 155,
+            "76": 155,
+            "77": 155,
+            "78": 155,
+            "79": 155,
+            "80": 155,
+            "81": 155,
+            "82": 155,
+            "83": 155,
+            "84": 155,
+            "85": 155,
+            "86": 155,
+            "87": 155,
+            "88": 155,
+            "89": 155,
+            "90": 154,
+            "91": 155,
+            "92": 155,
+            "93": 155,
+            "94": 155,
+            "95": 155,
+            "96": 155,
+            "97": 155,
+            "98": 156,
+            "99": 156,
+            "100": 156,
+            "101": 156,
+            "102": 156,
+            "103": 156,
+            "104": 156,
+            "105": 156,
+            "106": 156,
+            "107": 156,
+            "108": 156,
+            "109": 156
+          }
+        },
+        "decoded_extrema_as_declared": {
+          "0x142.mux_142": {
+            "min": 0,
+            "max": 3,
+            "unit_as_declared": null
+          },
+          "0x142.pack_voltage": {
+            "min": 32897,
+            "max": 32905,
+            "unit_as_declared": "V+1"
+          },
+          "0x142.cell_max_voltage": {
+            "min": 30705,
+            "max": 30713,
+            "unit_as_declared": "mV"
+          },
+          "0x142.cell_min_voltage": {
+            "min": 30289,
+            "max": 30297,
+            "unit_as_declared": "mV"
+          },
+          "0x142.cellvoltage_number": {
+            "min": 1,
+            "max": 1,
+            "unit_as_declared": "number"
+          },
+          "0x142.cellvoltages": {
+            "min": 30289,
+            "max": 30297,
+            "unit_as_declared": "mV"
+          }
+        },
+        "unsigned_all_ones_raw_observations": {},
+        "outside_dbc_declared_range_observations": {
+          "0x142.cell_max_voltage": 155,
+          "0x142.cell_min_voltage": 155,
+          "0x142.cellvoltages": 155
+        },
+        "independent_comparison": {
+          "absolute_tolerance": 1e-12,
+          "relative_tolerance": 0,
+          "maximum_absolute_difference": 0.0
+        },
+        "recorded_clock_tick_range": null,
+        "analysis_preparation_eligible": false,
+        "analysis_blockers": [
+          "No verified canonical cell/temperature mapping or acquisition alignment is declared.",
+          "Source has no timestamps.",
+          "Source has no bus or standard/extended frame-type metadata.",
+          "The selected DBC does not fully decode all selected frames."
+        ],
+        "interpretation_limits": [
+          "A frame or partial decoder result is not a complete battery measurement row.",
+          "All-ones bit patterns and DBC-range observations are review context, not authenticated invalid codes or faults.",
+          "Declared DBC units/ranges may be incomplete or inconsistent; no normalization or clipping is applied.",
+          "Malformed records are retained in accounting; only valid records undergo diagnostic decoding.",
+          "No canonical CSV, invented timestamps, vehicle transmission or battery health result is produced."
+        ],
+        "source_sha256": "a6d1cd20e186a1c0018fa17b09cb053bc93d9374c52649edc940b8293c4f81d2",
+        "dbc_sha256": "e0b5c25bbba12a6b9fe7cab2279b7b07bf52e4a621ba00cc1d5d78ab2dc6f79c"
+      },
+      "independent_byte_reference": {
+        "records_input": 184494,
+        "invalid_identifier_tokens": 0,
+        "selected_counts": {
+          "0x142": 16978
+        },
+        "selectors": {
+          "0": 155,
+          "1": 155,
+          "2": 155,
+          "3": 155,
+          "4": 155,
+          "5": 155,
+          "6": 155,
+          "7": 155,
+          "8": 155,
+          "9": 155,
+          "10": 155,
+          "11": 155,
+          "12": 155,
+          "13": 155,
+          "14": 155,
+          "15": 155,
+          "16": 155,
+          "17": 155,
+          "18": 155,
+          "19": 154,
+          "20": 153,
+          "21": 153,
+          "22": 153,
+          "23": 153,
+          "24": 153,
+          "25": 153,
+          "26": 153,
+          "27": 153,
+          "28": 153,
+          "29": 153,
+          "30": 153,
+          "31": 153,
+          "32": 153,
+          "33": 153,
+          "34": 153,
+          "35": 153,
+          "36": 153,
+          "37": 153,
+          "38": 153,
+          "39": 153,
+          "40": 153,
+          "41": 153,
+          "42": 153,
+          "43": 153,
+          "44": 153,
+          "45": 153,
+          "46": 153,
+          "47": 153,
+          "48": 153,
+          "49": 153,
+          "50": 153,
+          "51": 153,
+          "52": 153,
+          "53": 153,
+          "54": 153,
+          "55": 153,
+          "56": 154,
+          "57": 154,
+          "58": 154,
+          "59": 154,
+          "60": 154,
+          "61": 154,
+          "62": 154,
+          "63": 154,
+          "64": 154,
+          "65": 154,
+          "66": 155,
+          "67": 155,
+          "68": 155,
+          "69": 155,
+          "70": 155,
+          "71": 155,
+          "72": 155,
+          "73": 155,
+          "74": 155,
+          "75": 155,
+          "76": 155,
+          "77": 155,
+          "78": 155,
+          "79": 155,
+          "80": 155,
+          "81": 155,
+          "82": 155,
+          "83": 155,
+          "84": 155,
+          "85": 155,
+          "86": 155,
+          "87": 155,
+          "88": 155,
+          "89": 155,
+          "90": 154,
+          "91": 155,
+          "92": 155,
+          "93": 155,
+          "94": 155,
+          "95": 155,
+          "96": 155,
+          "97": 155,
+          "98": 156,
+          "99": 156,
+          "100": 156,
+          "101": 156,
+          "102": 156,
+          "103": 156,
+          "104": 156,
+          "105": 156,
+          "106": 156,
+          "107": 156,
+          "108": 156,
+          "109": 156
+        },
+        "fully_decoded_frames": 620,
+        "manual_signal_values_compared": 1395,
+        "maximum_absolute_difference": 0.0
+      }
+    },
+    "bmw_i3": {
+      "review": {
+        "scope": "research_can_capture_compatibility_review",
+        "diagnostic_claim": false,
+        "layout": "indexed_csv",
+        "counts": {
+          "records_input": 132941,
+          "syntactically_valid_frames": 130637,
+          "malformed_records": 2304,
+          "unselected_frames": 122427,
+          "selected_frames": 8210,
+          "selected_frame_type_mismatches": 0,
+          "strict_dbc_decode_rejections": 0,
+          "canmatrix_returned_fields_after_strict_rejection": 0,
+          "selected_frames_decoded_by_both": 8210,
+          "independent_signal_values_compared": 74610
+        },
+        "records_by_identifier": {
+          "0x0": 1,
+          "0xA5": 8115,
+          "0xA8": 8130,
+          "0xAA": 8115,
+          "0xAD": 8120,
+          "0xBB": 8120,
+          "0xCD": 8130,
+          "0x100": 8120,
+          "0x105": 8118,
+          "0x108": 812,
+          "0x10B": 4060,
+          "0x10E": 4058,
+          "0x112": 8120,
+          "0x12F": 820,
+          "0x13D": 8120,
+          "0x13E": 629,
+          "0x150": 8106,
+          "0x153": 4060,
+          "0x192": 84,
+          "0x197": 2709,
+          "0x19E": 169,
+          "0x1A1": 4059,
+          "0x1AA": 1621,
+          "0x1D0": 82,
+          "0x1FA": 90,
+          "0x211": 811,
+          "0x239": 521,
+          "0x29B": 814,
+          "0x29C": 814,
+          "0x29D": 814,
+          "0x2B3": 813,
+          "0x2B7": 814,
+          "0x2BD": 812,
+          "0x2BE": 810,
+          "0x2C0": 813,
+          "0x2CA": 84,
+          "0x2EC": 41,
+          "0x2F5": 900,
+          "0x2FF": 812,
+          "0x326": 163,
+          "0x328": 81,
+          "0x32F": 406,
+          "0x330": 11,
+          "0x363": 82,
+          "0x37B": 8,
+          "0x380": 3,
+          "0x397": 81,
+          "0x3A0": 22,
+          "0x3A4": 765,
+          "0x3A7": 81,
+          "0x3C9": 153,
+          "0x3CA": 81,
+          "0x3D0": 82,
+          "0x3EB": 879,
+          "0x3EC": 89,
+          "0x3F9": 87,
+          "0x3FB": 83,
+          "0x3FC": 18,
+          "0x3FD": 812,
+          "0x40D": 877,
+          "0x418": 83,
+          "0x41C": 83,
+          "0x41D": 83,
+          "0x429": 1624,
+          "0x430": 102,
+          "0x431": 424,
+          "0x432": 409,
+          "0x433": 83,
+          "0x507": 5,
+          "0x509": 5,
+          "0x50A": 127,
+          "0x512": 129,
+          "0x515": 5,
+          "0x51A": 127,
+          "0x55E": 5,
+          "0x587": 17,
+          "0x59A": 13,
+          "0x5F8": 96,
+          "0x607": 21,
+          "0x61A": 64,
+          "0x6F0": 27
+        },
+        "malformed_by_reason": {
+          "INVALID_CAPTURE_RECORD": 2304
+        },
+        "malformed_examples": [
+          {
+            "source_line": 49,
+            "reason": "INVALID_CAPTURE_RECORD",
+            "detail": "Invalid hexadecimal CAN identifier: '2.00E+02'"
+          },
+          {
+            "source_line": 50,
+            "reason": "INVALID_CAPTURE_RECORD",
+            "detail": "Invalid hexadecimal CAN identifier: '2.00E+08'"
+          },
+          {
+            "source_line": 53,
+            "reason": "INVALID_CAPTURE_RECORD",
+            "detail": "Invalid hexadecimal CAN identifier: '3.00E+05'"
+          },
+          {
+            "source_line": 54,
+            "reason": "INVALID_CAPTURE_RECORD",
+            "detail": "Invalid hexadecimal CAN identifier: '3.00E+08'"
+          },
+          {
+            "source_line": 55,
+            "reason": "INVALID_CAPTURE_RECORD",
+            "detail": "Invalid hexadecimal CAN identifier: '3.00E+09'"
+          },
+          {
+            "source_line": 114,
+            "reason": "INVALID_CAPTURE_RECORD",
+            "detail": "Invalid hexadecimal CAN identifier: '3.00E+09'"
+          },
+          {
+            "source_line": 118,
+            "reason": "INVALID_CAPTURE_RECORD",
+            "detail": "Invalid hexadecimal CAN identifier: '2.00E+02'"
+          },
+          {
+            "source_line": 139,
+            "reason": "INVALID_CAPTURE_RECORD",
+            "detail": "Invalid hexadecimal CAN identifier: '2.00E+03'"
+          },
+          {
+            "source_line": 175,
+            "reason": "INVALID_CAPTURE_RECORD",
+            "detail": "Invalid hexadecimal CAN identifier: '3.00E+08'"
+          },
+          {
+            "source_line": 228,
+            "reason": "INVALID_CAPTURE_RECORD",
+            "detail": "Invalid hexadecimal CAN identifier: '2.00E+02'"
+          }
+        ],
+        "strict_decode_rejection_examples": [],
+        "selected_identifiers_not_observed": [
+          "0x426"
+        ],
+        "selectors_observed": {},
+        "decoded_extrema_as_declared": {
+          "0x112.Battery_Current": {
+            "min": -13.0,
+            "max": 5734.3,
+            "unit_as_declared": "Amps"
+          },
+          "0x112.Battery_Volts": {
+            "min": 389.20000000000005,
+            "max": 6553.5,
+            "unit_as_declared": "Volts"
+          },
+          "0x112.HVBatt_SOC": {
+            "min": 77.0,
+            "max": 409.5,
+            "unit_as_declared": "%"
+          },
+          "0x112.LDST_HVSTO": {
+            "min": 3,
+            "max": 3,
+            "unit_as_declared": null
+          },
+          "0x112.RQ_OPC_CHG_HVSTO": {
+            "min": 1,
+            "max": 1,
+            "unit_as_declared": null
+          },
+          "0x112.RQ_OPN_DCSW_HVSTO_ILY": {
+            "min": 1,
+            "max": 1,
+            "unit_as_declared": null
+          },
+          "0x112.RQ_OPN_DCSW_HVSTO_FAST": {
+            "min": 1,
+            "max": 1,
+            "unit_as_declared": "status"
+          },
+          "0x112.CHGCOND_HVSTO_DELTA": {
+            "min": 0.0,
+            "max": 0.1251,
+            "unit_as_declared": "%"
+          },
+          "0x112.DC_link": {
+            "min": 0,
+            "max": 1020,
+            "unit_as_declared": "Volts"
+          },
+          "0x1FA.ST_ERR_ISL_EXTN_BN_HV": {
+            "min": 0,
+            "max": 1,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.ST_ERR_ISL_INTL_BN_HV": {
+            "min": 0,
+            "max": 0,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.RQ_COOL_HVSTO": {
+            "min": 0,
+            "max": 0,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.ST_VA_COOL_HVSTO": {
+            "min": 1,
+            "max": 1,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.ST_ERR_LOKG_HVSTO": {
+            "min": 1,
+            "max": 1,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.ST_PRCHRG_LOKD_HVSTO": {
+            "min": 1,
+            "max": 2,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.ST_DCSW_HVSTO": {
+            "min": 0,
+            "max": 2,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.ST_EMMOD_HVSTO": {
+            "min": 1,
+            "max": 1,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.RQ_SER_HVSTO": {
+            "min": 1,
+            "max": 1,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.ERR_EMMOD_HVSTO": {
+            "min": 1,
+            "max": 1,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.ST_ERR_DCSW_HVSTO": {
+            "min": 0,
+            "max": 0,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.ST_WARN_ISL_BN_HV": {
+            "min": 0,
+            "max": 1,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.ST_CSOV_HVSTO": {
+            "min": 0,
+            "max": 0,
+            "unit_as_declared": "status"
+          },
+          "0x1FA.AVL_TEMP_HVSTO": {
+            "min": 5,
+            "max": 205,
+            "unit_as_declared": "C"
+          },
+          "0x1FA.AVL_TEMP_HTEX_HVSTO": {
+            "min": 6,
+            "max": 6,
+            "unit_as_declared": "C"
+          },
+          "0x1FA.AVL_TEMP_HVSTO_MIN": {
+            "min": 5,
+            "max": 205,
+            "unit_as_declared": "C"
+          },
+          "0x1FA.AVL_TEMP_HVSTO_MAX": {
+            "min": 5,
+            "max": 205,
+            "unit_as_declared": "C"
+          }
+        },
+        "unsigned_all_ones_raw_observations": {
+          "0x112.Battery_Current": 19,
+          "0x112.Battery_Volts": 51,
+          "0x112.HVBatt_SOC": 9,
+          "0x112.LDST_HVSTO": 8120,
+          "0x112.CHGCOND_HVSTO_DELTA": 9,
+          "0x112.DC_link": 20,
+          "0x1FA.AVL_TEMP_HVSTO": 3,
+          "0x1FA.AVL_TEMP_HVSTO_MIN": 3,
+          "0x1FA.AVL_TEMP_HVSTO_MAX": 3
+        },
+        "outside_dbc_declared_range_observations": {
+          "0x112.Battery_Current": 438,
+          "0x112.Battery_Volts": 51,
+          "0x112.HVBatt_SOC": 9,
+          "0x112.CHGCOND_HVSTO_DELTA": 259,
+          "0x112.DC_link": 20,
+          "0x1FA.AVL_TEMP_HVSTO": 3,
+          "0x1FA.AVL_TEMP_HVSTO_MIN": 3,
+          "0x1FA.AVL_TEMP_HVSTO_MAX": 3
+        },
+        "independent_comparison": {
+          "absolute_tolerance": 1e-12,
+          "relative_tolerance": 0,
+          "maximum_absolute_difference": 5.684341886080802e-14
+        },
+        "recorded_clock_tick_range": [
+          2620260,
+          45651225
+        ],
+        "analysis_preparation_eligible": false,
+        "analysis_blockers": [
+          "No verified canonical cell/temperature mapping or acquisition alignment is declared.",
+          "Clock tick unit is not authenticated; no seconds or sample ages are inferred.",
+          "Malformed transport records are present; they are counted, not repaired or imported.",
+          "Some selected DBC identifiers are absent from this capture."
+        ],
+        "interpretation_limits": [
+          "A frame or partial decoder result is not a complete battery measurement row.",
+          "All-ones bit patterns and DBC-range observations are review context, not authenticated invalid codes or faults.",
+          "Declared DBC units/ranges may be incomplete or inconsistent; no normalization or clipping is applied.",
+          "Malformed records are retained in accounting; only valid records undergo diagnostic decoding.",
+          "No canonical CSV, invented timestamps, vehicle transmission or battery health result is produced."
+        ],
+        "source_sha256": "d6bd56a3f0f60d7cfffa708a18b287c5802cc42fd5261e01b58d40e7c5c68ebf",
+        "dbc_sha256": "667a43048f80fc6eb71a212bd90494379347a073d632056705374974eef73626"
+      },
+      "independent_byte_reference": {
+        "records_input": 132941,
+        "invalid_identifier_tokens": 2304,
+        "selected_counts": {
+          "0x112": 8120,
+          "0x1FA": 90
+        },
+        "selectors": {},
+        "fully_decoded_frames": 8210,
+        "manual_signal_values_compared": 16600,
+        "maximum_absolute_difference": 0.0
+      }
+    }
+  },
+  "totals": {
+    "records_input": 317435,
+    "dual_decoder_values_compared": 76005,
+    "manual_byte_values_compared": 17995
+  }
+}

@@ -1,0 +1,26 @@
+# Illustrative synthetic-demo parameters; not recommended battery safety limits.
+schema_version: 7
+limits:
+  pack_voltage:
+    cell_sum_max_delta_v: 0.2
+failure_models:
+  max_gap_s: 2
+  sustained_imbalance:
+    max_delta_v: 0.15
+    duration_s: 3
+  temperature_rise:
+    max_c_per_min: 10
+    min_interval_s: 0.1
+  cell_sag:
+    positive_direction: discharge
+    baseline_max_abs_current_a: 2
+    load_min_discharge_a: 20
+    baseline_max_age_s: 5
+    settling_s: 1
+    excess_sag_max_v: 0.1
+  balancing:
+    active_source: balance_active
+    evaluation_s: 3
+    min_improvement_v: 0.02
+    min_start_delta_v: 0.08
+    timeout_s: 4

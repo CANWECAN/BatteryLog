@@ -12,6 +12,7 @@ from batterylog.loaders import (
 )
 from batterylog.models import AnalysisResult
 
+from .input_validation import failure_model_loader
 from .report_series import ReportSeries, ReportSeriesCollector
 from .streaming import _analyze_battery_chunks
 
@@ -49,12 +50,14 @@ class AnalysisService:
             if report_max_points is not None
             else None
         )
+        loader = failure_model_loader(loader, self.config.failure_models)
         result = _analyze_battery_chunks(
             loader.iter_chunks(signal_mapping=self.config.signals),
             limits=self.config.limits,
             event_detection=self.config.event_detection,
             data_quality=self.config.data_quality,
             signal_mapping=self.config.signals,
+            failure_models=self.config.failure_models,
             report_series_collector=collector,
         )
         return AnalysisOutput(result, collector.finish() if collector is not None else None)
