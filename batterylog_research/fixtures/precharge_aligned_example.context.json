@@ -1,0 +1,34 @@
+{
+  "capture_sha256": "8838937a65c237629b9dca5505b57965ec1cb939096a573283c1354433f455af",
+  "envelope": [
+    [
+      0,
+      0,
+      10,
+      -0.1,
+      1.1
+    ],
+    [
+      0.2,
+      0,
+      10,
+      -0.1,
+      1.1
+    ]
+  ],
+  "format": "batterylog-precharge-aligned-v1",
+  "input_kind": "authored_fixture",
+  "max_gap_s": 0.2,
+  "measurement_context": {
+    "acquisition_uncertainty": "Exactly authored sample instants for software checks only.",
+    "alignment_basis": "All columns authored on the same row time; no source resampling.",
+    "current_path_and_sign": "Authored signed amperes; magnitude is compared. No hardware current path.",
+    "phase_basis": "Authored inactive/active samples; no command or feedback inference.",
+    "procedure": "One authored span with a preceding inactive observation.",
+    "reference_justification": "Broad illustrative bounds for parser/observer checks; not physical limits.",
+    "time_basis": "Authored seconds on one software clock; not physical switch time.",
+    "validity_policy": "Empty analog fields are missing; no raw-code interpretation.",
+    "voltage_nodes": "Authored 400 V pack and separate DC-link ramp. No physical nodes."
+  },
+  "same_reference_for_all_spans": true
+}

@@ -1,4 +1,4 @@
-"""Verify that source distributions preserve the complete test corpus."""
+"""Verify that source distributions retain all first-party tests and fixtures."""
 
 import argparse
 import tarfile

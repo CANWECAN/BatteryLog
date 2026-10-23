@@ -1,3 +1,4 @@
+import json
 from collections.abc import Iterator
 from html import escape
 from pathlib import Path
@@ -189,10 +190,14 @@ def _violation_rows(result: AnalysisResult) -> str:
 def _status_message(result: AnalysisResult) -> str:
     status = result["validation_status"]
     if status == "NOT_EVALUATED":
+        if "failure_models" in result:
+            return "One or more configured failure models lack eligible observations. See model outcomes."
         return "No engineering rules were evaluated. This report contains metrics only."
     if status == "PASS":
         return "All evaluated engineering rules passed. No data-quality defects were recorded."
-    has_rule_failures = bool(result["violations"])
+    has_rule_failures = bool(result["violations"]) or any(
+        item["events"] for item in result.get("failure_models", {}).get("evaluations", [])
+    )
     has_data_quality = bool(result["data_quality"]["events"])
     if has_rule_failures and has_data_quality:
         return "Engineering-rule violations and required-data quality defects were recorded."
@@ -276,6 +281,73 @@ def render_html_report(
     return "".join(_iter_html_report(result, metadata=metadata, series=series))
 
 
+def _failure_model_section(result: AnalysisResult) -> str:
+    report = result.get("failure_models")
+    if report is None:
+        return ""
+    rows: list[str] = []
+    event_rows: list[str] = []
+    for item in report["evaluations"]:
+        rows.append(
+            "<tr>"
+            + "".join(
+                f"<td>{escape(str(value))}</td>"
+                for value in (
+                    item["code"],
+                    item["status"],
+                    item["evaluated_samples"],
+                    item["incomplete_intervals"],
+                    item["reason"] or "",
+                )
+            )
+            + "</tr>"
+        )
+        for event in item["events"]:
+            chain = "<br>".join(
+                f"{escape(name)}: {escape(str(value))}" for name, value in event["evidence"].items()
+            )
+            values = (
+                event["code"],
+                event["start_time_s"],
+                event["end_time_s"],
+                event["peak_time_s"],
+                f"{event['measured_value']} {event['unit']}",
+                f"{event['limit_value']} {event['unit']}",
+                event["sample_count"],
+                event["duration_s"],
+                ", ".join(event["signals"]),
+            )
+            event_rows.append(
+                "<tr>"
+                + "".join(f"<td>{escape(str(value))}</td>" for value in values)
+                + f"<td>{chain}</td></tr>"
+            )
+    parameters = escape(json.dumps(report["config"], indent=2, sort_keys=True))
+    events = (
+        '<div class="event-table" role="region" aria-label="Failure model events" tabindex="0">'
+        "<table><thead><tr><th>Code</th><th>Start (s)</th><th>End (s)</th><th>Peak (s)</th>"
+        "<th>Measured</th><th>Limit</th><th>Samples</th><th>Duration (s)</th><th>Signals</th>"
+        "<th>Measurement chain</th></tr></thead><tbody>"
+        + "".join(event_rows)
+        + "</tbody></table></div>"
+        if event_rows
+        else "<p>No failure-model events were recorded.</p>"
+    )
+    return (
+        '<section id="failure-models"><h2>Failure model outcomes</h2>'
+        "<p>These checks describe observed log behavior; they do not establish a root cause "
+        "or measure internal resistance. Gaps and excluded measurements break continuity.</p>"
+        "<table><thead><tr><th>Model</th><th>Status</th><th>Eligible observations</th>"
+        "<th>Incomplete intervals</th><th>Reason</th></tr></thead><tbody>"
+        + "".join(rows)
+        + "</tbody></table><details><summary>Applied model parameters</summary><pre>"
+        + parameters
+        + "</pre></details><h3>Failure model events</h3>"
+        + events
+        + "</section>"
+    )
+
+
 def _iter_html_report(
     result: AnalysisResult,
     *,
@@ -284,6 +356,9 @@ def _iter_html_report(
 ) -> Iterator[str]:
     status = result["validation_status"]
     rules = ", ".join(result["rules_evaluated"]) or "None"
+    event_count = len(result["violations"]) + sum(
+        len(item["events"]) for item in result.get("failure_models", {}).get("evaluations", [])
+    )
     data_quality_rows = _data_quality_rows(result)
     data_quality_section = (
         f"<table><thead><tr><th>Code</th><th>Start row</th><th>End row</th>"
@@ -404,7 +479,7 @@ button, select, input {{ font: inherit; }}
 <div class="card"><strong>Cells detected</strong><br>{result["cells_detected"]}</div>
 <div class="card"><strong>Temperature sensors</strong><br>{result["temperature_sensors_detected"]}</div>
 <div class="card"><strong>Data-quality events</strong><br>{len(result["data_quality"]["events"])}</div>
-<div class="card"><strong>Violation events</strong><br>{len(result["violations"])}</div>
+<div class="card"><strong>Violation events</strong><br>{event_count}</div>
 </div>
 </section>
 <section id="measured-extrema">
@@ -414,6 +489,7 @@ button, select, input {{ font: inherit; }}
 """
     if series is not None:
         yield render_report_plots(result, series)
+    yield _failure_model_section(result)
     yield f"""
 <section>
 <h2>Validation configuration</h2>

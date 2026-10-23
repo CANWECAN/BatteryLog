@@ -9,13 +9,13 @@ They do not need to use the same version number.
 
 ## Configuration schema
 
-The current YAML configuration schema is version 6:
+The current YAML configuration schema is version 7:
 
 ```yaml
-schema_version: 6
+schema_version: 7
 ```
 
-Configuration schema 2 adds the optional `data_quality` block and its explicit `strict` / `exclude_invalid_rows` mode. Configuration schema 3 adds optional scalar `signals.pack_current` and `signals.pack_voltage` source names. Schema 4 adds pack-current limits and polarity, schema 5 adds the maximum temperature spread, and schema 6 adds the pack-voltage versus cell-sum tolerance. Configuration schemas 1-5 remain accepted with their historical behavior and reject fields introduced in later versions.
+Configuration schema 2 adds the optional `data_quality` block and its explicit `strict` / `exclude_invalid_rows` mode. Configuration schema 3 adds optional scalar `signals.pack_current` and `signals.pack_voltage` source names. Schema 4 adds pack-current limits and polarity, schema 5 adds the maximum temperature spread, schema 6 adds the pack-voltage versus cell-sum tolerance, and schema 7 adds the optional `failure_models` block. Configuration schemas 1-6 remain accepted with their historical behavior and reject fields introduced in later versions.
 
 This version identifies the structure accepted by the validation-config parser and is independent from the result-schema version.
 
@@ -149,6 +149,16 @@ batterylog/schema/result-v8.json
 ```
 
 Version 8 adds `PACK_VOLTAGE_CELL_SUM_MISMATCH`, the nullable `pack_voltage_cell_sum_peak` result with the source values and signed error at the earliest worst sample, and `limits_applied.pack_voltage_cell_sum_max_delta_v`. Mismatch events require their own pack measurement, cell sum and signed error at the event peak. A configured threshold requires a selected pack-voltage signal. The new rule uses the existing binary64 guard, contiguous-row grouping and optional event-gap splitting.
+
+### Result schema version 9
+
+Result schema version 9 is emitted only when configuration schema 7 enables `failure_models`. Analyses without failure models retain the frozen v8 contract. Its Draft 2020-12 JSON Schema is:
+
+```text
+batterylog/schema/result-v9.json
+```
+
+Version 9 adds the effective failure-model configuration and one ordered evaluation record per enabled model. Evaluations carry PASS/FAIL/NOT_EVALUATED status, eligible-sample and incomplete-interval counts, reasons, and structured temporal events. The first model set covers sustained cell imbalance, temperature rate-of-rise, relative cell sag under load, and balancing effectiveness/active-time observations. Failure-model event evidence is also checked by `validate_result_semantics()` after structural schema validation.
 
 ## Versioning policy from v2 onward
 

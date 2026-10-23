@@ -212,9 +212,9 @@ opt-in [`validate_result_semantics()` checks](RESULT_VALIDATION.md). The helper
 checks rule/policy coherence and row/data-quality accounting; it does not
 recompute measurement evidence or validate every event arithmetic relationship.
 
-Machine-readable analysis results include their own `schema_version`. The current **result schema is 8**.
+Machine-readable analysis results include their own `schema_version`. Analyses without failure models retain the frozen **result schema 8** contract; enabling `failure_models` emits **result schema 9**.
 
-The current Draft 2020-12 JSON Schema is published at [`batterylog/schema/result-v8.json`](../batterylog/schema/result-v8.json) and is included in the Python distribution package. The frozen v7, v6, v5, v4, v3, and v2 artifacts remain packaged for earlier consumers.
+The current Draft 2020-12 JSON Schemas are published at [`batterylog/schema/result-v8.json`](../batterylog/schema/result-v8.json) and [`batterylog/schema/result-v9.json`](../batterylog/schema/result-v9.json), and both are included in the Python distribution package. The frozen v7, v6, v5, v4, v3, and v2 artifacts remain packaged for earlier consumers.
 
 Result schema version 2 was BatteryLog's **first formally frozen result contract**. Result schema version 3 extends that contract with structured data-quality evidence and explicit row accounting:
 
@@ -242,7 +242,9 @@ Result schema version 7 enriches every engineering violation event with `sample_
 
 Result schema version 8 adds `PACK_VOLTAGE_CELL_SUM_MISMATCH`, an opt-in absolute difference between `pack_voltage_v` and the sum of selected `cell_*_v` channels. Enable it with YAML schema 6 under `limits.pack_voltage.cell_sum_max_delta_v` or `--pack-cell-sum-max-delta-v`. The tolerance must be positive and the pack-voltage channel is required. The result and event include pack voltage, cell sum, signed error (`pack - sum`), absolute delta, and peak time. The peak metric and report comparison are computed whenever pack voltage is selected; only PASS/FAIL evaluation is opt-in through a configured tolerance. This check assumes the selected cells represent the complete series stack on the same time basis as the pack sensor. Omitted or parallel cells, tap offsets, and unsynchronized channels need explicit preparation before interpreting the result. A row assembled from multiplexed or forward-filled BMS signals does not by itself prove simultaneous sampling; align or reconstruct those signals before enabling this rule. Synthetic regression coverage validates BatteryLog's computation and streaming/report parity, not physical sensor synchronization or vehicle-level calibration. The rule is disabled by default.
 
-The current schema rejects unknown top-level/nested fields and encodes status invariants such as:
+Result schema version 9 is emitted when YAML schema 7 enables `failure_models`. It adds the effective model configuration plus per-model PASS/FAIL/NOT_EVALUATED outcomes, incomplete-interval counts, and structured temporal events for sustained imbalance, temperature rise, relative cell sag, and balancing effectiveness/timeout. Legacy analyses without failure models remain on schema 8.
+
+The current schemas reject unknown top-level/nested fields and encode status invariants such as:
 
 - `NOT_EVALUATED`: no rules evaluated, no violation events, and no data-quality events
 - `PASS`: at least one rule evaluated, no violation events, and no data-quality events
@@ -252,7 +254,7 @@ The current schema rejects unknown top-level/nested fields and encodes status in
 
 Some arithmetic relationships require semantic validation beyond Draft 2020-12 JSON Schema. BatteryLog-generated results guarantee `rows_input == rows_analyzed + rows_excluded`, data-quality event bounds satisfy `1 <= start_row <= end_row <= rows_input`, and each data-quality event's `affected_values` equals its inclusive row span multiplied by its signal count. Engineering violation events guarantee `sample_count >= 1`, `duration_s == end_time_s - start_time_s`, and `peak_excursion == abs(measured_value - limit_value)` within the documented 12-decimal evidence rounding. Consumers of results from independent or untrusted producers should check these relationships in addition to schema validation.
 
-Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 6; config schemas 1-5 remain accepted with their historical behavior.
+Package versions, YAML configuration-schema versions, and result-schema versions are intentionally independent. The current YAML config schema is 7; config schemas 1-6 remain accepted with their historical behavior. Schema 7 adds the optional `failure_models` block.
 
 From result schema v2 onward, adding, removing, renaming, changing the required status/type/meaning of result fields, or otherwise changing the machine-readable wire contract requires a new result-schema version. The full policy and historical rationale are documented in [`RESULT_SCHEMA_VERSIONING.md`](RESULT_SCHEMA_VERSIONING.md).
 

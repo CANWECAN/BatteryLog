@@ -1,0 +1,371 @@
+{
+  "campaign": {
+    "sag": [
+      {
+        "core_incomplete_intervals": 0,
+        "core_status": "PASS",
+        "episodes": [
+          {
+            "eligible_samples": 1,
+            "ended_by": "load_below_threshold",
+            "last_load_sample_s": 4.0,
+            "load_start_s": 3.0,
+            "observed_low_current_span_s": 2.0,
+            "reference_age_at_onset_s": 1.0,
+            "reference_reason": "reference_available"
+          }
+        ],
+        "episodes_without_eligible_samples": 0,
+        "load_episodes": 1,
+        "reference_reason_counts": {
+          "reference_available": 1
+        },
+        "scenario": "rest_then_load"
+      },
+      {
+        "core_incomplete_intervals": 1,
+        "core_status": "NOT_EVALUATED",
+        "episodes": [
+          {
+            "eligible_samples": 1,
+            "ended_by": "load_below_threshold",
+            "last_load_sample_s": 2.0,
+            "load_start_s": 1.0,
+            "observed_low_current_span_s": 0.0,
+            "reference_age_at_onset_s": 1.0,
+            "reference_reason": "reference_available"
+          },
+          {
+            "eligible_samples": 0,
+            "ended_by": "capture_end",
+            "last_load_sample_s": 5.0,
+            "load_start_s": 4.0,
+            "observed_low_current_span_s": null,
+            "reference_age_at_onset_s": null,
+            "reference_reason": "missing_rest_reference"
+          }
+        ],
+        "episodes_without_eligible_samples": 1,
+        "load_episodes": 2,
+        "reference_reason_counts": {
+          "missing_rest_reference": 1,
+          "reference_available": 1
+        },
+        "scenario": "dynamic_load_without_new_rest"
+      },
+      {
+        "core_incomplete_intervals": 0,
+        "core_status": "PASS",
+        "episodes": [
+          {
+            "eligible_samples": 1,
+            "ended_by": "load_below_threshold",
+            "last_load_sample_s": 3.0,
+            "load_start_s": 2.0,
+            "observed_low_current_span_s": 0.0,
+            "reference_age_at_onset_s": 1.0,
+            "reference_reason": "reference_available"
+          }
+        ],
+        "episodes_without_eligible_samples": 0,
+        "load_episodes": 1,
+        "reference_reason_counts": {
+          "reference_available": 1
+        },
+        "scenario": "single_low_current_reference"
+      },
+      {
+        "core_incomplete_intervals": 1,
+        "core_status": "NOT_EVALUATED",
+        "episodes": [
+          {
+            "eligible_samples": 0,
+            "ended_by": "capture_end",
+            "last_load_sample_s": 7.0,
+            "load_start_s": 6.0,
+            "observed_low_current_span_s": 0.0,
+            "reference_age_at_onset_s": 6.0,
+            "reference_reason": "stale_rest_reference"
+          }
+        ],
+        "episodes_without_eligible_samples": 1,
+        "load_episodes": 1,
+        "reference_reason_counts": {
+          "stale_rest_reference": 1
+        },
+        "scenario": "stale_reference"
+      }
+    ],
+    "temperature": [
+      {
+        "adjacent": {
+          "eligible_observations": 62,
+          "exceeding_observations": 0,
+          "first_exceeding_time_s": null,
+          "peak_c_per_min": 0.0,
+          "peak_exceeding_sensor_count": 0
+        },
+        "core_status": "PASS",
+        "declared_onset_s": null,
+        "endpoint_windows_s": {
+          "1": {
+            "delay_from_declared_onset_s": null,
+            "eligible_observations": 59,
+            "exceeding_observations": 0,
+            "first_exceeding_time_s": null,
+            "peak_c_per_min": 0.0,
+            "peak_exceeding_sensor_count": 0
+          },
+          "2": {
+            "delay_from_declared_onset_s": null,
+            "eligible_observations": 56,
+            "exceeding_observations": 0,
+            "first_exceeding_time_s": null,
+            "peak_c_per_min": 0.0,
+            "peak_exceeding_sensor_count": 0
+          },
+          "5": {
+            "delay_from_declared_onset_s": null,
+            "eligible_observations": 47,
+            "exceeding_observations": 0,
+            "first_exceeding_time_s": null,
+            "peak_c_per_min": 0.0,
+            "peak_exceeding_sensor_count": 0
+          }
+        },
+        "scenario": "constant"
+      },
+      {
+        "adjacent": {
+          "eligible_observations": 62,
+          "exceeding_observations": 62,
+          "first_exceeding_time_s": 0.32,
+          "peak_c_per_min": 12.000000000000666,
+          "peak_exceeding_sensor_count": 1
+        },
+        "core_status": "FAIL",
+        "declared_onset_s": 0.0,
+        "endpoint_windows_s": {
+          "1": {
+            "delay_from_declared_onset_s": 1.28,
+            "eligible_observations": 59,
+            "exceeding_observations": 59,
+            "first_exceeding_time_s": 1.28,
+            "peak_c_per_min": 12.000000000000167,
+            "peak_exceeding_sensor_count": 1
+          },
+          "2": {
+            "delay_from_declared_onset_s": 2.24,
+            "eligible_observations": 56,
+            "exceeding_observations": 56,
+            "first_exceeding_time_s": 2.24,
+            "peak_c_per_min": 12.000000000000103,
+            "peak_exceeding_sensor_count": 1
+          },
+          "5": {
+            "delay_from_declared_onset_s": 5.12,
+            "eligible_observations": 47,
+            "exceeding_observations": 47,
+            "first_exceeding_time_s": 5.12,
+            "peak_c_per_min": 12.000000000000012,
+            "peak_exceeding_sensor_count": 1
+          }
+        },
+        "scenario": "linear_12_c_per_min"
+      },
+      {
+        "adjacent": {
+          "eligible_observations": 62,
+          "exceeding_observations": 40,
+          "first_exceeding_time_s": 0.32,
+          "peak_c_per_min": 18.75000000000046,
+          "peak_exceeding_sensor_count": 1
+        },
+        "core_status": "FAIL",
+        "declared_onset_s": 0.0,
+        "endpoint_windows_s": {
+          "1": {
+            "delay_from_declared_onset_s": 1.28,
+            "eligible_observations": 59,
+            "exceeding_observations": 33,
+            "first_exceeding_time_s": 1.28,
+            "peak_c_per_min": 14.06250000000006,
+            "peak_exceeding_sensor_count": 1
+          },
+          "2": {
+            "delay_from_declared_onset_s": 2.24,
+            "eligible_observations": 56,
+            "exceeding_observations": 56,
+            "first_exceeding_time_s": 2.24,
+            "peak_c_per_min": 13.392857142857151,
+            "peak_exceeding_sensor_count": 1
+          },
+          "5": {
+            "delay_from_declared_onset_s": 5.12,
+            "eligible_observations": 47,
+            "exceeding_observations": 47,
+            "first_exceeding_time_s": 5.12,
+            "peak_c_per_min": 12.890625000000018,
+            "peak_exceeding_sensor_count": 1
+          }
+        },
+        "scenario": "quantized_12_c_per_min"
+      },
+      {
+        "adjacent": {
+          "eligible_observations": 62,
+          "exceeding_observations": 9,
+          "first_exceeding_time_s": 2.24,
+          "peak_c_per_min": 75.00000000000033,
+          "peak_exceeding_sensor_count": 1
+        },
+        "core_status": "FAIL",
+        "declared_onset_s": 0.0,
+        "endpoint_windows_s": {
+          "1": {
+            "delay_from_declared_onset_s": 2.24,
+            "eligible_observations": 59,
+            "exceeding_observations": 36,
+            "first_exceeding_time_s": 2.24,
+            "peak_c_per_min": 18.750000000000135,
+            "peak_exceeding_sensor_count": 1
+          },
+          "2": {
+            "delay_from_declared_onset_s": 2.24,
+            "eligible_observations": 56,
+            "exceeding_observations": 56,
+            "first_exceeding_time_s": 2.24,
+            "peak_c_per_min": 21.428571428571445,
+            "peak_exceeding_sensor_count": 1
+          },
+          "5": {
+            "delay_from_declared_onset_s": 6.08,
+            "eligible_observations": 47,
+            "exceeding_observations": 25,
+            "first_exceeding_time_s": 6.08,
+            "peak_c_per_min": 14.062500000000036,
+            "peak_exceeding_sensor_count": 1
+          }
+        },
+        "scenario": "zoh_12_c_per_min"
+      },
+      {
+        "adjacent": {
+          "eligible_observations": 62,
+          "exceeding_observations": 1,
+          "first_exceeding_time_s": 5.12,
+          "peak_c_per_min": 18.75000000000025,
+          "peak_exceeding_sensor_count": 1
+        },
+        "core_status": "FAIL",
+        "declared_onset_s": 5.0,
+        "endpoint_windows_s": {
+          "1": {
+            "delay_from_declared_onset_s": null,
+            "eligible_observations": 59,
+            "exceeding_observations": 0,
+            "first_exceeding_time_s": null,
+            "peak_c_per_min": 4.687500000000069,
+            "peak_exceeding_sensor_count": 0
+          },
+          "2": {
+            "delay_from_declared_onset_s": null,
+            "eligible_observations": 56,
+            "exceeding_observations": 0,
+            "first_exceeding_time_s": null,
+            "peak_c_per_min": 2.6785714285714675,
+            "peak_exceeding_sensor_count": 0
+          },
+          "5": {
+            "delay_from_declared_onset_s": null,
+            "eligible_observations": 47,
+            "exceeding_observations": 0,
+            "first_exceeding_time_s": null,
+            "peak_c_per_min": 1.1718750000000169,
+            "peak_exceeding_sensor_count": 0
+          }
+        },
+        "scenario": "single_0_1_c_step"
+      },
+      {
+        "adjacent": {
+          "eligible_observations": 62,
+          "exceeding_observations": 1,
+          "first_exceeding_time_s": 5.12,
+          "peak_c_per_min": 93.74999999999991,
+          "peak_exceeding_sensor_count": 1
+        },
+        "core_status": "FAIL",
+        "declared_onset_s": 5.0,
+        "endpoint_windows_s": {
+          "1": {
+            "delay_from_declared_onset_s": 0.1200000000000001,
+            "eligible_observations": 59,
+            "exceeding_observations": 2,
+            "first_exceeding_time_s": 5.12,
+            "peak_c_per_min": 23.437499999999996,
+            "peak_exceeding_sensor_count": 1
+          },
+          "2": {
+            "delay_from_declared_onset_s": 0.1200000000000001,
+            "eligible_observations": 56,
+            "exceeding_observations": 2,
+            "first_exceeding_time_s": 5.12,
+            "peak_c_per_min": 13.392857142857142,
+            "peak_exceeding_sensor_count": 1
+          },
+          "5": {
+            "delay_from_declared_onset_s": null,
+            "eligible_observations": 47,
+            "exceeding_observations": 0,
+            "first_exceeding_time_s": null,
+            "peak_c_per_min": 5.859375,
+            "peak_exceeding_sensor_count": 0
+          }
+        },
+        "scenario": "short_0_5_c_pulse"
+      },
+      {
+        "adjacent": {
+          "eligible_observations": 62,
+          "exceeding_observations": 1,
+          "first_exceeding_time_s": 5.12,
+          "peak_c_per_min": 118177.49999999988,
+          "peak_exceeding_sensor_count": 1
+        },
+        "core_status": "FAIL",
+        "declared_onset_s": 5.0,
+        "endpoint_windows_s": {
+          "1": {
+            "delay_from_declared_onset_s": 0.1200000000000001,
+            "eligible_observations": 59,
+            "exceeding_observations": 2,
+            "first_exceeding_time_s": 5.12,
+            "peak_c_per_min": 29544.374999999993,
+            "peak_exceeding_sensor_count": 1
+          },
+          "2": {
+            "delay_from_declared_onset_s": 0.1200000000000001,
+            "eligible_observations": 56,
+            "exceeding_observations": 2,
+            "first_exceeding_time_s": 5.12,
+            "peak_c_per_min": 16882.499999999996,
+            "peak_exceeding_sensor_count": 1
+          },
+          "5": {
+            "delay_from_declared_onset_s": 0.1200000000000001,
+            "eligible_observations": 47,
+            "exceeding_observations": 2,
+            "first_exceeding_time_s": 5.12,
+            "peak_c_per_min": 7386.093749999999,
+            "peak_exceeding_sensor_count": 1
+          }
+        },
+        "scenario": "implausible_655_c_pulse"
+      }
+    ]
+  },
+  "production_decisions_changed": false,
+  "scope": "synthetic_characterization_only",
+  "script_sha256": "7709d4172b43d795288d81fe7dbe5861da6e5b299000df148b7f303b7fd001aa"
+}

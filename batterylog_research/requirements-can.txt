@@ -1,0 +1,4 @@
+# Pinned CAN extra and offline verification backends for BatteryLog.
+cantools==44.2.1
+canmatrix==1.2
+python-can==4.6.1

@@ -1,0 +1,470 @@
+{
+  "declared_envelope": [
+    [
+      0.0,
+      7.8,
+      8.2,
+      0.98,
+      1.02
+    ],
+    [
+      0.25,
+      6.030406264571239,
+      6.430406264571239,
+      0.7588007830714049,
+      0.7988007830714049
+    ],
+    [
+      0.5,
+      4.652245277701067,
+      5.052245277701068,
+      0.5865306597126334,
+      0.6265306597126334
+    ],
+    [
+      0.75,
+      3.5789324219281173,
+      3.9789324219281177,
+      0.45236655274101467,
+      0.4923665527410147
+    ],
+    [
+      1.0,
+      2.7430355293715385,
+      3.143035529371539,
+      0.3478794411714423,
+      0.38787944117144235
+    ],
+    [
+      1.25,
+      2.0920383748815206,
+      2.492038374881521,
+      0.2665047968601901,
+      0.3065047968601901
+    ],
+    [
+      1.5,
+      1.5850412811874386,
+      1.9850412811874385,
+      0.20313016014842983,
+      0.2431301601484298
+    ],
+    [
+      1.75,
+      1.1901915476035612,
+      1.590191547603561,
+      0.15377394345044515,
+      0.19377394345044513
+    ],
+    [
+      2.0,
+      0.8826822658929017,
+      1.2826822658929016,
+      0.1153352832366127,
+      0.1553352832366127
+    ],
+    [
+      2.25,
+      0.6431937964949146,
+      1.0431937964949147,
+      0.08539922456186433,
+      0.12539922456186434
+    ],
+    [
+      2.5,
+      0.4566799889911904,
+      0.8566799889911905,
+      0.062084998623898796,
+      0.1020849986238988
+    ],
+    [
+      2.75,
+      0.31142288965366055,
+      0.7114228896536605,
+      0.043927861206707566,
+      0.08392786120670757
+    ],
+    [
+      3.0,
+      0.19829654694291154,
+      0.5982965469429116,
+      0.029787068367863944,
+      0.06978706836786394
+    ],
+    [
+      3.25,
+      0.11019366265377606,
+      0.5101936626537761,
+      0.01877420783172201,
+      0.058774207831722006
+    ],
+    [
+      3.5,
+      0.041579067378547996,
+      0.441579067378548,
+      0.0101973834223185,
+      0.0501973834223185
+    ],
+    [
+      3.75,
+      0.0,
+      0.3881419668480729,
+      0.0035177458560091066,
+      0.04351774585600911
+    ],
+    [
+      4.0,
+      0.0,
+      0.34652511110987344,
+      0.0,
+      0.03831563888873418
+    ]
+  ],
+  "envelope_columns": [
+    "elapsed_s",
+    "min_abs_current_a",
+    "max_abs_current_a",
+    "min_voltage_gap_fraction",
+    "max_voltage_gap_fraction"
+  ],
+  "existing_checkpoint": {
+    "evaluation_s": 4,
+    "min_drop_a": 6,
+    "min_start_abs_current_a": 8
+  },
+  "max_gap_s": 0.2,
+  "sample_interval_s": 0.1,
+  "scenarios": [
+    {
+      "declared_interval_covered": true,
+      "examples": [],
+      "existing_checkpoint_events": 0,
+      "existing_checkpoint_status": "PASS",
+      "incomplete_reasons": [],
+      "last_qualified_elapsed_s": 4.0,
+      "max_current_excess_a": 0.0,
+      "max_voltage_gap_fraction_excess": 0.0,
+      "observed_start_bracket_s": [
+        -0.1,
+        0.0
+      ],
+      "outside_envelope_samples": 0,
+      "production_decisions_changed": false,
+      "reference_horizon_bracket_s": [
+        4.0,
+        4.0
+      ],
+      "reference_horizon_s": 4.0,
+      "reviewed_samples": 41,
+      "scenario": "declared_normal",
+      "scope": "declared_interval_observations_only"
+    },
+    {
+      "declared_interval_covered": true,
+      "examples": [
+        {
+          "current_a": 7.686315513218585,
+          "current_excess_a": 0.19415300739009034,
+          "dc_link_voltage_v": 15.68422433907073,
+          "declared_current_bounds_a": [
+            7.092162505828496,
+            7.492162505828495
+          ],
+          "declared_voltage_gap_bounds": [
+            0.891520313228562,
+            0.931520313228562
+          ],
+          "elapsed_s": 0.1,
+          "pack_voltage_v": 400.0,
+          "sample_index": 2,
+          "voltage_gap_fraction": 0.9607894391523232,
+          "voltage_gap_fraction_excess": 0.029269125923761186
+        },
+        {
+          "current_a": 7.384930771093086,
+          "current_excess_a": 0.6006057594360952,
+          "dc_link_voltage_v": 30.7534614453457,
+          "declared_current_bounds_a": [
+            6.3843250116569905,
+            6.784325011656991
+          ],
+          "declared_voltage_gap_bounds": [
+            0.8030406264571239,
+            0.843040626457124
+          ],
+          "elapsed_s": 0.2,
+          "pack_voltage_v": 400.0,
+          "sample_index": 3,
+          "voltage_gap_fraction": 0.9231163463866358,
+          "voltage_gap_fraction_excess": 0.08007571992951179
+        },
+        {
+          "current_a": 7.09536349373726,
+          "current_excess_a": 0.940589426540055,
+          "dc_link_voltage_v": 45.23182531313701,
+          "declared_current_bounds_a": [
+            5.7547740671972045,
+            6.154774067197205
+          ],
+          "declared_voltage_gap_bounds": [
+            0.7243467583996506,
+            0.7643467583996506
+          ],
+          "elapsed_s": 0.3,
+          "pack_voltage_v": 400.0,
+          "sample_index": 4,
+          "voltage_gap_fraction": 0.8869204367171575,
+          "voltage_gap_fraction_excess": 0.12257367831750687
+        },
+        {
+          "current_a": 6.817150311729691,
+          "current_excess_a": 1.2136406392805545,
+          "dc_link_voltage_v": 59.14248441351546,
+          "declared_current_bounds_a": [
+            5.203509672449136,
+            5.603509672449136
+          ],
+          "declared_voltage_gap_bounds": [
+            0.655438709056142,
+            0.695438709056142
+          ],
+          "elapsed_s": 0.4,
+          "pack_voltage_v": 400.0,
+          "sample_index": 5,
+          "voltage_gap_fraction": 0.8521437889662112,
+          "voltage_gap_fraction_excess": 0.1567050799100692
+        },
+        {
+          "current_a": 6.549846024623855,
+          "current_excess_a": 1.497600746922787,
+          "dc_link_voltage_v": 72.50769876880727,
+          "declared_current_bounds_a": [
+            4.652245277701067,
+            5.052245277701068
+          ],
+          "declared_voltage_gap_bounds": [
+            0.5865306597126334,
+            0.6265306597126334
+          ],
+          "elapsed_s": 0.5,
+          "pack_voltage_v": 400.0,
+          "sample_index": 6,
+          "voltage_gap_fraction": 0.8187307530779819,
+          "voltage_gap_fraction_excess": 0.1922000933653485
+        }
+      ],
+      "existing_checkpoint_events": 0,
+      "existing_checkpoint_status": "PASS",
+      "incomplete_reasons": [],
+      "last_qualified_elapsed_s": 4.0,
+      "max_current_excess_a": 2.4054518075647726,
+      "max_voltage_gap_fraction_excess": 0.3056814759455966,
+      "observed_start_bracket_s": [
+        -0.1,
+        0.0
+      ],
+      "outside_envelope_samples": 40,
+      "production_decisions_changed": false,
+      "reference_horizon_bracket_s": [
+        4.0,
+        4.0
+      ],
+      "reference_horizon_s": 4.0,
+      "reviewed_samples": 41,
+      "scenario": "slow_but_checkpoint_current_drop_sufficient",
+      "scope": "declared_interval_observations_only"
+    },
+    {
+      "declared_interval_covered": true,
+      "examples": [
+        {
+          "current_a": 3.7850412811874383,
+          "current_excess_a": 1.7999999999999998,
+          "dc_link_voltage_v": 260.7479359406281,
+          "declared_current_bounds_a": [
+            1.5850412811874386,
+            1.9850412811874385
+          ],
+          "declared_voltage_gap_bounds": [
+            0.20313016014842983,
+            0.2431301601484298
+          ],
+          "elapsed_s": 1.5,
+          "pack_voltage_v": 400.0,
+          "sample_index": 16,
+          "voltage_gap_fraction": 0.34813016014842973,
+          "voltage_gap_fraction_excess": 0.10499999999999993
+        },
+        {
+          "current_a": 3.615172143957243,
+          "current_excess_a": 1.7880707562033555,
+          "dc_link_voltage_v": 269.24139280213785,
+          "declared_current_bounds_a": [
+            1.4271013877538874,
+            1.8271013877538873
+          ],
+          "declared_voltage_gap_bounds": [
+            0.18338767346923593,
+            0.2233876734692359
+          ],
+          "elapsed_s": 1.6,
+          "pack_voltage_v": 400.0,
+          "sample_index": 17,
+          "voltage_gap_fraction": 0.32689651799465536,
+          "voltage_gap_fraction_excess": 0.10350884452541945
+        },
+        {
+          "current_a": 3.4614681924218775,
+          "current_excess_a": 1.792306698101541,
+          "dc_link_voltage_v": 276.9265903789061,
+          "declared_current_bounds_a": [
+            1.2691614943203366,
+            1.6691614943203366
+          ],
+          "declared_voltage_gap_bounds": [
+            0.16364518679004209,
+            0.20364518679004207
+          ],
+          "elapsed_s": 1.7,
+          "pack_voltage_v": 400.0,
+          "sample_index": 18,
+          "voltage_gap_fraction": 0.30768352405273475,
+          "voltage_gap_fraction_excess": 0.10403833726269268
+        }
+      ],
+      "existing_checkpoint_events": 0,
+      "existing_checkpoint_status": "PASS",
+      "incomplete_reasons": [],
+      "last_qualified_elapsed_s": 4.0,
+      "max_current_excess_a": 1.7999999999999998,
+      "max_voltage_gap_fraction_excess": 0.10499999999999993,
+      "observed_start_bracket_s": [
+        -0.1,
+        0.0
+      ],
+      "outside_envelope_samples": 3,
+      "production_decisions_changed": false,
+      "reference_horizon_bracket_s": [
+        4.0,
+        4.0
+      ],
+      "reference_horizon_s": 4.0,
+      "reviewed_samples": 41,
+      "scenario": "early_disturbance_then_checkpoint_recovers",
+      "scope": "declared_interval_observations_only"
+    },
+    {
+      "declared_interval_covered": false,
+      "examples": [],
+      "existing_checkpoint_events": 0,
+      "existing_checkpoint_status": "NOT_EVALUATED",
+      "incomplete_reasons": [
+        "phase_ended_before_coverage_completed"
+      ],
+      "last_qualified_elapsed_s": 1.9,
+      "max_current_excess_a": 0.0,
+      "max_voltage_gap_fraction_excess": 0.0,
+      "observed_start_bracket_s": [
+        -0.1,
+        0.0
+      ],
+      "outside_envelope_samples": 0,
+      "production_decisions_changed": false,
+      "reference_horizon_bracket_s": null,
+      "reference_horizon_s": 4.0,
+      "reviewed_samples": 20,
+      "scenario": "interrupted_phase",
+      "scope": "declared_interval_observations_only"
+    },
+    {
+      "declared_interval_covered": false,
+      "examples": [],
+      "existing_checkpoint_events": 0,
+      "existing_checkpoint_status": "NOT_EVALUATED",
+      "incomplete_reasons": [
+        "phase_ended_before_coverage_completed",
+        "source_interval_interrupted"
+      ],
+      "last_qualified_elapsed_s": 1.4,
+      "max_current_excess_a": 0.0,
+      "max_voltage_gap_fraction_excess": 0.0,
+      "observed_start_bracket_s": [
+        -0.1,
+        0.0
+      ],
+      "outside_envelope_samples": 0,
+      "production_decisions_changed": false,
+      "reference_horizon_bracket_s": null,
+      "reference_horizon_s": 4.0,
+      "reviewed_samples": 15,
+      "scenario": "missing_source_interval",
+      "scope": "declared_interval_observations_only"
+    },
+    {
+      "declared_interval_covered": false,
+      "examples": [],
+      "existing_checkpoint_events": 0,
+      "existing_checkpoint_status": "NOT_EVALUATED",
+      "incomplete_reasons": [
+        "activation_not_observed",
+        "no_observed_precharge_activation"
+      ],
+      "last_qualified_elapsed_s": null,
+      "max_current_excess_a": 0.0,
+      "max_voltage_gap_fraction_excess": 0.0,
+      "observed_start_bracket_s": null,
+      "outside_envelope_samples": 0,
+      "production_decisions_changed": false,
+      "reference_horizon_bracket_s": null,
+      "reference_horizon_s": 4.0,
+      "reviewed_samples": 0,
+      "scenario": "capture_starts_active",
+      "scope": "declared_interval_observations_only"
+    },
+    {
+      "declared_interval_covered": true,
+      "examples": [
+        {
+          "current_a": 1.7850412811874385,
+          "current_excess_a": 0.0,
+          "dc_link_voltage_v": 1200.0,
+          "declared_current_bounds_a": [
+            1.5850412811874386,
+            1.9850412811874385
+          ],
+          "declared_voltage_gap_bounds": [
+            0.20313016014842983,
+            0.2431301601484298
+          ],
+          "elapsed_s": 1.5,
+          "pack_voltage_v": 400.0,
+          "sample_index": 16,
+          "voltage_gap_fraction": -2.0,
+          "voltage_gap_fraction_excess": 2.20313016014843
+        }
+      ],
+      "existing_checkpoint_events": 0,
+      "existing_checkpoint_status": "PASS",
+      "incomplete_reasons": [],
+      "last_qualified_elapsed_s": 4.0,
+      "max_current_excess_a": 0.0,
+      "max_voltage_gap_fraction_excess": 2.20313016014843,
+      "observed_start_bracket_s": [
+        -0.1,
+        0.0
+      ],
+      "outside_envelope_samples": 1,
+      "production_decisions_changed": false,
+      "reference_horizon_bracket_s": [
+        4.0,
+        4.0
+      ],
+      "reference_horizon_s": 4.0,
+      "reviewed_samples": 41,
+      "scenario": "finite_voltage_inconsistency",
+      "scope": "declared_interval_observations_only"
+    }
+  ],
+  "scope": "synthetic_software_study_not_physical_fault_labels",
+  "script_sha256": "ec22c51ac1a10f7b5c9220d9800bdd4f9f2383e1ae6bd1907b2a425dad7e1d2a"
+}

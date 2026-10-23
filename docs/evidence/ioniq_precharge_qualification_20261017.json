@@ -1,0 +1,255 @@
+{
+  "format": "batterylog-precharge-source-qualification-v1",
+  "source_repository": "uhi22/Ioniq28Investigations",
+  "source_commit": "208c0e95d0078fe0b351e541f026701495cae862",
+  "scope": "Published protocol exports; no independent EXI decode or analog authentication",
+  "normal_reference_accepted": false,
+  "physical_curve_review_eligible": false,
+  "captures": [
+    {
+      "path": "CCM_ChargeControlModule_PLC_CCS/ccm_spi_ioniq_compleo_full_charge_sequence_ended_on_charger.txt.pcap.decoded.txt",
+      "published_decoded_packets": 2308,
+      "message_counts": {
+        "": 2,
+        "SessionSetupReq": 1,
+        "SessionSetupRes": 1,
+        "ServiceDiscoveryReq": 1,
+        "ServiceDiscoveryRes": 1,
+        "ServicePaymentSelectionReq": 1,
+        "ServicePaymentSelectionRes": 1,
+        "ContractAuthenticationReq": 16,
+        "ContractAuthenticationRes": 16,
+        "ChargeParameterDiscoveryReq": 3,
+        "ChargeParameterDiscoveryRes": 3,
+        "CableCheckReq": 19,
+        "CableCheckRes": 19,
+        "PreChargeReq": 11,
+        "PreChargeRes": 11,
+        "PowerDeliveryReq": 2,
+        "PowerDeliveryRes": 2,
+        "CurrentDemandReq": 1096,
+        "CurrentDemandRes": 1096,
+        "WeldingDetectionReq": 2,
+        "WeldingDetectionRes": 2,
+        "SessionStopReq": 1,
+        "SessionStopRes": 1
+      },
+      "decoder_error_packets": 1,
+      "published_PreCharge": {
+        "PreChargeReq": {
+          "count": 11,
+          "first_timestamp_text": "1970-01-01 01:01:02.700210",
+          "last_timestamp_text": "1970-01-01 01:01:05.600175",
+          "fields": {
+            "EVTargetVoltage": {
+              "count": 11,
+              "min": "345.1",
+              "max": "345.1"
+            },
+            "EVTargetCurrent": {
+              "count": 11,
+              "min": "1.0",
+              "max": "1.0"
+            },
+            "EVSEPresentVoltage": {
+              "count": 0,
+              "min": null,
+              "max": null
+            },
+            "EVSEPresentCurrent": {
+              "count": 0,
+              "min": null,
+              "max": null
+            }
+          },
+          "first_packet_number": 183,
+          "last_packet_number": 223
+        },
+        "PreChargeRes": {
+          "count": 11,
+          "first_timestamp_text": "1970-01-01 01:01:02.910197",
+          "last_timestamp_text": "1970-01-01 01:01:05.810162",
+          "fields": {
+            "EVTargetVoltage": {
+              "count": 0,
+              "min": null,
+              "max": null
+            },
+            "EVTargetCurrent": {
+              "count": 0,
+              "min": null,
+              "max": null
+            },
+            "EVSEPresentVoltage": {
+              "count": 11,
+              "min": "169.5",
+              "max": "362.0"
+            },
+            "EVSEPresentCurrent": {
+              "count": 0,
+              "min": null,
+              "max": null
+            }
+          },
+          "first_packet_number": 185,
+          "last_packet_number": 225
+        }
+      },
+      "raw_decode_reproduced": false,
+      "analog_sample_clock_verified": false
+    },
+    {
+      "path": "CCM_ChargeControlModule_PLC_CCS/spi_ioniq_alpiHYC150_Meitingen_twoSessions_2024-04-03_Ok.csv.pcap.decoded.txt",
+      "published_decoded_packets": 874,
+      "message_counts": {
+        "": 2,
+        "SessionSetupReq": 1,
+        "SessionSetupRes": 1,
+        "ServiceDiscoveryReq": 1,
+        "ServiceDiscoveryRes": 1,
+        "ServicePaymentSelectionReq": 1,
+        "ServicePaymentSelectionRes": 1,
+        "ContractAuthenticationReq": 1,
+        "ContractAuthenticationRes": 1,
+        "ChargeParameterDiscoveryReq": 8,
+        "ChargeParameterDiscoveryRes": 8,
+        "CableCheckReq": 156,
+        "CableCheckRes": 156,
+        "PreChargeReq": 12,
+        "PreChargeRes": 12,
+        "PowerDeliveryReq": 2,
+        "PowerDeliveryRes": 2,
+        "CurrentDemandReq": 248,
+        "CurrentDemandRes": 248,
+        "WeldingDetectionReq": 5,
+        "WeldingDetectionRes": 5,
+        "SessionStopReq": 1,
+        "SessionStopRes": 1
+      },
+      "decoder_error_packets": 1,
+      "published_PreCharge": {
+        "PreChargeReq": {
+          "count": 12,
+          "first_timestamp_text": "1970-01-01 01:01:35.627018",
+          "last_timestamp_text": "1970-01-01 01:01:36.637012",
+          "fields": {
+            "EVTargetVoltage": {
+              "count": 12,
+              "min": "388.7",
+              "max": "388.7"
+            },
+            "EVTargetCurrent": {
+              "count": 12,
+              "min": "1.0",
+              "max": "1.0"
+            },
+            "EVSEPresentVoltage": {
+              "count": 0,
+              "min": null,
+              "max": null
+            },
+            "EVSEPresentCurrent": {
+              "count": 0,
+              "min": null,
+              "max": null
+            }
+          },
+          "first_packet_number": 525,
+          "last_packet_number": 558
+        },
+        "PreChargeRes": {
+          "count": 12,
+          "first_timestamp_text": "1970-01-01 01:01:35.657011",
+          "last_timestamp_text": "1970-01-01 01:01:36.647013",
+          "fields": {
+            "EVTargetVoltage": {
+              "count": 0,
+              "min": null,
+              "max": null
+            },
+            "EVTargetCurrent": {
+              "count": 0,
+              "min": null,
+              "max": null
+            },
+            "EVSEPresentVoltage": {
+              "count": 12,
+              "min": "0",
+              "max": "386.8"
+            },
+            "EVSEPresentCurrent": {
+              "count": 0,
+              "min": null,
+              "max": null
+            }
+          },
+          "first_packet_number": 526,
+          "last_packet_number": 559
+        }
+      },
+      "raw_decode_reproduced": false,
+      "analog_sample_clock_verified": false
+    }
+  ],
+  "raw_spi_csv": {
+    "header": [
+      "name",
+      "type",
+      "start_time",
+      "mosi",
+      "miso"
+    ],
+    "data_rows": 644965,
+    "row_width_counts": {
+      "5": 644965
+    },
+    "source_describes_digital_spi": true
+  },
+  "qualification_reasons": [
+    "PreCharge current is EVTargetCurrent command; published PreChargeRes packets have no EVSEPresentCurrent field.",
+    "EVTargetVoltage is a target, not independently measured pack voltage; EVSEPresentVoltage is a charger protocol report.",
+    "Digital SPI capture timing does not authenticate analog sensor sample times, update age, filtering or synchronization.",
+    "Vehicle pack and inverter DC-link nodes/current path, load/initial conditions, calibration and independent healthy bounds are not established.",
+    "CCS charger-side precharge is not evidence for BMW pack-to-inverter precharge normality.",
+    "Filename twoSessions is not treated as proof of two qualified independent normal experiments."
+  ],
+  "files": [
+    {
+      "path": "CCM_ChargeControlModule_PLC_CCS/readme.md",
+      "size": 20224,
+      "git_blob": "6747017931e4e55f3d2a7c74b136b9d475ea6876",
+      "sha256": "a913ed4c9b92c33c7c92126f0bed436cdf11f81ac9968ce7ca5db766fbff6d9a"
+    },
+    {
+      "path": "CCM_ChargeControlModule_PLC_CCS/ccm_spi_ioniq_compleo_full_charge_sequence_ended_on_charger.txt",
+      "size": 22762729,
+      "git_blob": "7c2f78a770a99b87f8c99ac81919cab78e9b5d10",
+      "sha256": "886d8584c952ade882f3a2a631d11a711d443e05d0a5b42bda269e6ff9672c02"
+    },
+    {
+      "path": "CCM_ChargeControlModule_PLC_CCS/ccm_spi_ioniq_compleo_full_charge_sequence_ended_on_charger.txt.pcap.values.txt",
+      "size": 278462,
+      "git_blob": "e632185d0a259f7d62ad13fac460a38e5aa7cb8c",
+      "sha256": "cb54d30997fd74f4882aec80c54a69a1cc337a51b3145cd0c13fae9824515131"
+    },
+    {
+      "path": "CCM_ChargeControlModule_PLC_CCS/ccm_spi_ioniq_compleo_full_charge_sequence_ended_on_charger.txt.pcap.decoded.txt",
+      "size": 2862161,
+      "git_blob": "bfdc45859db94032a78e29409fe02561a181f058",
+      "sha256": "c79b43ce0abd6276c4b2117e4ffb195c05a1399f97efbc18fd0060bd56d9cd61"
+    },
+    {
+      "path": "CCM_ChargeControlModule_PLC_CCS/spi_ioniq_alpiHYC150_Meitingen_twoSessions_2024-04-03_Ok.csv.pcap.values.txt",
+      "size": 75358,
+      "git_blob": "2376ab0faf14457f2341425cb29e08bc32118862",
+      "sha256": "68a939f7057affcd53e63b647197c543eda5d7ae698ef791bbbba5c4a51c57c3"
+    },
+    {
+      "path": "CCM_ChargeControlModule_PLC_CCS/spi_ioniq_alpiHYC150_Meitingen_twoSessions_2024-04-03_Ok.csv.pcap.decoded.txt",
+      "size": 864149,
+      "git_blob": "e0ad00e0423230727c6b749022140067d0a12830",
+      "sha256": "5d7bfaa69d2194f05194f31a6f38dfb223677a8f9f4cfb6d4fce9148dd1160da"
+    }
+  ],
+  "review_date": "2026-10-17"
+}
