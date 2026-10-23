@@ -1,6 +1,6 @@
 # BatteryLog technical status
 
-Updated: 20 October 2026. This file summarizes implementation and qualification;
+Updated: 23 October 2026. This file summarizes implementation and qualification;
 reproducible methods and source-specific results are in the linked technical notes.
 
 ## Product and package
@@ -39,7 +39,18 @@ and chunk boundaries. Reports/model arithmetic remains binary64.
 The common command and precharge HTML are installed with the same package. Prepared CAN rejects temporal models, signal remapping and unqualified
 pack/cell-sum comparisons. Held samples are not independent acquisitions.
 
-## Public integration verification — 20 October 2026
+## Current local qualification - 23 October 2026
+
+Local checks on 23 October 2026: native Windows/Python 3.13.14 has 3,268 passing tests and 2 platform-specific skips, with 96.63% Core coverage. All 45 native Tk tests run without skips. The same normalization fix passed 3,270 tests on Linux/Python 3.14.7 with 96.46% Core coverage. Fresh wheel/sdist installs and synthetic large-file checks pass. Hosted required checks remain pending; this is not a release. See [qualification scope](docs/QUALIFICATION_2026_10_23.md).
+
+Normalization now preserves the original mapped CSV clock and carries the exact source timestamp between chunks before binary64 conversion. Previously, normalization could hide a backwards source clock and allow downstream PASS. Twenty-eight regression cases cover rejection and valid neighbouring/duplicate times.
+
+A source-distribution omission of this technical status document was also corrected. Apache-2.0, NOTICE, third-party attribution, and frozen result-v2 through v8 remain unchanged.
+
+## Historical public integration verification - 20 October 2026
+
+The following is the pre-fix historical run, superseded for the local candidate by the qualification above.
+
 
 - Linux/Python 3.12.14 full headless suite: 3,198 passed, 44 skipped, four known overflow warnings.
   Core coverage 89.73% is below the unchanged 95% gate; the pytest command exits 1.
@@ -62,7 +73,7 @@ and Windows remain required on protected main; public planning forces the Full
 profile. Tag-only release/version/checksum controls are retained.
 Local paths and host names in six historical JSON records are redacted and
 labeled; their recorded results and source fixtures are unchanged.
-No hosted CI pass or current native/GUI qualification is inferred.
+Those historical results did not establish native/GUI qualification. Current local results are above; no hosted CI pass is inferred.
 
 ## Historical validation
 

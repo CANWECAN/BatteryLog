@@ -9,6 +9,7 @@ from typing import Literal, TypedDict
 import pandas as pd
 
 from .analysis.input_validation import (
+    Timestamp,
     balance_values_for_frame,
     canonicalize_analysis_frame,
     coerce_required_numeric,
@@ -18,6 +19,7 @@ from .analysis.input_validation import (
     raise_first_strict_input_error,
     raise_invalid_numeric_value,
     unloaded_values_for_frame,
+    valid_timestamp_values,
 )
 from .config import ValidationConfig
 from .loaders.csv import DEFAULT_CSV_CHUNK_ROWS, iter_battery_csv_file
@@ -118,11 +120,15 @@ def normalize_measurement(
                 ),
             )
             if is_mdf_path(source)
-            else iter_battery_csv_file(snapshot.handle, chunk_rows=DEFAULT_CSV_CHUNK_ROWS)
+            else iter_battery_csv_file(
+                snapshot.handle,
+                chunk_rows=DEFAULT_CSV_CHUNK_ROWS,
+                signal_mapping=config.signals,
+            )
         )
         rows = 0
         previous_time: float | None = None
-        previous_source_time: float | None = None
+        previous_source_time: Timestamp | None = None
         conversions: list[UnitConversion] = []
         selected_columns: list[str] | None = None
         status_presence: dict[str, bool] = {}
@@ -263,8 +269,7 @@ def normalize_measurement(
                     )
                     if numeric.empty:
                         continue
-                    source_times = numeric["timestamp_s"].to_numpy(dtype=float)
-                    previous_source_time = float(source_times[-1])
+                    previous_source_time = valid_timestamp_values(selected, numeric).iloc[-1]
                     for conversion in conversions:
                         name = conversion["canonical"]
                         if name in status_values:

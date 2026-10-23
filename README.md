@@ -11,11 +11,11 @@ checks, offline CAN preparation/replay, and precharge JSON/HTML observations in 
 installation. Experimental workflows retain their documented qualification limits.
 There is no separate Research subscription, companion wheel or evaluation license.
 
-**Current verification:** Headless tests report no test failures; installed-package checks pass. The current candidate still requires graphical-session and native Windows verification before release; headless Core coverage is 89.73%, below the unchanged 95% release gate. See [technical status](CURRENT_STATE.md).
+**Current verification:** Local checks on 23 October 2026: native Windows/Python 3.13.14 has 3,268 passing tests and 2 platform-specific skips, with 96.63% Core coverage. All 45 native Tk tests run without skips. The same normalization fix passed 3,270 tests on Linux/Python 3.14.7 with 96.46% Core coverage. Fresh wheel/sdist installs and synthetic large-file checks pass. Hosted required checks remain pending; this is not a release. See [qualification scope](docs/QUALIFICATION_2026_10_23.md).
 
 **Status:** **Pre-1.0 engineering beta.** The validation core is extensively tested; APIs and supported workflows may still evolve before 1.0.
 
-> **Real-data proof:** BatteryLog v0.9.1 was exercised on **30.2 million physical battery-pack records**, producing **90.6 million branch-row analyses** across **1,230 runs**, with **1,230/1,230 independent pack/cell-sum parity checks**.
+> **Historical real-data check:** BatteryLog v0.9.1 was exercised on **30.2 million physical battery-pack records**, producing **90.6 million branch-row analyses** across **1,230 runs**, with **1,230/1,230 independent pack/cell-sum parity checks**.
 
 ## First evaluation: three actions (0.11 development)
 
@@ -78,6 +78,7 @@ these experimental commands. In a fresh environment, use the reviewed candidate
 artifact or this checkout, rather than assuming a released package has them.
 
 ```sh
+mkdir results
 batterylog experimental precharge --csv capture.csv --context capture.context.json --output-dir results/precharge
 batterylog experimental replay capture.log results/replay
 batterylog experimental can --log capture.log --dbc vehicle.dbc --profile mapping.json --config limits.yaml --output-dir results/can

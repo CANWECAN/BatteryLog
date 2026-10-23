@@ -1,4 +1,4 @@
-include CHANGELOG.md CITATION.cff
+include CHANGELOG.md CITATION.cff CURRENT_STATE.md
 include RESEARCH_LICENSE.md RESEARCH_BOUNDARY.md
 recursive-include batterylog_research *.py *.json *.csv *.md *.txt
 recursive-include examples *.csv *.yaml

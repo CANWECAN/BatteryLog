@@ -4,6 +4,9 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Preserve exact source-clock ordering through CSV normalization, including mapped clocks and chunk boundaries; reject rounding-hidden regressions before publishing normalized output.
+- Include CURRENT_STATE.md in source distributions so the README technical-status link remains usable after unpacking.
+
 - Combine Core and experimental offline CAN/precharge/replay tools in one free Apache-2.0 distribution, with retained third-party attribution and optional CAN/MF4 backends. Expose `batterylog experimental can|precharge|replay`; retire the separate Research wheel and evaluation license.
 - Reject source timestamp regressions before binary64 rounding, including mapped CSV and streaming chunk boundaries. Analysis/report arithmetic remains binary64.
 
