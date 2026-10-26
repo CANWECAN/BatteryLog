@@ -5,7 +5,7 @@ import io
 import json
 import re
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation, localcontext
+from decimal import Context, Decimal, InvalidOperation, localcontext
 from fractions import Fraction
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import BinaryIO, Literal, TypedDict
@@ -112,8 +112,9 @@ def _exact_seconds(value: object, field: str) -> Fraction:
 def _decimal_text(value: Fraction) -> str:
     # Decimal source values have only factors 2 and 5 in their denominators.
     # This precision suffices for exact finite division; no binary64 conversion.
-    with localcontext() as context:
-        context.prec = len(str(abs(value.numerator))) + len(str(value.denominator)) + 2
+    precision = len(str(abs(value.numerator))) + len(str(value.denominator)) + 2
+    # The caller may have narrowed the ambient Decimal exponent range/traps.
+    with localcontext(Context(prec=precision, Emin=-999999, Emax=999999, clamp=0)):
         return str(Decimal(value.numerator) / Decimal(value.denominator))
 
 

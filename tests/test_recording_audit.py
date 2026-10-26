@@ -370,3 +370,30 @@ def test_physical_file_replacement_after_assignment_is_error(tmp_path, monkeypat
     item = audit_recordings(tmp_path, plan=_plan(tmp_path))["recordings"][0]
     assert item["coverage_status"] == "ERROR"
     assert "Physical recording file changed" in item["issues"][-1]["detail"]
+
+
+@pytest.mark.parametrize("tiny", [False, True])
+def test_supported_clock_is_independent_of_ambient_decimal_context(tmp_path, tiny):
+    from decimal import Subnormal, localcontext
+
+    times = (
+        ("0", "0.00000001", "0.00000002")
+        if tiny
+        else ("1700000000", "1700000000.1", "1700000000.2")
+    )
+    _csv(tmp_path, times=times)
+    record = _recording()
+    record["time"].update(
+        start_s=times[0], end_s=times[-1], max_gap_s="0.00000001" if tiny else "0.1"
+    )
+    plan = _plan(tmp_path, [record])
+    with localcontext() as context:
+        context.Emax = 6
+        context.Emin = -2
+        context.traps[Subnormal] = True
+        before = context.copy()
+        result = audit_recordings(tmp_path, plan=plan)
+        assert result["coverage_status"] == "COMPLETE"
+        assert context.Emax == before.Emax
+        assert context.Emin == before.Emin
+        assert context.traps == before.traps
