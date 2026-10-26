@@ -59,6 +59,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--time-unit", choices=["s", "ms", "us"], help="Declared source time unit for normalization"
     )
     parser.add_argument(
+        "--relative-time",
+        action="store_true",
+        help="With --normalize on CSV, subtract the first raw timestamp before conversion",
+    )
+    parser.add_argument(
         "--cell-voltage-unit", choices=["V", "mV"], help="Declared source cell-voltage unit"
     )
     parser.add_argument(
@@ -368,8 +373,8 @@ def run(argv: Sequence[str] | None = None) -> int:
                 parser.error(
                     "--normalize prepares one file; report and recursive options require analysis"
                 )
-        elif any(unit_options):
-            parser.error("Source unit options require --normalize")
+        elif any(unit_options) or args.relative_time:
+            parser.error("Source unit options and --relative-time require --normalize")
         if args.batch or args.audit_recordings:
             if not args.output_dir:
                 parser.error("--batch and --audit-recordings require --output-dir")
@@ -411,6 +416,7 @@ def run(argv: Sequence[str] | None = None) -> int:
                 ),
                 config=_resolve_cli_config(args, base=base_config),
                 config_evidence=config_snapshot.evidence if config_snapshot is not None else None,
+                relative_time=args.relative_time,
             )
             sys.stdout.write(
                 json.dumps(normalized, indent=2, sort_keys=True, allow_nan=False) + "\n"

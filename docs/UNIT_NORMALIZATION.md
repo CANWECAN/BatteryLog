@@ -56,22 +56,66 @@ remain unchanged.
 
 All selected measurements must be real, finite numeric values. Normalization is
 strict even if the supplied config asks analysis to exclude invalid rows. It
-does not exclude rows, replace invalid values, flip current signs, zero time,
-sort rows, infer cell topology or check physical plausibility. Source and
+does not exclude rows, replace invalid values, flip current signs, sort rows,
+infer cell topology or check physical plausibility. Source time is retained
+unless relative-time preparation is explicitly requested below. Source and
 converted timestamps must be non-decreasing across chunks; duplicates remain.
 If multi-group MDF extraction yields missing aligned samples, preparation fails.
 
+## Optional relative time for CSV clocks
+
+Large absolute clocks, such as epoch seconds, can lose short intervals when
+converted to binary64 before subtraction. For CSV, explicitly prepare elapsed
+time from the first source row:
+
+```sh
+batterylog source.csv --normalize --relative-time --time-unit s \
+  --cell-voltage-unit V --temperature-unit degC --output-dir prepared/elapsed
+```
+
+The Python equivalent adds `relative_time=True` to `normalize_measurement`.
+This subtracts the first raw decimal timestamp from every raw timestamp using
+exact rational arithmetic, divides by the declared time-unit divisor, then
+converts the elapsed value to binary64 seconds. The origin is fixed for the
+entire file, including chunk boundaries. Duplicate timestamps and real gaps
+remain; rows are never sorted, interpolated or removed. Negative source origins
+are allowed; the first output time is zero. A backwards source clock fails.
+
+Relative-time preparation uses `normalization_schema_version: 2`; default unit
+normalization retains version 1. The version-2 `time_basis` field records
+`mode: relative_to_first_sample`, the exact `source_origin` token in
+`source_unit`, its integer `divisor`, `output_unit: s`, and
+`arithmetic: exact_decimal_difference_then_binary64`. For this mode the timestamp
+conversion is `elapsed_s = (source_timestamp - source_origin) / divisor`, rather
+than the per-channel unit formula alone. To relate an event back to the source,
+use `source_timestamp = source_origin + elapsed_s * divisor`; use decimal or
+rational arithmetic when reconstructing large absolute clocks. Event/report
+times refer to the prepared elapsed clock, not to epoch time. Keep the conversion
+record beside those reports. Original and prepared file hashes remain separate.
+The analysis report does not automatically embed this conversion record.
+
+This option requires raw CSV timestamp tokens. It rejects MDF/MF4: master-time
+precision already lost by a binary64 backend cannot be recovered by subtraction.
+Timestamp tokens are limited to 256 characters, decimal exponent and adjusted
+exponent within -128 to 128. A positive source-time step that collapses to the
+same binary64 elapsed value is rejected, including across chunks; split such
+long recordings into shorter time spans. Preserving distinct timestamps does
+not guarantee exact interval arithmetic at every span or threshold. Measurements,
+prepared times and subsequent engineering calculations still use binary64.
+Ordinary analysis and default normalization do not change their time basis.
+
 ## Conversion evidence and limits
 
-`conversion.json` is a separate `normalization_schema_version: 1` envelope with
+`conversion.json` is a separate version-1 (default) or version-2 (relative-time) envelope with
 `analysis_performed: false`. It records source SHA-256 and size, captured config
 evidence when provided by the CLI, output CSV SHA-256, rows written, package
 version and each source/canonical channel's source unit, target unit, divisor
 and offset. The computation is `output = source / divisor + offset`: milli units
 divide by `1000`, microseconds by `1000000`, and Kelvin subtracts `273.15`.
 
-Calculations use binary64 and normal CSV numeric parsing; this is not an exact
-decimal or bit-preserving transport. Nonzero values that underflow to zero
+Except for the explicit raw-clock subtraction above, calculations use binary64
+and normal CSV numeric parsing; this is not an exact decimal or bit-preserving
+transport. Nonzero values that underflow to zero
 during division are rejected. Values that merely round remain subject to normal
 binary64 precision. A source snapshot is used and its original SHA-256 is checked
 again before publication. Failures and interruptions remove temporary files.

@@ -1,10 +1,13 @@
 """Prepare canonical CSV plus conversion evidence without evaluating rules."""
 
 import json
-from dataclasses import asdict
+import math
+from dataclasses import asdict, dataclass
+from decimal import Decimal
+from fractions import Fraction
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 import pandas as pd
 
@@ -44,8 +47,69 @@ class UnitConversion(TypedDict):
     offset: float
 
 
+class RelativeTimeBasis(TypedDict):
+    mode: Literal["relative_to_first_sample"]
+    source_origin: str
+    source_unit: str
+    divisor: int
+    output_unit: Literal["s"]
+    arithmetic: Literal["exact_decimal_difference_then_binary64"]
+
+
+@dataclass
+class _RelativeClock:
+    """Subtract the raw CSV clock origin before any binary64 conversion."""
+
+    origin: Fraction | None = None
+    origin_text: str | None = None
+    previous_source: Fraction | None = None
+    previous_output: float | None = None
+
+    def convert(self, values: pd.Series, divisor: int, row_offset: int) -> pd.Series:
+        converted: list[float] = []
+        for position, value in enumerate(values):
+            token = str(value).strip()
+            row = row_offset + position + 1
+            if len(token) > 256:
+                raise ValueError(
+                    f"Relative-time timestamp exceeds 256 characters at data row {row}"
+                )
+            decimal = Decimal(token)
+            exponent = decimal.as_tuple().exponent
+            if (
+                not decimal.is_finite()
+                or not isinstance(exponent, int)
+                or not -128 <= exponent <= 128
+                or not -128 <= decimal.adjusted() <= 128
+            ):
+                raise ValueError(
+                    f"Relative-time timestamp exceeds decimal bounds at data row {row}"
+                )
+            source = Fraction(decimal)
+            if self.origin is None:
+                self.origin, self.origin_text = source, token
+            elapsed = (source - self.origin) / divisor
+            output = float(elapsed)
+            if not math.isfinite(output) or (elapsed != 0 and output == 0):
+                raise ValueError(
+                    f"Relative-time conversion overflow or underflow at data row {row}"
+                )
+            if (
+                self.previous_source is not None
+                and source > self.previous_source
+                and self.previous_output is not None
+                and output <= self.previous_output
+            ):
+                raise ValueError(
+                    f"Relative-time binary64 conversion collapses distinct timestamps at data row {row}; split the recording into shorter time spans"
+                )
+            converted.append(output)
+            self.previous_source, self.previous_output = source, output
+        return pd.Series(converted, index=values.index, dtype=float)
+
+
 class NormalizationResult(TypedDict):
-    normalization_schema_version: Literal[1]
+    normalization_schema_version: Literal[1, 2]
     analysis_performed: Literal[False]
     rows_written: int
     normalized_csv: str
@@ -55,6 +119,7 @@ class NormalizationResult(TypedDict):
     config: dict[str, object] | None
     batterylog_version: str
     generated_at_utc: str
+    time_basis: NotRequired[RelativeTimeBasis]
 
 
 def normalize_measurement(
@@ -64,21 +129,28 @@ def normalize_measurement(
     units: SourceUnits,
     config: ValidationConfig | None = None,
     config_evidence: FileEvidence | None = None,
+    relative_time: bool = False,
 ) -> NormalizationResult:
     """Strictly convert selected channels to a new CSV and conversion.json.
 
     No rows are excluded, no interpolation or sorting is performed, and no
     engineering rule is evaluated. Each role must use one declared source unit.
     Configuration is used for mapping and required-channel checks only.
+    CSV-only relative_time subtracts the first raw timestamp before conversion;
+    its explicit time_basis record maps prepared event times to the source clock.
     """
     if not isinstance(units, SourceUnits):
         raise TypeError("units must be a SourceUnits instance")
+    if not isinstance(relative_time, bool):
+        raise TypeError("relative_time must be a bool")
     config = ValidationConfig() if config is None else config
     if not isinstance(config, ValidationConfig):
         raise TypeError("config must be a ValidationConfig instance")
     source, destination = Path(path).resolve(), Path(output_directory).resolve()
     if destination.exists():
         raise ValueError("Normalization requires a new output directory")
+    if relative_time and is_mdf_path(source):
+        raise ValueError("Relative-time preparation currently requires CSV raw timestamp tokens")
     if is_mdf_path(source) and units.timestamp != "s":
         raise ValueError("MDF master time is already in seconds; declare timestamp unit 's'")
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -127,6 +199,7 @@ def normalize_measurement(
             )
         )
         rows = 0
+        relative_clock = _RelativeClock() if relative_time else None
         previous_time: float | None = None
         previous_source_time: Timestamp | None = None
         conversions: list[UnitConversion] = []
@@ -274,6 +347,11 @@ def normalize_measurement(
                         name = conversion["canonical"]
                         if name in status_values:
                             continue
+                        if name == "timestamp_s" and relative_clock is not None:
+                            numeric[name] = relative_clock.convert(
+                                selected[name], int(conversion["divisor"]), rows
+                            )
+                            continue
                         original = numeric[name].to_numpy(dtype=float)
                         scaled = original / conversion["divisor"]
                         if ((original != 0) & (scaled == 0)).any():
@@ -309,7 +387,7 @@ def normalize_measurement(
             raise ValueError("Battery log contains no data rows")
         metadata = build_report_metadata(snapshot.evidence, config_evidence)
         result: NormalizationResult = {
-            "normalization_schema_version": 1,
+            "normalization_schema_version": 2 if relative_clock is not None else 1,
             "analysis_performed": False,
             "rows_written": rows,
             "normalized_csv": "normalized.csv",
@@ -320,6 +398,16 @@ def normalize_measurement(
             "batterylog_version": metadata.batterylog_version,
             "generated_at_utc": metadata.generated_at_utc,
         }
+        if relative_clock is not None:
+            assert relative_clock.origin_text is not None
+            result["time_basis"] = {
+                "mode": "relative_to_first_sample",
+                "source_origin": relative_clock.origin_text,
+                "source_unit": units.timestamp,
+                "divisor": int(unit_transform(units.timestamp)[1]),
+                "output_unit": "s",
+                "arithmetic": "exact_decimal_difference_then_binary64",
+            }
         (staged / "conversion.json").write_text(
             json.dumps(result, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8"
         )
