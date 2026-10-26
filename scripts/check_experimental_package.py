@@ -98,6 +98,8 @@ def audit(artifact: Path) -> dict:
     required.extend(ROOT / "batterylog_research/fixtures" / name for name in FIXTURES)
     required.extend(ROOT / "batterylog_research" / name for name in PROFILES)
     required.append(ROOT / THIRD_PARTY_NOTICE)
+    if not wheel:
+        required.append(ROOT / "examples/recording_plan.json")
     for source in required:
         name = source.relative_to(ROOT).as_posix()
         if files.get(name) != source.read_bytes():

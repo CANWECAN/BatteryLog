@@ -4,6 +4,10 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Add declared CSV recording coverage with explicit file/channel/time expectations and a source-linked CLI/HTML review; keep coverage separate from engineering PASS/FAIL and leave sensor acquisition freshness NOT_EVALUATED.
+- Add opt-in CSV --normalize --relative-time: subtract the first raw decimal timestamp before binary64 conversion, retain source-clock provenance in conversion schema v2, and reject collapsed positive time steps. Default normalization retains schema v1 and source time.
+- Retain the JSON recording-plan example in source distributions and exercise relative-time, streamed/API/CLI report parity and recording review through installed-package checks.
+
 - Preserve exact source-clock ordering through CSV normalization, including mapped clocks and chunk boundaries; reject rounding-hidden regressions before publishing normalized output.
 - Include CURRENT_STATE.md in source distributions so the README technical-status link remains usable after unpacking.
 

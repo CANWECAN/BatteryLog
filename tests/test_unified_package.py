@@ -19,6 +19,7 @@ def package(tmp_path, monkeypatch):
         "batterylog_research/operator.py": b"# operator\n",
         "LICENSE": b"Apache-2.0 test license\n",
         "NOTICE": b"BatteryLog copyright\n",
+        "examples/recording_plan.json": b"{}\n",
         checker.THIRD_PARTY_NOTICE: b"MIT notice\n",
         **{f"batterylog_research/fixtures/{name}": b"authored" for name in checker.FIXTURES},
         **{f"batterylog_research/{name}": b"{}" for name in checker.PROFILES},
@@ -97,3 +98,11 @@ def test_all_first_party_experimental_modules_declare_apache():
         text = source.read_text()
         assert "SPDX-License-Identifier: Apache-2.0" in text[:200], source
         assert "All rights reserved" not in text[:200], source
+
+
+def test_sdist_rejects_missing_recording_plan_example(package, tmp_path):
+    source, metadata = package
+    source = source.copy()
+    source.pop("examples/recording_plan.json")
+    with pytest.raises(ValueError, match="examples/recording_plan.json"):
+        checker.audit(_archive(tmp_path, source, metadata, False))

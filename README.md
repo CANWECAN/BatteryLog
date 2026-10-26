@@ -11,7 +11,7 @@ checks, offline CAN preparation/replay, and precharge JSON/HTML observations in 
 installation. Experimental workflows retain their documented qualification limits.
 There is no separate Research subscription, companion wheel or evaluation license.
 
-**Current verification:** Local checks on 23 October 2026: native Windows/Python 3.13.14 has 3,268 passing tests and 2 platform-specific skips, with 96.63% Core coverage. All 45 native Tk tests run without skips. The same normalization fix passed 3,270 tests on Linux/Python 3.14.7 with 96.46% Core coverage. Fresh wheel/sdist installs and synthetic large-file checks pass. Hosted required checks remain pending; this is not a release. See [qualification scope](docs/QUALIFICATION_2026_10_23.md).
+**Current verification:** Native Windows/Python 3.13.14 checks on 26 October 2026 pass 3,429 tests with 2 platform-specific skips and 96.59% Core coverage. All 45 real Tk tests pass. This includes recording coverage/review and opt-in relative CSV time preparation. Linux/other Python versions and required hosted checks remain pending for this source; historical results do not qualify the changed tree. See [qualification scope and package checks](docs/QUALIFICATION_2026_10_26.md).
 
 **Status:** **Pre-1.0 engineering beta.** The validation core is extensively tested; APIs and supported workflows may still evolve before 1.0.
 
@@ -50,6 +50,7 @@ All demo limits are illustrative; obtain production criteria from your test plan
 - Maps vendor signal names into a canonical battery model
 - Inspects channel metadata and converts explicitly declared source units to canonical CSV
 - Analyzes directories with per-file evidence and a CSV summary
+- Audits explicitly planned CSV files, channels and time coverage separately from engineering results
 - Applies explicit voltage, temperature, current, imbalance, spread, and pack-voltage plausibility rules
 - Fails closed on invalid required measurement data
 - Groups failing samples into structured violation events with peak evidence
@@ -154,6 +155,36 @@ batterylog source.csv --normalize --time-unit ms --cell-voltage-unit mV \
 
 See [unit normalization](docs/UNIT_NORMALIZATION.md) for supported units, conversion evidence
 and the subsequent analysis step.
+
+## Declared recording coverage (0.11 development)
+
+Review an explicit CSV recording plan alongside the existing engineering checks:
+
+```sh
+batterylog measurements --audit-recordings recording_plan.json \
+  --config validation.yaml --output-dir results/recording-review
+```
+
+The overview links to per-file JSON/HTML evidence and reports coverage and
+engineering results separately. A complete recording can fail engineering limits;
+an incomplete recording can contain passing observed samples. COMPLETE does not
+prove that the physical test occurred or that BMS samples are fresh.
+See [the plan format and result contract](docs/RECORDING_AUDIT.md) and
+[example plan](examples/recording_plan.json).
+
+For CSV clocks with a large absolute origin, explicitly prepare elapsed seconds
+before rate analysis:
+
+```sh
+batterylog source.csv --normalize --relative-time --time-unit s \
+  --cell-voltage-unit V --temperature-unit degC --output-dir prepared/elapsed
+```
+
+Keep conversion.json with subsequent analysis reports: it records the original
+clock origin and source hash. This option changes prepared event times to elapsed
+seconds; ordinary analysis retains binary64 source-clock arithmetic. MDF/MF4 raw
+clock precision is not recovered by this CSV option.
+See [relative-time preparation and limits](docs/UNIT_NORMALIZATION.md).
 
 ## Input model
 

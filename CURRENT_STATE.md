@@ -1,6 +1,6 @@
 # BatteryLog technical status
 
-Updated: 23 October 2026. This file summarizes implementation and qualification;
+Updated: 26 October 2026. This file summarizes implementation and qualification;
 reproducible methods and source-specific results are in the linked technical notes.
 
 ## Product and package
@@ -29,6 +29,8 @@ and chunk boundaries. Reports/model arithmetic remains binary64.
 
 | Interface | Contract | Documentation |
 | --- | --- | --- |
+| Recording review | Declared CSV file/channel/time coverage plus separate engineering JSON/HTML | [Recording review](docs/RECORDING_AUDIT.md) |
+| Relative CSV time | Explicit raw-origin subtraction and version-2 conversion provenance | [Normalization](docs/UNIT_NORMALIZATION.md) |
 | CAN preparation | Explicit DBC/profile; canonical CSV and source/age evidence | [CAN preparation](docs/RESEARCH_FIRST_CAN_BRIDGE_2026_10_13.md) |
 | CAN replay and recording | Exact recorded clock; bounded queue and explicit partial sessions | [Replay contract](docs/RESEARCH_CAN_OFFLINE_REPLAY_2026_10_17.md) |
 | Precharge HTML | Source-linked current/gap plots, coverage and missingness | [HTML interpretation](docs/RESEARCH_PRECHARGE_HTML_2026_10_17.md) |
@@ -39,7 +41,26 @@ and chunk boundaries. Reports/model arithmetic remains binary64.
 The common command and precharge HTML are installed with the same package. Prepared CAN rejects temporal models, signal remapping and unqualified
 pack/cell-sum comparisons. Held samples are not independent acquisitions.
 
-## Current local qualification - 23 October 2026
+## Current local qualification - 26 October 2026
+
+Runtime source at 1643a445996a13f3f677e654e9e8365252c4d0e4 is retained. The candidate passes
+3,429 tests on native Windows/Python 3.13.14, with two platform-specific skips and
+96.59% Core coverage. All 45 real Tk cases run. The relative-clock regression
+covers clean and pre-set Decimal context flags; normal preparation preserves
+caller flags. Source/streamed/CLI/report comparisons agree on authored cases.
+
+New CSV recording review keeps coverage and engineering acceptance separate.
+Opt-in --normalize --relative-time subtracts the first raw decimal clock before
+binary64 conversion, records its exact source origin and unit, and rejects
+collapsed positive steps. Default analysis remains binary64 on the source clock;
+neither this feature nor COMPLETE establishes physical acquisition or safety.
+
+The previous Linux/Python and package results below identify older sources.
+They do not qualify these changed modules. Current qualification methods and
+package acceptance scripts are in [the 26 October note](docs/QUALIFICATION_2026_10_26.md).
+Required hosted CI remains pending, so this is an unreleased development candidate.
+
+## Historical local qualification - 23 October 2026
 
 Local checks on 23 October 2026: native Windows/Python 3.13.14 has 3,268 passing tests and 2 platform-specific skips, with 96.63% Core coverage. All 45 native Tk tests run without skips. The same normalization fix passed 3,270 tests on Linux/Python 3.14.7 with 96.46% Core coverage. Fresh wheel/sdist installs and synthetic large-file checks pass. Hosted required checks remain pending; this is not a release. See [qualification scope](docs/QUALIFICATION_2026_10_23.md).
 

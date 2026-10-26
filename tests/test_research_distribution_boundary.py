@@ -22,6 +22,8 @@ def package_fixture(tmp_path: Path) -> Path:
     (project / "batterylog_research").mkdir()
     (project / "tests").mkdir()
     (project / "docs").mkdir()
+    (project / "examples").mkdir()
+    (project / "examples" / "recording_plan.json").write_text("{}\n")
     (project / "batterylog" / "__init__.py").write_text("# Apache Core\n")
     (project / "batterylog_research" / "__init__.py").write_text("# Apache experimental package\n")
     (project / "batterylog_research" / "unpublished.py").write_text(
@@ -73,6 +75,7 @@ def test_unified_sdist_includes_experimental_code_and_tests(package_fixture: Pat
     assert "batterylog/__init__.py" in members
     assert "tests/test_core.py" in members
     assert "MANIFEST.in" in members
+    assert "examples/recording_plan.json" in members
     assert "docs/REFERENCE.md" in members
     assert "docs/RESEARCH_PRIVATE.md" in members
     assert "docs/BUG_HUNT_INTERNAL.md" not in members
