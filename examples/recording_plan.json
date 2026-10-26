@@ -1,0 +1,18 @@
+{
+  "recording_plan_schema_version": 1,
+  "recordings": [
+    {
+      "id": "run-001",
+      "path": "session/run-001.csv",
+      "expected_channels": ["cell_1_v", "cell_2_v", "temp_c"],
+      "time": {
+        "column": "timestamp_s",
+        "unit": "s",
+        "start_s": "0",
+        "end_s": "600",
+        "max_gap_s": "1",
+        "boundary_tolerance_s": "0"
+      }
+    }
+  ]
+}
