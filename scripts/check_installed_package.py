@@ -335,6 +335,11 @@ with TemporaryDirectory() as directory:
     assert (batch_out / batch_summary["files"][0]["report_html"]).is_file()
     assert (batch_out / "summary.csv").is_file()
 
+subprocess.run(
+    [sys.executable, str(Path(__file__).with_name("check_recording_package.py")), expected_version],
+    check=True,
+)
+
 print(
     f"Installed BatteryLog {expected_version}: normalization/inspection/batch flow, service, CLI, schema, rules and HTML plots verified"
 )

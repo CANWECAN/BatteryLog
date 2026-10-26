@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from decimal import Decimal, Inexact, Subnormal, localcontext
+from decimal import Decimal, FloatOperation, Inexact, InvalidOperation, Subnormal, localcontext
 from fractions import Fraction
 
 import pandas as pd
@@ -124,11 +124,15 @@ def test_exact_origin_mapping_duplicates_and_source_hashes(tmp_path, monkeypatch
     assert result["analysis_performed"] is False
 
 
-def test_relative_clock_does_not_inherit_decimal_context(tmp_path):
+@pytest.mark.parametrize("dirty_flags", [False, True])
+def test_relative_clock_does_not_inherit_decimal_context(tmp_path, dirty_flags):
     source = _source(tmp_path, ["1700000000", "1700000000.1"])
     with localcontext() as context:
         context.prec, context.Emax, context.Emin = 2, 6, -2
         context.traps[Inexact] = context.traps[Subnormal] = True
+        context.clear_flags()
+        context.flags[InvalidOperation] = context.flags[FloatOperation] = dirty_flags
+        expected_flags = dict(context.flags)
         normalize_measurement(
             source,
             tmp_path / "out",
@@ -136,7 +140,7 @@ def test_relative_clock_does_not_inherit_decimal_context(tmp_path):
             relative_time=True,
         )
         assert (context.prec, context.Emax, context.Emin) == (2, 6, -2)
-        assert not any(context.flags.values())
+        assert dict(context.flags) == expected_flags
     assert pd.read_csv(tmp_path / "out/normalized.csv")["timestamp_s"].tolist() == [0, 0.1]
 
 
