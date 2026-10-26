@@ -50,6 +50,11 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument(
         "--normalize", action="store_true", help="Prepare canonical CSV plus conversion evidence"
     )
+    mode.add_argument(
+        "--audit-recordings",
+        metavar="PLAN",
+        help="Review declared CSV recording coverage and engineering reports together",
+    )
     parser.add_argument(
         "--time-unit", choices=["s", "ms", "us"], help="Declared source time unit for normalization"
     )
@@ -365,11 +370,15 @@ def run(argv: Sequence[str] | None = None) -> int:
                 )
         elif any(unit_options):
             parser.error("Source unit options require --normalize")
-        if args.batch:
+        if args.batch or args.audit_recordings:
             if not args.output_dir:
-                parser.error("--batch requires --output-dir")
+                parser.error("--batch and --audit-recordings require --output-dir")
             if args.report or args.json_out:
-                parser.error("--batch writes per-file reports; use --output-dir")
+                parser.error("Directory review writes its reports; use --output-dir")
+            if args.audit_recordings and args.recursive:
+                parser.error(
+                    "--audit-recordings uses exact planned paths; --recursive is not supported"
+                )
         elif not args.normalize and (args.output_dir or args.recursive):
             parser.error("--output-dir and --recursive require --batch")
     except SystemExit as exc:
@@ -415,7 +424,7 @@ def run(argv: Sequence[str] | None = None) -> int:
             )
             return EXIT_PASS if inspection["metadata_status"] == "OK" else EXIT_RUNTIME_ERROR
 
-        if args.batch:
+        if args.batch or args.audit_recordings:
             config_snapshot = (
                 capture_file_snapshot(config_path) if config_path is not None else None
             )
@@ -424,6 +433,30 @@ def run(argv: Sequence[str] | None = None) -> int:
                 if config_snapshot is not None
                 else ValidationConfig()
             )
+            if args.audit_recordings:
+                from .recording_review import review_recordings
+
+                review = review_recordings(
+                    input_path,
+                    args.output_dir,
+                    plan=args.audit_recordings,
+                    service=AnalysisService(_resolve_cli_config(args, base=base_config)),
+                    config_evidence=config_snapshot.evidence
+                    if config_snapshot is not None
+                    else None,
+                )
+                sys.stdout.write(
+                    json.dumps(review, indent=2, sort_keys=True, allow_nan=False) + "\n"
+                )
+                coverage = review["audit"]["coverage_status"]
+                engineering = review["engineering_status"]
+                if "ERROR" in {coverage, engineering}:
+                    return EXIT_RUNTIME_ERROR
+                if coverage == "INCOMPLETE" or engineering == "FAIL":
+                    return EXIT_VALIDATION_FAIL
+                if "NOT_EVALUATED" in {coverage, engineering}:
+                    return EXIT_NOT_EVALUATED
+                return EXIT_PASS
             summary = analyze_directory(
                 input_path,
                 args.output_dir,

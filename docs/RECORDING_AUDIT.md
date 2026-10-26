@@ -12,9 +12,60 @@ audit = audit_recordings("measurements", plan="recording-plan.json")
 print(json.dumps(audit, indent=2, allow_nan=False))
 ```
 
-The API reads inputs without modifying them or writing reports. There is no
-desktop, main CLI or HTML-report integration yet. Existing analysis/batch
-commands and their schemas/results are unchanged.
+The audit API reads inputs without modifying them or writing reports. Existing
+analysis/batch commands and their schemas/results are unchanged.
+
+## Review reports and CLI
+
+To publish a source-linked overview with the existing per-file engineering
+JSON/HTML reports, use the directory review mode:
+
+```sh
+batterylog measurements --audit-recordings recording-plan.json --output-dir results/run-001 --cell-max-v 4.2
+```
+
+The engineering limit above is illustrative; supply the actual validation
+configuration with `--config` or the existing engineering-rule overrides.
+Without active engineering rules the engineering status remains NOT_EVALUATED.
+`--audit-recordings` is mutually exclusive with batch, inspect and normalize;
+it uses exact planned paths, so `--recursive`, `--report` and `--json-out` are
+not accepted. It reads only the CSVs named in the plan.
+
+The new output directory must be outside the input directory. It contains
+`review.json`, `review.html` and `files/<source.csv>/result.json|report.html` for
+completed engineering analyses. The overview shows coverage and engineering
+outcomes separately, expected/observed evidence, issue counts/first lines,
+source/plan hashes, and relative links to the unchanged engineering reports.
+
+The Python reporting API is:
+
+```python
+from batterylog import AnalysisService
+from batterylog.recording_review import review_recordings
+
+review = review_recordings(
+    "measurements",
+    "results/run-001",
+    plan="recording-plan.json",
+    service=AnalysisService(validation_config),
+)
+```
+
+Omit `service` for a coverage-only review. If a caller supplies `config_evidence`,
+it must describe the configuration actually used by the service, as for batch.
+The wrapper uses a separate `recording_review_schema_version: 1` envelope;
+it does not insert recording coverage into an engineering AnalysisResult.
+
+All outputs are staged and the review directory is published only when JSON,
+HTML and the relevant per-file evidence are complete. Cancellation propagates;
+staging is discarded and previous outputs remain untouched. Per-file engineering
+input errors stay explicit ERROR results. A source hash mismatch between the two
+analyses, a changed plan/source before publication, or a report-write failure
+aborts publication rather than associating mismatched evidence.
+
+CLI exit codes: `4` for any coverage/engineering ERROR, otherwise `1` for
+INCOMPLETE coverage or engineering FAIL, otherwise `3` for NOT_EVALUATED in
+either dimension, otherwise `0`. Invalid argument combinations return `2`.
 
 ## Plan version 1
 
@@ -89,6 +140,8 @@ subtraction or comparison. Epoch magnitude does not introduce binary64 rounding
 into this audit. Tokens are limited to 256 characters and decimal exponents and
 adjusted exponents to [-128, 128]; unsupported values are reported, not rounded.
 These rules do not change the existing engineering models' numeric contract.
+Formatting exact time evidence uses an explicit Decimal context so unrelated
+application Decimal exponent/trap settings cannot invalidate supported clocks.
 
 Multiple expected ids resolving to the same physical file are ambiguous and
 both receive an error. Equal bytes in genuinely separate files alone are not
@@ -131,6 +184,6 @@ files were never changed before auditing. Sensor freshness, calibration,
 chemistry, SOC, physical units and cross-sensor acquisition alignment remain
 unverified. CSV row timestamps are not independent sensor acquisition timestamps.
 
-MDF/MF4/CAN input, automatic test discovery, resuming test execution and HTML/UI
-integration are outside this first CSV API. Independent utility and real-world
+MDF/MF4/CAN input, automatic test discovery, resuming test execution and desktop
+integration are outside this CSV workflow. Independent utility and real-world
 validation remain pending.
