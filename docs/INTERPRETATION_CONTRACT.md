@@ -68,7 +68,9 @@ Chemistry/SOC alone are not sufficient for an SOC estimate; branch currents
 alone are not sufficient for localization. Contact resistance is not an
 implemented identification method.
 
-Context parsing, per-claim prerequisite checks, source/context binding, CLI,
-HTML and independently labeled field-data evaluation are subsequent work.
+Strict [declared context parsing](MEASUREMENT_CONTEXT.md) is now available as a
+separate development API. It does not run per-claim prerequisite checks or
+change this report. Source/context binding, CLI, HTML and independently labeled
+field-data evaluation are subsequent work.
 No physical accuracy, field utility or safety qualification follows from the
 software tests for this initial contract.

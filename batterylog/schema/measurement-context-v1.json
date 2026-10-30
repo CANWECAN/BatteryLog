@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BatteryLog declared measurement context v1",
+  "description": "Declarations only. Schema conformance does not verify physical measurements, topology, alignment, calibration or diagnostic sufficiency.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["measurement_context_schema_version"],
+  "properties": {
+    "measurement_context_schema_version": {"type": "integer", "const": 1},
+    "topology": {
+      "anyOf": [{"type": "null"}, {"$ref": "#/$defs/topology"}]
+    },
+    "channels": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {"$ref": "#/$defs/channel"}
+    },
+    "chemistry": {"$ref": "#/$defs/nullableLabel"},
+    "soc": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/soc"}]},
+    "operating_state": {"enum": [null, "unknown", "rest", "charge", "discharge", "mixed"]}
+  },
+  "$defs": {
+    "label": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "\\S"},
+    "nullableLabel": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/label"}]},
+    "topology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {"enum": ["unknown", "series", "parallel", "series_parallel"]},
+        "branch_ids": {
+          "description": "Explicit parallel-branch labels; the list need not be complete and is not verified.",
+          "type": "array",
+          "maxItems": 4096,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/label"}
+        }
+      }
+    },
+    "channel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "role"],
+      "properties": {
+        "source": {"$ref": "#/$defs/label"},
+        "role": {"enum": ["cell_voltage", "branch_voltage", "pack_voltage", "branch_current", "pack_current", "temperature"]},
+        "unit": {"enum": [null, "V", "mV", "A", "mA", "degC", "K"]},
+        "branch_id": {"$ref": "#/$defs/nullableLabel"},
+        "cell_id": {"$ref": "#/$defs/nullableLabel"},
+        "time_basis": {"$ref": "#/$defs/nullableLabel"},
+        "acquisition": {"enum": [null, "unknown", "simultaneous", "asynchronous", "previous_sample_hold"]}
+      }
+    },
+    "soc": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value_percent": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "source": {"$ref": "#/$defs/nullableLabel"}
+      }
+    }
+  }
+}
