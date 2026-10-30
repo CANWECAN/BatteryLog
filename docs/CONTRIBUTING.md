@@ -23,3 +23,12 @@ record conversation history.
 Before submitting documentation, check relative links, code examples, source/test
 revision references and consistency with the actual diff. Documentation edits do
 not establish new runtime, physical-data or release qualification.
+
+Run Core coverage with `python -m pytest -q --cov=batterylog
+--cov-report=term-missing --cov-fail-under=95`. The root `pyproject.toml` enables
+coverage.py's `subprocess` patch so real CLI/desktop-worker tests contribute
+child-process measurements under pytest-cov 7; see its
+[migration instructions](https://pytest-cov.readthedocs.io/en/stable/subprocess-support.html).
+Keep the 95% gate and report display/platform skips separately. A statement
+missing from a coverage report is not, by itself, proof that no subprocess test
+exercised it. Coverage measures execution, not assertion quality or physical accuracy.

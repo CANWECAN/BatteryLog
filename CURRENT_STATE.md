@@ -1,6 +1,6 @@
 # BatteryLog technical status
 
-Updated: 26 October 2026. This file summarizes implementation and qualification;
+Updated: 30 October 2026. This file summarizes implementation and qualification;
 reproducible methods and source-specific results are in the linked technical notes.
 
 ## Product and package
@@ -30,6 +30,7 @@ and chunk boundaries. Reports/model arithmetic remains binary64.
 | Interface | Contract | Documentation |
 | --- | --- | --- |
 | Recording review | Declared CSV file/channel/time coverage plus separate engineering JSON/HTML | [Recording review](docs/RECORDING_AUDIT.md) |
+| Interpretation context APIs | Strict declarations, parallel-branch inventory and voltage-spread context limits; physical claims remain NOT_EVALUATED | [Interpretation contract](docs/INTERPRETATION_CONTRACT.md) |
 | Relative CSV time | Explicit raw-origin subtraction and version-2 conversion provenance | [Normalization](docs/UNIT_NORMALIZATION.md) |
 | CAN preparation | Explicit DBC/profile; canonical CSV and source/age evidence | [CAN preparation](docs/RESEARCH_FIRST_CAN_BRIDGE_2026_10_13.md) |
 | CAN replay and recording | Exact recorded clock; bounded queue and explicit partial sessions | [Replay contract](docs/RESEARCH_CAN_OFFLINE_REPLAY_2026_10_17.md) |
@@ -41,7 +42,24 @@ and chunk boundaries. Reports/model arithmetic remains binary64.
 The common command and precharge HTML are installed with the same package. Prepared CAN rejects temporal models, signal remapping and unqualified
 pack/cell-sum comparisons. Held samples are not independent acquisitions.
 
-## Current local qualification - 26 October 2026
+## Current development scope
+
+The separate interpretation APIs preserve engineering outcomes while reviewing
+declared context. The voltage-spread review reports chemistry, SOC provenance,
+load/rest and cell-acquisition limits; it supplies no voltage-to-SOC conversion.
+The parallel review does not select a faulty branch. Metadata completeness does
+not enable a physical diagnosis. Source/result/context binding and opt-in
+CLI/HTML integration for these new APIs are still pending; see the
+[context parser](docs/MEASUREMENT_CONTEXT.md),
+[parallel review](docs/PARALLEL_BRANCH_CONTEXT.md) and
+[voltage-spread review](docs/VOLTAGE_SPREAD_CONTEXT.md).
+
+The current cloud environment cannot run real Tk display cases. Core coverage
+retains the 95% gate; child-process measurement is explicitly enabled for
+pytest-cov 7. Earlier platform results do not qualify the new interpretation
+APIs. Required hosted CI and current native/GUI qualification remain pending.
+
+## Historical local qualification - 26 October 2026
 
 Runtime source at 1643a445996a13f3f677e654e9e8365252c4d0e4 is retained. The candidate passes
 3,429 tests on native Windows/Python 3.13.14, with two platform-specific skips and

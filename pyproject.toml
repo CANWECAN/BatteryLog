@@ -67,6 +67,10 @@ batterylog_research = [
 testpaths = ["tests"]
 pythonpath = ["."]
 
+[tool.coverage.run]
+# pytest-cov 7 delegates child-process measurement to coverage.py.
+patch = ["subprocess"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

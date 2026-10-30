@@ -82,6 +82,10 @@ hash binding and snapshot handling belong to the later review workflow.
 The separate [parallel-branch context review](PARALLEL_BRANCH_CONTEXT.md) can
 inventory these declarations and report missing fields. It does not verify
 source samples or physical identifiability.
+The separate [voltage-spread context review](VOLTAGE_SPREAD_CONTEXT.md) reports
+chemistry, SOC-source, load/rest and cell-acquisition limits. Neither review
+changes the parser's declarations into verified measurements or a physical
+diagnosis.
 
 The [interpretation result contract](INTERPRETATION_CONTRACT.md) still returns
 `NOT_EVALUATED` for physical claims. This parser does not change a measured

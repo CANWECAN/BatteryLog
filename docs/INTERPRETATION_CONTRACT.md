@@ -75,5 +75,8 @@ field-data evaluation are subsequent work.
 The separate [parallel-branch declaration review](PARALLEL_BRANCH_CONTEXT.md)
 now reports instrumentation inventory and context limits; it does not change
 the three statuses in this result contract.
+The separate [voltage-spread context review](VOLTAGE_SPREAD_CONTEXT.md) now
+explains missing chemistry, SOC provenance, operating and acquisition context
+without converting voltage spread to physical SOC imbalance.
 No physical accuracy, field utility or safety qualification follows from the
 software tests for this initial contract.
