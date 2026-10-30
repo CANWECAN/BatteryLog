@@ -79,6 +79,10 @@ sufficient for identification. No unit conversion, state segmentation, SOC
 estimate, physical diagnosis or safety decision is performed. Context/source
 hash binding and snapshot handling belong to the later review workflow.
 
+The separate [parallel-branch context review](PARALLEL_BRANCH_CONTEXT.md) can
+inventory these declarations and report missing fields. It does not verify
+source samples or physical identifiability.
+
 The [interpretation result contract](INTERPRETATION_CONTRACT.md) still returns
 `NOT_EVALUATED` for physical claims. This parser does not change a measured
 engineering PASS or FAIL, and is not yet exposed as a CLI/HTML option.

@@ -72,5 +72,8 @@ Strict [declared context parsing](MEASUREMENT_CONTEXT.md) is now available as a
 separate development API. It does not run per-claim prerequisite checks or
 change this report. Source/context binding, CLI, HTML and independently labeled
 field-data evaluation are subsequent work.
+The separate [parallel-branch declaration review](PARALLEL_BRANCH_CONTEXT.md)
+now reports instrumentation inventory and context limits; it does not change
+the three statuses in this result contract.
 No physical accuracy, field utility or safety qualification follows from the
 software tests for this initial contract.
