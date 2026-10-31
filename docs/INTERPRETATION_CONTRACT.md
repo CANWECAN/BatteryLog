@@ -43,10 +43,11 @@ result. Engineering evidence must still be validated by its existing producer
 and consumers. Passing a status string is not validation of a result, its
 measurements, sensor accuracy or source identity.
 
-This initial payload has no source, result or context hash. It must not be
-published as a source-bound evidence report. A later opt-in workflow needs to
-bind all three before generating per-file output. Ordinary analysis does not
-automatically produce this payload.
+This initial standalone payload has no source, result or context hash. It must
+not be published as a source-bound evidence report. The separate opt-in
+[review workflow](INTERPRETATION_REVIEW.md) now binds source, result and context
+before producing its own versioned per-file JSON/HTML. Ordinary analysis does
+not automatically produce either interpretation payload.
 
 ## Requirements for context-aware extensions
 
@@ -70,8 +71,9 @@ implemented identification method.
 
 Strict [declared context parsing](MEASUREMENT_CONTEXT.md) is now available as a
 separate development API. It does not run per-claim prerequisite checks or
-change this report. Source/context binding, CLI, HTML and independently labeled
-field-data evaluation are subsequent work.
+change this report. Source/context binding and CLI/HTML are available through
+the separate opt-in workflow; independently labeled field-data evaluation
+remains subsequent work.
 The separate [parallel-branch declaration review](PARALLEL_BRANCH_CONTEXT.md)
 now reports instrumentation inventory and context limits; it does not change
 the three statuses in this result contract.

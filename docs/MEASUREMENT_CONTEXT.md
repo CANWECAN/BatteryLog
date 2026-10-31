@@ -77,7 +77,8 @@ Loading context does not check whether named channels exist in a recording,
 whether samples are fresh/aligned, or whether topology and branch currents are
 sufficient for identification. No unit conversion, state segmentation, SOC
 estimate, physical diagnosis or safety decision is performed. Context/source
-hash binding and snapshot handling belong to the later review workflow.
+hash binding and snapshot handling are available in the separate opt-in
+[review workflow](INTERPRETATION_REVIEW.md).
 
 The separate [parallel-branch context review](PARALLEL_BRANCH_CONTEXT.md) can
 inventory these declarations and report missing fields. It does not verify
@@ -89,4 +90,5 @@ diagnosis.
 
 The [interpretation result contract](INTERPRETATION_CONTRACT.md) still returns
 `NOT_EVALUATED` for physical claims. This parser does not change a measured
-engineering PASS or FAIL, and is not yet exposed as a CLI/HTML option.
+engineering PASS or FAIL. The opt-in review CLI accepts this context and shows
+its declaration limits in a separate HTML/JSON bundle.

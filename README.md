@@ -156,6 +156,21 @@ batterylog source.csv --normalize --time-unit ms --cell-voltage-unit mV \
 See [unit normalization](docs/UNIT_NORMALIZATION.md) for supported units, conversion evidence
 and the subsequent analysis step.
 
+## Interpretation limits (0.11 development)
+
+For a single-file interpretation review that keeps engineering acceptance
+separate from physical causes:
+
+```sh
+batterylog measurement.csv --interpret --measurement-context context.json \
+  --imbalance-limit-v 0.05 --output-dir results/interpretation-001
+```
+
+Open `interpretation.html` in the new directory. The bundle binds the source,
+unchanged analysis JSON, effective settings and optional context by hash.
+Physical SOC/branch/sensor claims remain NOT_EVALUATED even when metadata is
+complete. See [the opt-in review and exit-code contract](docs/INTERPRETATION_REVIEW.md).
+
 ## Declared recording coverage (0.11 development)
 
 Review an explicit CSV recording plan alongside the existing engineering checks:

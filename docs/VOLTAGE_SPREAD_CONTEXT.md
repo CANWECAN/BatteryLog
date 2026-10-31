@@ -18,7 +18,8 @@ assert review["diagnostic_claim"] is False
 Omitting context reports `MEASUREMENT_CONTEXT_NOT_SUPPLIED`. Dictionaries must
 first pass the strict measurement-context parser. The version-1 output has
 scope `declared_measurement_context_only`. It must not be presented as a review
-of a particular recording: source/result/context hash binding is subsequent work.
+of a particular recording. Use the separate source/result/context-bound
+[review workflow](INTERPRETATION_REVIEW.md) for that association.
 
 ## Observation and interpretation
 
@@ -35,7 +36,7 @@ establish physical SOC imbalance, a particular faulty cell or sensor accuracy.
 | No engineering limits are configured | Retain the engineering `NOT_EVALUATED`; this context review does not enable a limit or a physical estimate. |
 
 No engineering result is accepted or modified by this API. Combining these two
-outputs with traceable source identities belongs to the later opt-in workflow.
+outputs with traceable source identities belongs to the separate opt-in workflow.
 This API introduces no chemistry-specific thresholds, OCV curve, universal
 mV-to-SOC conversion or SOC/SOH estimator. Even complete metadata leaves the
 physical claim unevaluated.
@@ -99,7 +100,8 @@ declarations leaves the entire export unchanged. No numeric SOC difference,
 faulty-cell selection or confidence score is produced.
 
 This separate development API does not change `InterpretationReport`, the
-analysis engine, result-v8/v9 schemas, CLI or HTML. See the [interpretation
+analysis engine or result-v8/v9 schemas. The separate opt-in workflow now
+integrates this review into its CLI/HTML bundle. See the [interpretation
 contract](INTERPRETATION_CONTRACT.md), [context parser](MEASUREMENT_CONTEXT.md)
 and [parallel-branch review](PARALLEL_BRANCH_CONTEXT.md). Its software regressions
 are not physical-diagnosis validation or a safety qualification.

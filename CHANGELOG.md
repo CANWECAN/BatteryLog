@@ -4,6 +4,7 @@ All notable changes to BatteryLog are documented here.
 
 ## Unreleased
 
+- Add an opt-in single-file interpretation bundle with captured-source/result/context/settings hashes, unchanged result-v8/v9 JSON and a separate offline HTML review. Preserve engineering exit codes and threshold evidence; physical SOC, branch-location and sensor/cell claims remain NOT_EVALUATED even with complete metadata. Reject changed inputs and partial publication on pre-commit errors or cancellation.
 - Add declared CSV recording coverage with explicit file/channel/time expectations and a source-linked CLI/HTML review; keep coverage separate from engineering PASS/FAIL and leave sensor acquisition freshness NOT_EVALUATED.
 - Add opt-in CSV --normalize --relative-time: subtract the first raw decimal timestamp before binary64 conversion, retain source-clock provenance in conversion schema v2, and reject collapsed positive time steps. Default normalization retains schema v1 and source time.
 - Retain the JSON recording-plan example in source distributions and exercise relative-time, streamed/API/CLI report parity and recording review through installed-package checks.

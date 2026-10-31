@@ -55,6 +55,15 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="PLAN",
         help="Review declared CSV recording coverage and engineering reports together",
     )
+    mode.add_argument(
+        "--interpret",
+        action="store_true",
+        help="Publish a source-bound interpretation bundle; physical claims remain NOT_EVALUATED",
+    )
+    parser.add_argument(
+        "--measurement-context",
+        help="With --interpret, read an optional declared measurement-context JSON file",
+    )
     parser.add_argument(
         "--time-unit", choices=["s", "ms", "us"], help="Declared source time unit for normalization"
     )
@@ -353,6 +362,15 @@ def run(argv: Sequence[str] | None = None) -> int:
 
             return run_experimental(argv[1:])
         args = parser.parse_args(argv)
+        if args.measurement_context and not args.interpret:
+            parser.error("--measurement-context requires --interpret")
+        if args.interpret:
+            if not args.output_dir:
+                parser.error("--interpret requires --output-dir")
+            if args.report or args.json_out or args.recursive:
+                parser.error(
+                    "--interpret writes one bundle; --report, --json-out and --recursive are not supported"
+                )
         if args.inspect and (args.report or args.json_out):
             parser.error(
                 "--inspect emits metadata on stdout; --report and --json-out require analysis"
@@ -384,7 +402,7 @@ def run(argv: Sequence[str] | None = None) -> int:
                 parser.error(
                     "--audit-recordings uses exact planned paths; --recursive is not supported"
                 )
-        elif not args.normalize and (args.output_dir or args.recursive):
+        elif not args.normalize and not args.interpret and (args.output_dir or args.recursive):
             parser.error("--output-dir and --recursive require --batch")
     except SystemExit as exc:
         return int(exc.code or EXIT_PASS)
@@ -429,6 +447,22 @@ def run(argv: Sequence[str] | None = None) -> int:
                 json.dumps(inspection, indent=2, sort_keys=True, allow_nan=False) + "\n"
             )
             return EXIT_PASS if inspection["metadata_status"] == "OK" else EXIT_RUNTIME_ERROR
+
+        if args.interpret:
+            from .interpretation_review import review_measurement
+
+            bundle = review_measurement(
+                input_path,
+                args.output_dir,
+                context_path=args.measurement_context,
+                config=_resolve_cli_config(args),
+            )
+            print(
+                "Physical interpretation: NOT_EVALUATED; engineering result retained.",
+                file=sys.stderr,
+            )
+            sys.stdout.write(bundle.result_json)
+            return _validation_exit_code(json.loads(bundle.result_json))
 
         if args.batch or args.audit_recordings:
             config_snapshot = (

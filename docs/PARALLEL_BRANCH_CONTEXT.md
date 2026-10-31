@@ -82,8 +82,9 @@ violations and pack-level checks retain their original behavior, independently
 of this physical `NOT_EVALUATED`. The sum/permutation regression is a logical
 counterexample, not a calibrated battery model or physical validation campaign.
 
-The review is not yet merged into InterpretationReport, the CLI or HTML. It has
-no source/context hash binding. Those operations belong to the later opt-in
-review workflow; this standalone payload must not be presented as source-bound
-evidence. See [context declarations](MEASUREMENT_CONTEXT.md) and the
+The standalone review does not alter InterpretationReport and has no
+source/context hash binding. The separate opt-in
+[review workflow](INTERPRETATION_REVIEW.md) now includes this payload in its
+source-bound JSON/HTML; this standalone payload must not be presented as
+source-bound evidence. See [context declarations](MEASUREMENT_CONTEXT.md) and the
 [interpretation contract](INTERPRETATION_CONTRACT.md).

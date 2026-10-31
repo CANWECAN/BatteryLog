@@ -1,6 +1,6 @@
 # BatteryLog technical status
 
-Updated: 30 October 2026. This file summarizes implementation and qualification;
+Updated: 31 October 2026. This file summarizes implementation and qualification;
 reproducible methods and source-specific results are in the linked technical notes.
 
 ## Product and package
@@ -30,7 +30,7 @@ and chunk boundaries. Reports/model arithmetic remains binary64.
 | Interface | Contract | Documentation |
 | --- | --- | --- |
 | Recording review | Declared CSV file/channel/time coverage plus separate engineering JSON/HTML | [Recording review](docs/RECORDING_AUDIT.md) |
-| Interpretation context APIs | Strict declarations, parallel-branch inventory and voltage-spread context limits; physical claims remain NOT_EVALUATED | [Interpretation contract](docs/INTERPRETATION_CONTRACT.md) |
+| Interpretation review | Opt-in source-bound JSON/HTML with unchanged engineering result and declared context; physical claims remain NOT_EVALUATED | [Review contract](docs/INTERPRETATION_REVIEW.md) |
 | Relative CSV time | Explicit raw-origin subtraction and version-2 conversion provenance | [Normalization](docs/UNIT_NORMALIZATION.md) |
 | CAN preparation | Explicit DBC/profile; canonical CSV and source/age evidence | [CAN preparation](docs/RESEARCH_FIRST_CAN_BRIDGE_2026_10_13.md) |
 | CAN replay and recording | Exact recorded clock; bounded queue and explicit partial sessions | [Replay contract](docs/RESEARCH_CAN_OFFLINE_REPLAY_2026_10_17.md) |
@@ -48,8 +48,11 @@ The separate interpretation APIs preserve engineering outcomes while reviewing
 declared context. The voltage-spread review reports chemistry, SOC provenance,
 load/rest and cell-acquisition limits; it supplies no voltage-to-SOC conversion.
 The parallel review does not select a faulty branch. Metadata completeness does
-not enable a physical diagnosis. Source/result/context binding and opt-in
-CLI/HTML integration for these new APIs are still pending; see the
+not enable a physical diagnosis. The opt-in `--interpret` workflow now binds
+captured source, result, declared context and effective settings by exact-byte
+hashes, and publishes a separate HTML/JSON review in one new directory.
+Ordinary analysis and frozen result-v8/v9 remain unchanged. See the
+[review API/CLI contract](docs/INTERPRETATION_REVIEW.md),
 [context parser](docs/MEASUREMENT_CONTEXT.md),
 [parallel review](docs/PARALLEL_BRANCH_CONTEXT.md) and
 [voltage-spread review](docs/VOLTAGE_SPREAD_CONTEXT.md).
