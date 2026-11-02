@@ -5,7 +5,7 @@ reproducible methods and source-specific results are in the linked technical not
 
 ## Product and package
 
-The 0.11 development tree implements one free Apache-2.0 BatteryLog distribution.
+BatteryLog 0.11 implements one free Apache-2.0 BatteryLog distribution.
 Core and all 28 first-party experimental Python modules share the root license
 and NOTICE; the Model 3 MIT notice is retained. There is one wheel/sdist and
 no batterylog-research companion dependency or alpha version.
@@ -20,8 +20,9 @@ are retired. The operator, precharge HTML and documentation are part of the
 unified product.
 
 The public development integration derives from reviewed Research candidate
-b9662055668c7a7e64a75c8379242c689ec40618. The last published release remains
-v0.10.0; this source integration is not a new release.
+b9662055668c7a7e64a75c8379242c689ec40618. The unified 0.11 release line supersedes
+v0.10.0; see [release notes](docs/releases/v0.11.0.md) and the
+[canonical release](https://github.com/CANWECAN/BatteryLog/releases/tag/v0.11.0).
 Source timestamp order is checked before binary64 analysis, including CSV mapping
 and chunk boundaries. Reports/model arithmetic remains binary64.
 
@@ -65,9 +66,11 @@ check now exercises interpretation API/CLI status parity, exact artifact hashes
 and real HTML links. Report comparisons read the declared UTF-8 encoding rather
 than the runner's locale.
 
-Current integration results are recorded in [PR #118 checks](https://github.com/CANWECAN/BatteryLog/pull/118/checks).
-All selected jobs and the final gate must pass on the final candidate before
-merge. Historical local results below qualify only their identified sources;
+The unified integration passed all 14 selected jobs, including the final gate,
+on [main CI run 41438058347](https://github.com/CANWECAN/BatteryLog/actions/runs/41438058347)
+(commit cfea4f66aeaa1c5dcf5e1e6cbc697ca9efc8fd29). Linux Core coverage was
+96.65–96.87%; Windows coverage was 96.85%. Release publication independently
+requires all selected jobs and the final gate on its exact source. Historical local results below qualify only their identified sources;
 headless cloud results do not substitute for graphical/platform checks.
 
 ## Historical local qualification - 26 October 2026
@@ -87,7 +90,8 @@ neither this feature nor COMPLETE establishes physical acquisition or safety.
 The previous Linux/Python and package results below identify older sources.
 They do not qualify these changed modules. Current qualification methods and
 package acceptance scripts are in [the 26 October note](docs/QUALIFICATION_2026_10_26.md).
-Required hosted CI remains pending, so this is an unreleased development candidate.
+At that historical checkpoint, required hosted CI was still pending; the
+2 November integration run above supersedes that pending status.
 
 ## Historical local qualification - 23 October 2026
 

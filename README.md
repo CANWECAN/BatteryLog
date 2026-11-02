@@ -1,27 +1,27 @@
 # BatteryLog
 
-> **Development branch:** one free Apache-2.0 package. The last published release is v0.10.0; the workflows below target the unreleased 0.11.0.dev0 source tree. See [licensing/package scope](docs/LICENSING.md).
+> **BatteryLog 0.11:** Core and Research workflows in one free Apache-2.0 package. See [release notes](docs/releases/v0.11.0.md) and [licensing/package scope](docs/LICENSING.md).
 
 BatteryLog is an open-source engineering toolkit for reproducible EV battery/BMS log validation from the command line or Python.
 
-**Current release:** `v0.10.0`; see [`CHANGELOG.md`](CHANGELOG.md) for changes.
+**Release:** [`v0.11.0`](https://github.com/CANWECAN/BatteryLog/releases/tag/v0.11.0); see [`CHANGELOG.md`](CHANGELOG.md) for changes.
 
-**Development:** 0.11.0.dev0 combines desktop single/batch analysis, opt-in temporal
+**0.11.0** combines desktop single/batch analysis, opt-in temporal
 checks, offline CAN preparation/replay, and precharge JSON/HTML observations in one
 installation. Experimental workflows retain their documented qualification limits.
 There is no separate Research subscription, companion wheel or evaluation license.
 
-**Current verification:** Native Windows/Python 3.13.14 checks on 26 October 2026 pass 3,429 tests with 2 platform-specific skips and 96.59% Core coverage. All 45 real Tk tests pass. This includes recording coverage/review and opt-in relative CSV time preparation. Linux/other Python versions and required hosted checks remain pending for this source; historical results do not qualify the changed tree. See [qualification scope and package checks](docs/QUALIFICATION_2026_10_26.md).
+**Verification:** Full hosted CI on the unified integration passed on 2 November 2026: Linux/Python 3.11–3.14, native Windows/Python 3.13, minimum runtime dependencies, real Tk widgets, optional MF4 backends, and fresh wheel/sdist installs. Core coverage was 96.65–96.87%, above the unchanged 95% gate. Release artifacts require a fresh complete run on their exact source. See [current CI runs](https://github.com/CANWECAN/BatteryLog/actions/workflows/ci.yml) and [technical status](CURRENT_STATE.md).
 
 **Status:** **Pre-1.0 engineering beta.** The validation core is extensively tested; APIs and supported workflows may still evolve before 1.0.
 
 > **Historical real-data check:** BatteryLog v0.9.1 was exercised on **30.2 million physical battery-pack records**, producing **90.6 million branch-row analyses** across **1,230 runs**, with **1,230/1,230 independent pack/cell-sum parity checks**.
 
-## First evaluation: three actions (0.11 development)
+## First evaluation: three actions
 
 The easiest way to see a complete analysis **without configuring your own BMS signals**
-is the desktop demo. This GUI is available in the **development checkout**, not the
-published v0.10.0 release or a standalone installer. Python with Tk support is required.
+is the desktop demo, included in 0.11. Python with Tk support is required; a
+standalone desktop installer is not included.
 
 ```sh
 python -m pip install -e .
@@ -62,7 +62,7 @@ All demo limits are illustrative; obtain production criteria from your test plan
 
 BatteryLog deliberately ships **no universal battery safety thresholds**. Limits must come from the tested cell/pack specification, BMS strategy, operating state, and validation plan.
 
-## Experimental offline workflows (0.11 development)
+## Experimental offline workflows
 
 Install the same project once, adding only the backends you need:
 
@@ -73,10 +73,14 @@ python -m pip install -e ".[mf4]"  # MDF/MF4 support
 batterylog experimental --help
 ```
 
-A supplied candidate wheel/sdist can be installed with pip instead of a checkout;
-there is no second product or add-on to install. Public v0.10.0 does not contain
-these experimental commands. In a fresh environment, use the reviewed candidate
-artifact or this checkout, rather than assuming a released package has them.
+The 0.11 wheel/sdist from [GitHub Releases](https://github.com/CANWECAN/BatteryLog/releases/tag/v0.11.0) can be installed with pip instead of a checkout; there is no second product or add-on to install. For example, after downloading the wheel:
+
+```sh
+python -m pip install ./batterylog-0.11.0-py3-none-any.whl
+```
+
+These commands were introduced after v0.10.0. GitHub Releases is the distribution
+channel; this release does not publish to PyPI.
 
 ```sh
 mkdir results
