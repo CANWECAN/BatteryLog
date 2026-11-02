@@ -2,7 +2,9 @@
 
 All notable changes to BatteryLog are documented here.
 
-## Unreleased
+## 0.11.0 - 2026-11-02
+
+- Publish one Core + Research wheel/sdist with curated release notes and SHA-256 checksums. An explicit `release/v*` branch at the current reviewed main commit can request publication after the complete CI gate, without a manually created tag. Existing tag-triggered releases remain supported.
 
 - Check installed interpretation API/CLI bundles for both wheel and sdist, including status/exit parity, exact artifact hashes and HTML links. Make HTML regression readers explicitly UTF-8 on Windows locales.
 - Add an opt-in single-file interpretation bundle with captured-source/result/context/settings hashes, unchanged result-v8/v9 JSON and a separate offline HTML review. Preserve engineering exit codes and threshold evidence; physical SOC, branch-location and sensor/cell claims remain NOT_EVALUATED even with complete metadata. Reject changed inputs and partial publication on pre-commit errors or cancellation.

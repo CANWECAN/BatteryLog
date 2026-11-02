@@ -17,7 +17,10 @@ def workflow(request):
 def test_batterylog_template_preserves_verified_tag_release_controls(workflow):
     assert workflow["on"]["push"]["tags"] == ["v*"]
     release = workflow["jobs"]["release"]
-    assert release["if"] == "startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'"
+    assert release["if"] == (
+        "github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || "
+        "startsWith(github.ref, 'refs/heads/release/v'))"
+    )
     assert set(release["needs"]) == {"gate", "package"}
     assert release["permissions"]["contents"] == "write"
     assert release["concurrency"]["cancel-in-progress"] == "false"
@@ -27,15 +30,18 @@ def test_batterylog_template_preserves_verified_tag_release_controls(workflow):
     assert "--prerelease --latest=false" in script
     package = workflow["jobs"]["package"]
     version = next(step for step in package["steps"] if step.get("id") == "version")
-    assert version["if"] == "startsWith(github.ref, 'refs/tags/v')"
+    assert version["if"] == (
+        "startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')"
+    )
     assert version["run"] == "python scripts/check_release_version.py"
     assert package["outputs"]["prerelease"] == "${{ steps.version.outputs.prerelease }}"
+    assert package["outputs"]["release_tag"] == "${{ steps.version.outputs.release_tag }}"
     assert workflow["permissions"]["contents"] == "read"
 
 
 def test_batterylog_template_tests_working_and_review_branches(workflow):
     watched = workflow["on"]["push"]["branches"]
-    assert set(watched) == {"main"}
+    assert set(watched) == {"main", "release/v*"}
     assert "pull_request" in workflow["on"]
     assert {
         "plan",
@@ -50,6 +56,23 @@ def test_batterylog_template_tests_working_and_review_branches(workflow):
     assert "workflow_dispatch" in workflow["on"]
     assert workflow["jobs"]["plan"]["steps"][-1]["run"].endswith("plan --full")
     assert "paths-ignore" not in workflow["on"]["pull_request"]
+
+
+def test_release_branch_checks_current_main_before_creating_an_immutable_tag(workflow):
+    release = workflow["jobs"]["release"]
+    checkout = release["steps"][0]
+    assert checkout["with"] == {"fetch-depth": "0", "persist-credentials": "false"}
+    publish = release["steps"][-1]
+    assert publish["env"]["RELEASE_TAG"] == "${{ needs.package.outputs.release_tag }}"
+    script = publish["run"]
+    assert script.index("sha256sum --check") < script.index("gh api --method POST")
+    assert script.index('"$main_sha" != "$GITHUB_SHA"') < script.index("gh api --method POST")
+    assert 'test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"' in script
+    assert '-f "ref=refs/tags/$RELEASE_TAG" -f "sha=$GITHUB_SHA"' in script
+    assert "--force" not in script
+    assert "--clobber" not in script
+    assert '--notes-file "docs/releases/$RELEASE_TAG.md"' in script
+    assert release["concurrency"]["group"] == "release-${{ needs.package.outputs.release_tag }}"
 
 
 def test_batterylog_template_checks_built_artifacts_before_upload(workflow):

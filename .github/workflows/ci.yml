@@ -1,7 +1,7 @@
 name: BatteryLog CI
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "release/v*"]
     tags: ["v*"]
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
@@ -120,6 +120,7 @@ jobs:
   package:
     outputs:
       prerelease: ${{ steps.version.outputs.prerelease }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
     needs: plan
     if: needs.plan.outputs.package == 'true'
     timeout-minutes: 20
@@ -132,7 +133,7 @@ jobs:
       - run: python -m pip install build twine PyYAML packaging
       - name: Check release version
         id: version
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
         run: python scripts/check_release_version.py
       - name: Build sdist and wheel from sdist
         run: python -m build
@@ -182,30 +183,50 @@ jobs:
         run: python3 batterylog_research/ci_policy.py gate
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v'))
     needs: [gate, package]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     concurrency:
-      group: release-${{ github.ref }}
+      group: release-${{ needs.package.outputs.release_tag }}
       cancel-in-progress: false
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/download-artifact@v7
         with:
           name: distributions
           path: dist
-      - name: Publish verified tag artifacts
+      - name: Publish verified release artifacts
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ needs.package.outputs.release_tag }}
           PRERELEASE: ${{ needs.package.outputs.prerelease }}
         shell: bash
         run: |
           set -euo pipefail
           (cd dist && sha256sum --check SHA256SUMS)
+          if [[ "$GITHUB_REF" == refs/heads/release/v* ]]; then
+            main_sha=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
+            if [[ "$main_sha" != "$GITHUB_SHA" ]]; then
+              echo "Release branch must point to the current reviewed main commit" >&2
+              exit 1
+            fi
+            if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+              test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"
+            else
+              gh api --method POST "repos/$GH_REPO/git/refs" \
+                -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$GITHUB_SHA" --silent
+            fi
+          fi
           flags=()
+          if [[ -f "docs/releases/$RELEASE_TAG.md" ]]; then
+            flags+=(--notes-file "docs/releases/$RELEASE_TAG.md")
+          fi
           if [[ "$PRERELEASE" == "true" ]]; then
             flags+=(--prerelease --latest=false)
           fi
