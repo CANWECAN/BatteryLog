@@ -125,3 +125,11 @@ source-channel verification or safety conclusion is introduced.
 Software, packaging and document-layout checks do not establish physical fault
 accuracy or qualification of native GUI/platforms. Independent data suitability,
 held-out evaluation and required release/CI qualification remain separate work.
+
+The package job runs `scripts/check_interpretation_package.py` through the
+existing installed-package checker for both wheel and sdist, outside checkout.
+It checks API/console agreement for engineering 0/1/3 outcomes, unchanged JSON
+bytes, exact source/context/settings/result hashes, real local HTML links,
+absent context and rejected malformed context. The loaded review module must
+resolve inside the artifact environment. These are installation and software
+contract checks, not physical validation.

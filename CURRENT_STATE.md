@@ -1,6 +1,6 @@
 # BatteryLog technical status
 
-Updated: 31 October 2026. This file summarizes implementation and qualification;
+Updated: 2 November 2026. This file summarizes implementation and qualification;
 reproducible methods and source-specific results are in the linked technical notes.
 
 ## Product and package
@@ -57,10 +57,18 @@ Ordinary analysis and frozen result-v8/v9 remain unchanged. See the
 [parallel review](docs/PARALLEL_BRANCH_CONTEXT.md) and
 [voltage-spread review](docs/VOLTAGE_SPREAD_CONTEXT.md).
 
-The current cloud environment cannot run real Tk display cases. Core coverage
-retains the 95% gate; child-process measurement is explicitly enabled for
-pytest-cov 7. Earlier platform results do not qualify the new interpretation
-APIs. Required hosted CI and current native/GUI qualification remain pending.
+The hosted Full profile exercises real Tk widgets under Xvfb on Linux and on
+native Windows, with the unchanged 95% Core coverage gate and explicit
+subprocess measurement. It also checks minimum dependencies, optional MF4
+backends, and wheel/sdist installation outside checkout. The installed-package
+check now exercises interpretation API/CLI status parity, exact artifact hashes
+and real HTML links. Report comparisons read the declared UTF-8 encoding rather
+than the runner's locale.
+
+Current integration results are recorded in [PR #118 checks](https://github.com/CANWECAN/BatteryLog/pull/118/checks).
+All selected jobs and the final gate must pass on the final candidate before
+merge. Historical local results below qualify only their identified sources;
+headless cloud results do not substitute for graphical/platform checks.
 
 ## Historical local qualification - 26 October 2026
 

@@ -32,3 +32,7 @@ child-process measurements under pytest-cov 7; see its
 Keep the 95% gate and report display/platform skips separately. A statement
 missing from a coverage report is not, by itself, proof that no subprocess test
 exercised it. Coverage measures execution, not assertion quality or physical accuracy.
+
+Read UTF-8 report artifacts with an explicit encoding in tests and tools. A
+runner's locale can differ from the artifact encoding, especially on Windows;
+do not replace exact report comparisons with a weaker assertion to hide it.

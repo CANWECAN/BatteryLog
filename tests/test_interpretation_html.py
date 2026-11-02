@@ -75,7 +75,7 @@ def test_html_and_json_agree_on_status_every_physical_reason_and_real_artifact_l
         config=ValidationConfig(limits=ValidationLimits(imbalance_max_v=limit)),
     )
     payload = bundle.to_dict()
-    html = (bundle.output_directory / "interpretation.html").read_text()
+    html = (bundle.output_directory / "interpretation.html").read_text(encoding="utf-8")
     assert html == render_interpretation_report(payload)
     assert f"Engineering: <strong>{status}</strong>" in html
     assert "Physical interpretation: <strong>NOT_EVALUATED</strong>" in html
@@ -113,7 +113,7 @@ def test_temporal_model_failure_is_displayed_alongside_zero_ordinary_threshold_e
         failure_models=FailureModelConfig(2, sustained_imbalance=SustainedImbalanceConfig(0.05, 1))
     )
     bundle, elements = create(tmp_path, config=config)
-    html = (bundle.output_directory / "interpretation.html").read_text()
+    html = (bundle.output_directory / "interpretation.html").read_text(encoding="utf-8")
     elements.feed(html)
     assert bundle.engineering_status == "FAIL"
     assert bundle.to_dict()["observations"]["violations"] == []
@@ -129,7 +129,7 @@ def test_data_quality_failure_is_visible_and_never_becomes_a_sensor_diagnosis(tm
         config=ValidationConfig(data_quality=DataQualityConfig(mode="exclude_invalid_rows")),
         bad_temperature=True,
     )
-    html = (bundle.output_directory / "interpretation.html").read_text()
+    html = (bundle.output_directory / "interpretation.html").read_text(encoding="utf-8")
     elements.feed(html)
     assert bundle.engineering_status == "FAIL"
     assert bundle.to_dict()["observations"]["data_quality_events"]
