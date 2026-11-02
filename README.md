@@ -1,12 +1,47 @@
 # BatteryLog
 
+> **Development branch:** one free Apache-2.0 package. The last published release is v0.10.0; the workflows below target the unreleased 0.11.0.dev0 source tree. See [licensing/package scope](docs/LICENSING.md).
+
 BatteryLog is an open-source engineering toolkit for reproducible EV battery/BMS log validation from the command line or Python.
 
 **Current release:** `v0.10.0`; see [`CHANGELOG.md`](CHANGELOG.md) for changes.
 
-**Status:** **Pre-1.0 engineering beta.** The validation core is stable and extensively tested; APIs and supported workflows may still evolve before 1.0.
+**Development:** 0.11.0.dev0 combines desktop single/batch analysis, opt-in temporal
+checks, offline CAN preparation/replay, and precharge JSON/HTML observations in one
+installation. Experimental workflows retain their documented qualification limits.
+There is no separate Research subscription, companion wheel or evaluation license.
 
-> **Real-data proof:** BatteryLog v0.9.1 was exercised on **30.2 million physical battery-pack records**, producing **90.6 million branch-row analyses** across **1,230 runs**, with **1,230/1,230 independent pack/cell-sum parity checks**.
+**Current verification:** Native Windows/Python 3.13.14 checks on 26 October 2026 pass 3,429 tests with 2 platform-specific skips and 96.59% Core coverage. All 45 real Tk tests pass. This includes recording coverage/review and opt-in relative CSV time preparation. Linux/other Python versions and required hosted checks remain pending for this source; historical results do not qualify the changed tree. See [qualification scope and package checks](docs/QUALIFICATION_2026_10_26.md).
+
+**Status:** **Pre-1.0 engineering beta.** The validation core is extensively tested; APIs and supported workflows may still evolve before 1.0.
+
+> **Historical real-data check:** BatteryLog v0.9.1 was exercised on **30.2 million physical battery-pack records**, producing **90.6 million branch-row analyses** across **1,230 runs**, with **1,230/1,230 independent pack/cell-sum parity checks**.
+
+## First evaluation: three actions (0.11 development)
+
+The easiest way to see a complete analysis **without configuring your own BMS signals**
+is the desktop demo. This GUI is available in the **development checkout**, not the
+published v0.10.0 release or a standalone installer. Python with Tk support is required.
+
+```sh
+python -m pip install -e .
+python -m batterylog.desktop
+```
+
+1. Select **Try demo…**, then choose an existing folder for the synthetic input and output.
+2. Select **Run analysis**.
+3. Select **Open report** and inspect the two deliberately triggered rule violations.
+
+**FAIL in this demo is expected** and means the configured checks found violations;
+it does not mean the application crashed. For your own CSV/MDF/MF4 file, choose a
+measurement, optionally **Inspect input**, choose the YAML validation configuration
+and an output folder, then run. Without engineering limits, a valid measurement
+usually yields metrics and **NOT_EVALUATED**, not a safety **PASS**. Invalid data can
+still cause an error or a data-quality failure.
+
+See [desktop setup, capabilities and limits](docs/DESKTOP_LAUNCHER.md) for Tk/MF4
+requirements and [example configurations](examples/validation.example.yaml).
+All demo limits are illustrative; obtain production criteria from your test plan.
 
 ## What it does
 
@@ -15,15 +50,52 @@ BatteryLog is an open-source engineering toolkit for reproducible EV battery/BMS
 - Maps vendor signal names into a canonical battery model
 - Inspects channel metadata and converts explicitly declared source units to canonical CSV
 - Analyzes directories with per-file evidence and a CSV summary
+- Audits explicitly planned CSV files, channels and time coverage separately from engineering results
 - Applies explicit voltage, temperature, current, imbalance, spread, and pack-voltage plausibility rules
 - Fails closed on invalid required measurement data
 - Groups failing samples into structured violation events with peak evidence
 - Emits versioned JSON results with `PASS`, `FAIL`, or `NOT_EVALUATED`
 - Generates self-contained HTML evidence reports with deterministic inline SVG plots
 - Records SHA-256 input/config provenance
-- Runs in Linux/Windows CI and publishes checked wheel/sdist release artifacts
+- Includes experimental offline CAN preparation/replay and source-linked precharge HTML
+- Runs Linux/Windows verification and checked wheel/sdist installation
 
 BatteryLog deliberately ships **no universal battery safety thresholds**. Limits must come from the tested cell/pack specification, BMS strategy, operating state, and validation plan.
+
+## Experimental offline workflows (0.11 development)
+
+Install the same project once, adding only the backends you need:
+
+```sh
+python -m pip install -e .          # CSV, desktop, precharge HTML and replay
+python -m pip install -e ".[can]"  # DBC-backed CAN workflows
+python -m pip install -e ".[mf4]"  # MDF/MF4 support
+batterylog experimental --help
+```
+
+A supplied candidate wheel/sdist can be installed with pip instead of a checkout;
+there is no second product or add-on to install. Public v0.10.0 does not contain
+these experimental commands. In a fresh environment, use the reviewed candidate
+artifact or this checkout, rather than assuming a released package has them.
+
+```sh
+mkdir results
+batterylog experimental precharge --csv capture.csv --context capture.context.json --output-dir results/precharge
+batterylog experimental replay capture.log results/replay
+batterylog experimental can --log capture.log --dbc vehicle.dbc --profile mapping.json --config limits.yaml --output-dir results/can
+```
+
+Precharge writes index.html, report.html, review.json and manifest.json. It reports
+observations and incomplete coverage, not a calibrated physical PASS.
+Replay uses recorded files only; it neither opens an adapter nor transmits CAN.
+CAN preparation requires an explicit source profile, declared channel ages and
+caller-supplied DBC. Held rows are not simultaneous sensor acquisitions; temporal
+models and unqualified pack/cell-sum comparisons are rejected in this workflow.
+
+See [operator contract](docs/RESEARCH_OPERATOR_2026_10_17.md),
+[precharge input](docs/RESEARCH_PRECHARGE_FILE_REVIEW_2026_10_14.md),
+[replay](docs/RESEARCH_CAN_OFFLINE_REPLAY_2026_10_17.md) and
+[measurement contract](docs/MEASUREMENT_CONTRACT.md).
 
 ## Quick start
 
@@ -83,6 +155,51 @@ batterylog source.csv --normalize --time-unit ms --cell-voltage-unit mV \
 
 See [unit normalization](docs/UNIT_NORMALIZATION.md) for supported units, conversion evidence
 and the subsequent analysis step.
+
+## Interpretation limits (0.11 development)
+
+For a single-file interpretation review that keeps engineering acceptance
+separate from physical causes:
+
+```sh
+batterylog measurement.csv --interpret --measurement-context context.json \
+  --imbalance-limit-v 0.05 --output-dir results/interpretation-001
+```
+
+Open `interpretation.html` in the new directory. The bundle binds the source,
+unchanged analysis JSON, effective settings and optional context by hash.
+Physical SOC/branch/sensor claims remain NOT_EVALUATED even when metadata is
+complete. See [the opt-in review and exit-code contract](docs/INTERPRETATION_REVIEW.md).
+
+## Declared recording coverage (0.11 development)
+
+Review an explicit CSV recording plan alongside the existing engineering checks:
+
+```sh
+batterylog measurements --audit-recordings recording_plan.json \
+  --config validation.yaml --output-dir results/recording-review
+```
+
+The overview links to per-file JSON/HTML evidence and reports coverage and
+engineering results separately. A complete recording can fail engineering limits;
+an incomplete recording can contain passing observed samples. COMPLETE does not
+prove that the physical test occurred or that BMS samples are fresh.
+See [the plan format and result contract](docs/RECORDING_AUDIT.md) and
+[example plan](examples/recording_plan.json).
+
+For CSV clocks with a large absolute origin, explicitly prepare elapsed seconds
+before rate analysis:
+
+```sh
+batterylog source.csv --normalize --relative-time --time-unit s \
+  --cell-voltage-unit V --temperature-unit degC --output-dir prepared/elapsed
+```
+
+Keep conversion.json with subsequent analysis reports: it records the original
+clock origin and source hash. This option changes prepared event times to elapsed
+seconds; ordinary analysis retains binary64 source-clock arithmetic. MDF/MF4 raw
+clock precision is not recovered by this CSV option.
+See [relative-time preparation and limits](docs/UNIT_NORMALIZATION.md).
 
 ## Input model
 
@@ -243,7 +360,11 @@ See [`docs/REFERENCE.md`](docs/REFERENCE.md) for configuration loading, event se
 .\.venv\Scripts\python.exe -m pytest -q --cov=batterylog --cov-fail-under=95
 ```
 
-CI covers Linux, Windows, supported Python versions, optional MF4 integration, package installation, and tagged release artifact checks.
+Public BatteryLog CI runs the complete required matrix and covers Linux, Windows,
+supported Python versions, optional MF4/CAN contracts and package installation.
+Linux full suites require real Tk widgets under Xvfb; Windows requires a native
+graphical session. A skipped required job cannot pass the final CI gate. Tagged
+releases retain exact version checks and verified artifact publication.
 
 ## License and citation
 
@@ -252,3 +373,12 @@ BatteryLog is licensed under the [Apache License 2.0](LICENSE). Commercial, inte
 Citation metadata is available in [`CITATION.cff`](CITATION.cff); attribution information is recorded in [`NOTICE`](NOTICE).
 
 Tagged releases publish wheel/sdist artifacts plus SHA-256 checksums through [GitHub Releases](https://github.com/CANWECAN/BatteryLog/releases).
+
+The opt-in contactor response check compares observed command transitions with
+independent binary feedback. Try `examples/contactor_response_demo.csv` with
+`examples/contactor_response.example.yaml`; see [the observation contract](docs/FAILURE_MODELS.md#contactor-response-contract).
+
+
+The opt-in precharge-current check measures the magnitude drop from an observed
+phase activation to an engineer-selected checkpoint. Try `examples/precharge_current_demo.csv`
+with `examples/precharge_current.example.yaml`; see [the observation contract](docs/FAILURE_MODELS.md#precharge-current-contract).

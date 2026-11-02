@@ -1,0 +1,45 @@
+{
+  "core_mypy": true,
+  "core_or_package_definition_changed": false,
+  "dependencies": {
+    "asammdf": "8.8.27",
+    "canmatrix": "1.2",
+    "cantools": "44.2.1",
+    "mypy": "1.19.1",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "pytest": "9.1.1",
+    "python-can": "4.6.1",
+    "ruff": "0.17.0"
+  },
+  "focused_cases": {
+    "new_cora_boundary_cases": 6,
+    "new_file_cases": 59,
+    "precharge_and_temporal": 252
+  },
+  "full_suite": {
+    "actual_mf4_installed": true,
+    "core_coverage_percent": 96.67,
+    "passed": 2842,
+    "required_real_desktop": true,
+    "seconds": 178.53,
+    "skipped": 2,
+    "warnings": 9
+  },
+  "host": "native Windows",
+  "live_CAN_or_HIL": false,
+  "pip_consistency": true,
+  "python": "3.13.14",
+  "ruff_check": true,
+  "ruff_format_check": true,
+  "source_parent": "4e07a29e6cbe2076b2d1102b2883229efcadf6de",
+  "source_sha256": {
+    "batterylog_research/fixtures/precharge_aligned_example.context.json": "9773ad17c49ef1153d0f42b2a63606a54faa82fb1a73fc296634f3186dc90fc6",
+    "batterylog_research/fixtures/precharge_aligned_example.csv": "8838937a65c237629b9dca5505b57965ec1cb939096a573283c1354433f455af",
+    "batterylog_research/precharge_file_review.py": "15c7322a8c58c634ac9ebccca97fe9950735a92312d70de7cec08e457da6952a",
+    "batterylog_research/temporal_characterization.py": "f6c3c5a85054039bf30b854c47b43bfadbe0e3a3d0abbe295f59e5125553883f",
+    "tests/test_research_cora_boundary_counts.py": "9a409ff3bf86e653dfddccf5adf0a1b0f97aa2e594f7753b1c0ee791c4a77915",
+    "tests/test_research_precharge_file_review.py": "1969ecfe4e603ec6366b803a19ecf20e9e69a4377a6092ede7f3b31741890f89"
+  },
+  "public_metadata_redaction": "Local checkout paths and personal host names were replaced; recorded revisions, measurements and test outcomes are unchanged."
+}

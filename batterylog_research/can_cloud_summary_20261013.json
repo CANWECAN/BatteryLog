@@ -1,0 +1,284 @@
+{
+  "scope": "research_first_real_can_campaign",
+  "source_log": {
+    "repository": "dalathegreat/EV-CANlogs",
+    "commit": "9cbfc24528d9dfb2923c532f987ce1f3c278908f",
+    "path": "Tesla/Model 3/tesla-model3-battery-only.log.log",
+    "license": "GPL-3.0",
+    "bytes": 5323360,
+    "sha256": "709dd42efa4c43cc97cfc5cd05a488641b22949c9db3697c11c4b0cd588c36b4",
+    "git_blob_sha1": "30dc20c125a60ce5615b55238eb8fbb9008f4f7a"
+  },
+  "source_dbc": {
+    "repository": "joshwardell/model3dbc",
+    "commit": "c56c113c353d09b1a5dd57677461f02fe8b7c6ca",
+    "path": "Model3CAN.dbc",
+    "license": "MIT",
+    "bytes": 322430,
+    "sha256": "d54df533fc82f3dab11ddd0f5ae4d846f22c0a24b111d8cba2b93e79caf60151",
+    "git_blob_sha1": "2e030e798dc32b076794e2f57e36d620e3d4775a"
+  },
+  "environment": {
+    "cantools": "44.2.1",
+    "canmatrix": "1.2",
+    "python-can": "4.6.1",
+    "pandas": "2.2.3",
+    "numpy": "2.3.5"
+  },
+  "preparation": {
+    "scope": "research_classic_can_explicit_age_preparation",
+    "diagnostic_claim": false,
+    "origin_timestamp_as_recorded": "1674587734.727795",
+    "recorded_duration_s": 301.621602,
+    "counts": {
+      "frames_input": 118053,
+      "unselected_identifier_frames": 87421,
+      "decoded_selected_frames": 30632,
+      "anchor_rows": 6,
+      "unselected_anchor_multiplex_frames": 175
+    },
+    "frames_by_identifier": {
+      "standard:0x132": 30150,
+      "standard:0x204": 3017,
+      "standard:0x20A": 301,
+      "standard:0x212": 3002,
+      "standard:0x221": 36300,
+      "standard:0x224": 3006,
+      "standard:0x22A": 3016,
+      "standard:0x232": 302,
+      "standard:0x24A": 301,
+      "standard:0x252": 3016,
+      "standard:0x264": 3016,
+      "standard:0x292": 3001,
+      "standard:0x2A4": 302,
+      "standard:0x2B4": 3005,
+      "standard:0x2D2": 3016,
+      "standard:0x2F2": 3003,
+      "standard:0x300": 300,
+      "standard:0x310": 181,
+      "standard:0x312": 302,
+      "standard:0x320": 905,
+      "standard:0x332": 301,
+      "standard:0x352": 301,
+      "standard:0x364": 300,
+      "standard:0x372": 5730,
+      "standard:0x374": 302,
+      "standard:0x392": 600,
+      "standard:0x3AA": 300,
+      "standard:0x3B2": 390,
+      "standard:0x3C4": 362,
+      "standard:0x3D2": 300,
+      "standard:0x3F2": 298,
+      "standard:0x401": 181,
+      "standard:0x452": 299,
+      "standard:0x472": 300,
+      "standard:0x50A": 202,
+      "standard:0x712": 30,
+      "standard:0x72A": 58,
+      "standard:0x752": 302,
+      "standard:0x76A": 1005,
+      "standard:0x772": 903,
+      "standard:0x77A": 602,
+      "standard:0x782": 120,
+      "standard:0x78A": 3015,
+      "standard:0x7AA": 2410
+    },
+    "missing_or_expired_values_by_column": {
+      "temp_1_c": 1,
+      "temp_2_c": 1
+    },
+    "maximum_accepted_sample_age_s_by_column": {
+      "cell_25_v": 0.0,
+      "cell_26_v": 0.0,
+      "cell_27_v": 0.0,
+      "pack_current_a": 0.010064,
+      "pack_voltage_v": 0.010064,
+      "temp_1_c": 0.938039,
+      "temp_2_c": 0.938039
+    },
+    "profile": {
+      "bus": "can0",
+      "dbc_sha256": "d54df533fc82f3dab11ddd0f5ae4d846f22c0a24b111d8cba2b93e79caf60151",
+      "anchor": {
+        "frame_id": 1025,
+        "extended": false,
+        "multiplexer_signal": "MultiplexSelector",
+        "multiplexer_value": 8
+      },
+      "signals": [
+        {
+          "column": "cell_25_v",
+          "frame_id": 1025,
+          "extended": false,
+          "signal": "Brick24",
+          "max_age_s": 0
+        },
+        {
+          "column": "cell_26_v",
+          "frame_id": 1025,
+          "extended": false,
+          "signal": "Brick25",
+          "max_age_s": 0
+        },
+        {
+          "column": "cell_27_v",
+          "frame_id": 1025,
+          "extended": false,
+          "signal": "Brick26",
+          "max_age_s": 0
+        },
+        {
+          "column": "temp_1_c",
+          "frame_id": 818,
+          "extended": false,
+          "signal": "BattBrickTempMax332",
+          "max_age_s": 2.1
+        },
+        {
+          "column": "temp_2_c",
+          "frame_id": 818,
+          "extended": false,
+          "signal": "BattBrickTempMin332",
+          "max_age_s": 2.1
+        },
+        {
+          "column": "pack_current_a",
+          "frame_id": 306,
+          "extended": false,
+          "signal": "SmoothBattCurrent132",
+          "max_age_s": 0.05
+        },
+        {
+          "column": "pack_voltage_v",
+          "frame_id": 306,
+          "extended": false,
+          "signal": "BattVoltage132",
+          "max_age_s": 0.05
+        }
+      ]
+    },
+    "limits": [
+      "Bounded previous-sample association is explicit preparation, not simultaneous acquisition.",
+      "No look-ahead, interpolation, future samples or expired-value filling.",
+      "Brick channels are same-frame voltage groups, not a complete series stack.",
+      "Temperature extrema are aggregate BMS channels, not fixed local sensors.",
+      "No application checksum, counter, sentinel or hardware calibration is authenticated."
+    ],
+    "source_sha256": "709dd42efa4c43cc97cfc5cd05a488641b22949c9db3697c11c4b0cd588c36b4",
+    "dbc_sha256": "d54df533fc82f3dab11ddd0f5ae4d846f22c0a24b111d8cba2b93e79caf60151",
+    "profile_sha256": "4d4db896b40337b77aa72cef0339ca181fd02a838ef6ac00befd25d5fac8696f",
+    "canonical_sha256": "4e48225e22b710f6a3640be6be8102dffa7002aa6bfb4373a2d1c460dd67876d",
+    "alignment_sha256": "440e496ad7c763a4b4e5d2332562bc025bd58f8320827468c5197fdb8e7ef070"
+  },
+  "independent_decoders": {
+    "raw_frames_compared_with_python_can": 118053,
+    "decoded_frames_compared_with_canmatrix": 30632,
+    "signal_values_compared": 123312,
+    "absolute_tolerance": 1e-12,
+    "relative_tolerance": 0,
+    "maximum_absolute_difference": 9.103828801926284e-14,
+    "frames_by_selected_identifier": {
+      "0x132": 30150,
+      "0x401": 181,
+      "0x332": 301
+    },
+    "brick_multiplex_counts": {
+      "0": 5,
+      "1": 5,
+      "2": 5,
+      "3": 5,
+      "4": 5,
+      "5": 5,
+      "6": 5,
+      "7": 5,
+      "8": 6,
+      "9": 5,
+      "10": 5,
+      "11": 5,
+      "12": 5,
+      "13": 5,
+      "14": 5,
+      "15": 5,
+      "16": 5,
+      "17": 5,
+      "18": 5,
+      "19": 5,
+      "20": 5,
+      "21": 5,
+      "22": 5,
+      "23": 5,
+      "24": 5,
+      "25": 5,
+      "26": 5,
+      "27": 5,
+      "28": 5,
+      "29": 5,
+      "30": 5,
+      "31": 5,
+      "32": 5,
+      "33": 5,
+      "34": 5,
+      "35": 5
+    },
+    "selectors_ge_32_with_zero_status_frames": 20
+  },
+  "manual_reference": {
+    "anchor_rows": 6,
+    "values_including_missing": 48,
+    "absolute_tolerance": 1e-12
+  },
+  "native_analysis": {
+    "chunk_sizes_matching_fullframe_exactly": [
+      1,
+      7,
+      65536
+    ],
+    "strict_rejection": "Required numeric value is missing or non-numeric at data row 1 (index 0), column 'temp_1_c': np.float64(nan)",
+    "rows_input": 6,
+    "rows_analyzed": 5,
+    "rows_excluded": 1,
+    "validation_status": "FAIL",
+    "engineering_violation_events": 0,
+    "data_quality_events": [
+      {
+        "code": "MISSING_REQUIRED_VALUE",
+        "start_row": 1,
+        "end_row": 1,
+        "signals": [
+          "temp_1_c",
+          "temp_2_c"
+        ],
+        "affected_values": 2
+      }
+    ],
+    "result_sha256": "b701f75d100f3fac58ec094e0a639ec8601c9b4eaed97e3679c03b32c9892e38",
+    "interpretation": "FAIL is caused by missing source temperature; no configured threshold events."
+  },
+  "hostile_checks": {
+    "backwards_time": {
+      "source_line": 65536,
+      "error": "CAN timestamp decreases at source line 65536"
+    },
+    "truncated_selected_payload": {
+      "source_line": 149,
+      "error": "DBC decode failed at source line 149: Wrong data size: 1 instead of 8 bytes"
+    },
+    "temperature_messages_removed": {
+      "synthetic_mutation": true,
+      "removed_frames": 151,
+      "anchor_rows_retained": 6,
+      "rows_analyzed": 0,
+      "rows_excluded": 6,
+      "validation_status": "FAIL"
+    },
+    "different_dbc_hash": "DBC SHA-256 does not match the declared profile"
+  },
+  "interpretation": [
+    "Publisher-labeled vehicle recording plus community DBC; OEM firmware compatibility is unverified.",
+    "Agreement of decoders authenticates neither the DBC's physical meaning nor hardware readings.",
+    "Only Brick24/25/26 and BMS-reported temperature extrema are prepared for the engine.",
+    "No full-stack sum rule, physical temporal model or current-direction rule is enabled.",
+    "Raw source and DBC are not committed; provenance and small derived summaries are retained.",
+    "Native Windows, live CAN adapter, CAN FD, ISO-TP, counters/checksums and long capture remain open."
+  ]
+}

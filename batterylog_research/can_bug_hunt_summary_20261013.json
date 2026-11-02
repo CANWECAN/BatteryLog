@@ -1,0 +1,394 @@
+{
+  "scope": "private_can_build_and_bug_hunt_checkpoint",
+  "baseline_git_commit": "ec1e52e3d011ddd8fe3fad350235882ca57bca70",
+  "tested_source_git_blobs": {
+    "batterylog_research/can_prepare.py": "ff4f507df86c0144a9503808634ba5e076cfc125",
+    "batterylog_research/can_multiplex_audit.py": "abf803a4d757aeba1e29f2403009226d0553603d",
+    "batterylog_research/can_capture_review.py": "4041803da193b7fb9c63cc1d6068a9ea77edf4b6",
+    "batterylog_research/can_boundary_stress.py": "d0cbee4ab5a9ce0dcbddbba7f41af57defdbb3f6",
+    "tests/test_research_can_prepare.py": "026ff89317b54ce92be0d6e90c3519f56f476763",
+    "tests/test_research_can_multiplex_audit.py": "4b7d9036a4ea2bc0be71ad9fb84469aea7152ee8",
+    "tests/test_research_can_capture_review.py": "d84141d89b516f227c2ff036c1aa8e14bf41dc9e",
+    "tests/test_research_can_boundary_stress.py": "f1c10aed4ed37808591e858ef81077f961c361a6"
+  },
+  "diagnostic_claim": false,
+  "findings_closed": [
+    "scaled_multiplexer_relabels_raw_group",
+    "conflicting_duplicate_profile_keys",
+    "distinct_csv_timestamps_collapse",
+    "ambient_decimal_context_changes_age_decisions",
+    "concurrent_single_file_report_overwrite"
+  ],
+  "reproducibility_hardening": "UTF-8/LF evidence and fixtures",
+  "new_build": "optional source-declared integer invalid_raw_values; newest rejection replaces cached valid context and retains raw/source evidence",
+  "focused_can": {
+    "linux_passed": 214,
+    "native_windows_passed": 214,
+    "baseline_passed": 90,
+    "seeded_preparation_campaigns": 48,
+    "preparation_records_per_campaign": 160,
+    "seeded_multiplex_campaigns": 24,
+    "multiplex_records_per_campaign": 321,
+    "native_strict_and_exclude_all_rows_validated": true
+  },
+  "full_suites": {
+    "cloud_linux": {
+      "passed": 2453,
+      "skipped": 46,
+      "warnings": 9,
+      "seconds": 147.03,
+      "coverage_measured": false
+    },
+    "native_windows": {
+      "passed": 2646,
+      "skipped": 2,
+      "warnings": 9,
+      "seconds": 170.5,
+      "core_coverage_percent": 96.67,
+      "optional_actual_mf4_installed": true
+    }
+  },
+  "native_checks": [
+    {
+      "check": "pytest -q --capture=sys tests/test_research_can_prepare.py tests/test_research_can_multiplex_audit.py tests/test_research_can_capture_review.py tests/test_research_can_boundary_stress.py",
+      "returncode": 0,
+      "summary": [
+        "214 passed in 1.70s"
+      ]
+    },
+    {
+      "check": "ruff check .",
+      "returncode": 0,
+      "summary": [
+        "All checks passed!"
+      ]
+    },
+    {
+      "check": "ruff format --check .",
+      "returncode": 0,
+      "summary": [
+        "197 files already formatted"
+      ]
+    },
+    {
+      "check": "mypy --follow-imports=silent --ignore-missing-imports batterylog",
+      "returncode": 0,
+      "summary": [
+        "Success: no issues found in 48 source files"
+      ]
+    },
+    {
+      "check": "full-windows-checkpoint",
+      "returncode": 0,
+      "summary": [
+        "Required test coverage of 95% reached. Total coverage: 96.67%",
+        "2646 passed, 2 skipped, 9 warnings in 170.50s (0:02:50)"
+      ]
+    }
+  ],
+  "stress_default": {
+    "cloud": {
+      "scope": "synthetic_can_exact_freshness_boundary_file_stress",
+      "diagnostic_claim": false,
+      "cycles": 500000,
+      "frames_input": 2000000,
+      "canonical_rows_checked_independently": 1000000,
+      "frames_at_exact_age_boundary": 500000,
+      "frames_one_nanosecond_past_age_boundary": 500000,
+      "preparation_elapsed_s": 36.90859457300007,
+      "elapsed_including_reference_checks_s": 46.66024154699994,
+      "files": {
+        "input": {
+          "bytes": 94000000,
+          "sha256": "65ee51adb67016b1c43d64119c1a8be39c30a7d2be9b49c8951a9484d9f1f941"
+        },
+        "canonical": {
+          "bytes": 26277834,
+          "sha256": "06a2f60f3bce41261a6ffb48cb393c4977eb41c5766bfeb4134e46a3e297e4a6"
+        },
+        "alignment": {
+          "bytes": 589111122,
+          "sha256": "6f251306bdb66d681839807c28aee9166a5dd202df1c53d6224c749f0aaba797"
+        }
+      },
+      "limits": [
+        "Synthetic authored frames, not vehicle measurements or physical fault labels.",
+        "Elapsed time characterizes this host and excludes source generation.",
+        "No sustained live adapter, driver, capture synchronization or fault accuracy claim."
+      ]
+    },
+    "native_windows": {
+      "scope": "synthetic_can_exact_freshness_boundary_file_stress",
+      "diagnostic_claim": false,
+      "cycles": 500000,
+      "frames_input": 2000000,
+      "canonical_rows_checked_independently": 1000000,
+      "frames_at_exact_age_boundary": 500000,
+      "frames_one_nanosecond_past_age_boundary": 500000,
+      "preparation_elapsed_s": 22.052352099999553,
+      "elapsed_including_reference_checks_s": 28.933822399994824,
+      "files": {
+        "input": {
+          "bytes": 94000000,
+          "sha256": "65ee51adb67016b1c43d64119c1a8be39c30a7d2be9b49c8951a9484d9f1f941"
+        },
+        "canonical": {
+          "bytes": 26277834,
+          "sha256": "06a2f60f3bce41261a6ffb48cb393c4977eb41c5766bfeb4134e46a3e297e4a6"
+        },
+        "alignment": {
+          "bytes": 589111122,
+          "sha256": "6f251306bdb66d681839807c28aee9166a5dd202df1c53d6224c749f0aaba797"
+        }
+      },
+      "limits": [
+        "Synthetic authored frames, not vehicle measurements or physical fault labels.",
+        "Elapsed time characterizes this host and excludes source generation.",
+        "No sustained live adapter, driver, capture synchronization or fault accuracy claim."
+      ]
+    },
+    "file_sizes_and_sha256_equal": true
+  },
+  "stress_declared_raw_validity": {
+    "cloud": {
+      "scope": "synthetic_can_exact_freshness_boundary_file_stress",
+      "diagnostic_claim": false,
+      "cycles": 500000,
+      "frames_input": 2000000,
+      "canonical_rows_checked_independently": 1000000,
+      "frames_at_exact_age_boundary": 500000,
+      "frames_one_nanosecond_past_age_boundary": 500000,
+      "declared_invalid_every_cycles": 100,
+      "declared_raw_invalid_context_frames": 5000,
+      "preparation_elapsed_s": 46.021988672000134,
+      "elapsed_including_reference_checks_s": 55.584733055000015,
+      "files": {
+        "input": {
+          "bytes": 94000000,
+          "sha256": "dea2280d4863d5ca404800f3f5e48ab4dda7490ec82b1950e9a58e136d269577"
+        },
+        "canonical": {
+          "bytes": 26267834,
+          "sha256": "946afbd2c77b130a2133240f6c3003afe28cee6bd271f7b6d63a1b94d5450740"
+        },
+        "alignment": {
+          "bytes": 635116122,
+          "sha256": "9ffd12ebae81747f3c09f06514a5aca2dbd131b834d60df480dbe1a2ff58f253"
+        }
+      },
+      "limits": [
+        "Synthetic authored frames, not vehicle measurements or physical fault labels.",
+        "Elapsed time characterizes this host and excludes source generation.",
+        "No sustained live adapter, driver, capture synchronization or fault accuracy claim."
+      ]
+    },
+    "native_windows": {
+      "scope": "synthetic_can_exact_freshness_boundary_file_stress",
+      "diagnostic_claim": false,
+      "cycles": 500000,
+      "frames_input": 2000000,
+      "canonical_rows_checked_independently": 1000000,
+      "frames_at_exact_age_boundary": 500000,
+      "frames_one_nanosecond_past_age_boundary": 500000,
+      "declared_invalid_every_cycles": 100,
+      "declared_raw_invalid_context_frames": 5000,
+      "preparation_elapsed_s": 24.68108989999746,
+      "elapsed_including_reference_checks_s": 33.723290299996734,
+      "files": {
+        "input": {
+          "bytes": 94000000,
+          "sha256": "dea2280d4863d5ca404800f3f5e48ab4dda7490ec82b1950e9a58e136d269577"
+        },
+        "canonical": {
+          "bytes": 26267834,
+          "sha256": "946afbd2c77b130a2133240f6c3003afe28cee6bd271f7b6d63a1b94d5450740"
+        },
+        "alignment": {
+          "bytes": 635116122,
+          "sha256": "9ffd12ebae81747f3c09f06514a5aca2dbd131b834d60df480dbe1a2ff58f253"
+        }
+      },
+      "limits": [
+        "Synthetic authored frames, not vehicle measurements or physical fault labels.",
+        "Elapsed time characterizes this host and excludes source generation.",
+        "No sustained live adapter, driver, capture synchronization or fault accuracy claim."
+      ]
+    },
+    "file_sizes_and_sha256_equal": true
+  },
+  "real_replays": {
+    "model3_frames": 118053,
+    "canonical_csv_sha256": "4e48225e22b710f6a3640be6be8102dffa7002aa6bfb4373a2d1c460dd67876d",
+    "alignment_sha256": "440e496ad7c763a4b4e5d2332562bc025bd58f8320827468c5197fdb8e7ef070",
+    "native_result_sha256": "b701f75d100f3fac58ec094e0a639ec8601c9b4eaed97e3679c03b32c9892e38",
+    "native_full_and_chunks_equal": [
+      1,
+      7,
+      65536
+    ],
+    "selected_rows": 6,
+    "analyzed": 5,
+    "excluded": 1,
+    "data_quality_status": "FAIL",
+    "engineering_violation_events": 0,
+    "multiplex_baseline_complete_windows": 4,
+    "multiplex_raw_reference_campaigns": 7,
+    "ex30_bmw_records": 317435,
+    "dual_decoder_values": 76005,
+    "manual_byte_values": 17995,
+    "ex30_bmw_remain_analysis_ineligible": true
+  },
+  "hosted_ci": {
+    "verified_source_sha": "61c1607d9a19ef662357b619c3bfbf70df699ada",
+    "run_id": 38465139249,
+    "url": "https://github.com/CANWECAN/BatteryLog-Research/actions/runs/38465139249",
+    "status": "completed",
+    "conclusion": "success",
+    "successful_jobs": 12,
+    "completed_at_utc": "2026-10-13T20:52:38Z",
+    "checked_on": "2026-10-14",
+    "jobs": [
+      {
+        "id": 115530570948,
+        "name": "mf4 (ubuntu-24.04, 3.12)",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": [
+          "175 passed in 11.54s"
+        ]
+      },
+      {
+        "id": 115530571435,
+        "name": "test (3.12)",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": [
+          "Required test coverage of 95% reached. Total coverage: 96.23%",
+          "2497 passed, 2 skipped, 9 warnings in 132.27s (0:02:12)"
+        ]
+      },
+      {
+        "id": 115530571471,
+        "name": "mf4 (ubuntu-24.04, 3.14)",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": [
+          "175 passed in 17.14s"
+        ]
+      },
+      {
+        "id": 115530571519,
+        "name": "mf4 (windows-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": [
+          "175 passed in 23.11s"
+        ]
+      },
+      {
+        "id": 115530571560,
+        "name": "package",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": []
+      },
+      {
+        "id": 115530571661,
+        "name": "mf4 (ubuntu-24.04, 3.13)",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": [
+          "175 passed in 14.15s"
+        ]
+      },
+      {
+        "id": 115530571663,
+        "name": "windows",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": [
+          "Required test coverage of 95% reached. Total coverage: 96.21%",
+          "2495 passed, 4 skipped, 9 warnings in 301.66s (0:05:01)"
+        ]
+      },
+      {
+        "id": 115530571741,
+        "name": "test (3.14)",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": [
+          "Required test coverage of 95% reached. Total coverage: 96.02%",
+          "2497 passed, 2 skipped, 9 warnings in 134.13s (0:02:14)"
+        ]
+      },
+      {
+        "id": 115530571743,
+        "name": "minimum-runtime",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": [
+          "Required test coverage of 95% reached. Total coverage: 96.23%",
+          "2497 passed, 2 skipped, 10 warnings in 265.53s (0:04:25)"
+        ]
+      },
+      {
+        "id": 115530571844,
+        "name": "mf4 (ubuntu-24.04, 3.11)",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": [
+          "175 passed in 15.21s"
+        ]
+      },
+      {
+        "id": 115530572028,
+        "name": "test (3.11)",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": [
+          "Required test coverage of 95% reached. Total coverage: 96.23%",
+          "2497 passed, 2 skipped, 9 warnings in 208.19s (0:03:28)"
+        ]
+      },
+      {
+        "id": 115530572568,
+        "name": "test (3.13)",
+        "status": "completed",
+        "conclusion": "success",
+        "pytest": [
+          "Required test coverage of 95% reached. Total coverage: 96.23%",
+          "2497 passed, 2 skipped, 9 warnings in 134.40s (0:02:14)"
+        ]
+      }
+    ],
+    "private_artifacts": [
+      {
+        "id": 11847817743,
+        "name": "private-research-verification-distributions",
+        "size_in_bytes": 642525,
+        "url": "https://api.github.com/repos/CANWECAN/BatteryLog-Research/actions/artifacts/11847817743",
+        "archive_download_url": "https://api.github.com/repos/CANWECAN/BatteryLog-Research/actions/artifacts/11847817743/zip",
+        "expired": false,
+        "created_at": "2026-10-13T20:46:47Z",
+        "expires_at": "2027-01-11T20:44:03Z",
+        "updated_at": "2026-10-13T20:46:47Z",
+        "digest": "sha256:c2bd2bce53d9412813fd0c7065d35aee7598953f80f1dccfeef9c92fa68baf94",
+        "workflow_run": {
+          "id": 38465139249,
+          "repository_id": 1410613950,
+          "head_repository_id": 1410613950,
+          "head_branch": "audit/cloud-balancing-spread-20261012",
+          "head_sha": "61c1607d9a19ef662357b619c3bfbf70df699ada"
+        }
+      }
+    ],
+    "follow_up_documentation_does_not_rewrite_source_run_identity": true
+  },
+  "limits": [
+    "Source-declared codes are not authenticated OEM codes or physical fault labels.",
+    "Benchmark elapsed times exclude source generation; no sustained live transport claim.",
+    "Hard-link single-file publication requires destination filesystem support; no overwrite fallback.",
+    "Live adapter/HIL, acquisition alignment, counters/CRC, CAN FD and ISO-TP remain unverified.",
+    "Private draft only; no merge, public Core changes, licensing change or release."
+  ]
+}

@@ -355,6 +355,31 @@ def test_streaming_invalid_value_reports_global_data_row(tmp_path: Path) -> None
         )
 
 
+def test_strict_error_precedence_is_chunk_independent_for_timestamp_and_numeric() -> None:
+    frame = pd.DataFrame(
+        {
+            "timestamp_s": [1.0, 0.0, 2.0],
+            "temp_c": [25.0, 25.0, 25.0],
+            "cell_1_v": [3.6, 3.6, float("inf")],
+            "cell_2_v": [3.6, 3.6, 3.6],
+        }
+    )
+
+    with pytest.raises(ValueError) as whole_error:
+        _analyze_battery_frame(frame)
+    assert str(whole_error.value) == "timestamp_s must be non-decreasing"
+
+    for chunk_rows in (1, 2, 3):
+        chunks = [
+            frame.iloc[start : start + chunk_rows].copy()
+            for start in range(0, len(frame), chunk_rows)
+        ]
+        with pytest.raises(ValueError) as streaming_error:
+            _analyze_battery_chunks(chunks)
+        assert type(streaming_error.value) is type(whole_error.value)
+        assert str(streaming_error.value) == str(whole_error.value)
+
+
 @settings(deadline=None)
 @given(
     frame=battery_frames(),

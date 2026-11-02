@@ -1,0 +1,210 @@
+{
+  "blockers": [
+    "Original logger/exporter identity, version and timestamp convention absent",
+    "One large raw-tick discontinuity has no authenticated explanation",
+    "Physical measurement contract and comparable reference remain separate gates"
+  ],
+  "channel_pairs": [
+    {
+      "csv_bus": "1",
+      "log_ch": "0",
+      "records": 132941
+    }
+  ],
+  "clock": {
+    "backward_steps": 0,
+    "delta_histogram": {
+      "0": 85132,
+      "1": 36254,
+      "10": 3,
+      "11": 1,
+      "2": 2738,
+      "3": 2629,
+      "4": 2135,
+      "42949672": 1,
+      "5": 1889,
+      "6": 1462,
+      "7": 693,
+      "9": 3
+    },
+    "equal_adjacent_ticks": 85132,
+    "first_ticks": 2620260,
+    "largest_raw_deltas": [
+      {
+        "delta_ticks": 42949672,
+        "line": 111159,
+        "previous_line": 111158,
+        "previous_ticks": 2688401,
+        "ticks": 45638073
+      },
+      {
+        "delta_ticks": 11,
+        "line": 3,
+        "previous_line": 2,
+        "previous_ticks": 2620260,
+        "ticks": 2620271
+      },
+      {
+        "delta_ticks": 10,
+        "line": 10,
+        "previous_line": 9,
+        "previous_ticks": 2620281,
+        "ticks": 2620291
+      },
+      {
+        "delta_ticks": 10,
+        "line": 16,
+        "previous_line": 15,
+        "previous_ticks": 2620301,
+        "ticks": 2620311
+      },
+      {
+        "delta_ticks": 10,
+        "line": 25,
+        "previous_line": 24,
+        "previous_ticks": 2620331,
+        "ticks": 2620341
+      }
+    ],
+    "last_ticks": 45651225,
+    "positive_steps": 47808
+  },
+  "clock_rescaled_or_repaired": false,
+  "clock_unit_authenticated": false,
+  "comparison_counts": {
+    "dlc_matches": 132941,
+    "id_matches": 130637,
+    "malformed_csv_id_tokens": 2304,
+    "payload_matches": 132941,
+    "records": 132941,
+    "timestamp_matches": 132941
+  },
+  "csv_extended_counts": {
+    "0": 132941
+  },
+  "curve_review_eligible": false,
+  "execution": {
+    "altered_source_hash_rejections": [
+      "csv",
+      "log"
+    ],
+    "audit_script_sha256": "908a038e83541472fad8b8e16c8d7f838e37ad8e86e1617b6d90a11968e4a081",
+    "full_regression_suite_rerun": false,
+    "host": "Kali r0t",
+    "ruff_check": true,
+    "ruff_format_check": true,
+    "source_parent": "e8dfa3ae655c52edb8930cc6eaee82cb9975b94e"
+  },
+  "headers": {
+    "csv": "Time Stamp,ID,Extended,Bus,DLC,D1,D2,D3,D4,D5,D6,D7,D8",
+    "log": "ParserFlags\tCh\tCounter\tT/R\tTime\tFlags\tCAN ID\tLen\tData\tParser Name\tdefault"
+  },
+  "ids_repaired": false,
+  "log_metadata_counts": {
+    "Flags": {
+      "": 132940,
+      "E": 1
+    },
+    "Parser Name": {
+      "Default Parser": 132941
+    },
+    "ParserFlags": {
+      "1": 132941
+    },
+    "T/R": {
+      "RX": 132941
+    },
+    "default": {
+      "": 132941
+    }
+  },
+  "malformed_csv_id_examples": [
+    {
+      "csv_token": "2.00E+02",
+      "line": 49,
+      "log_token": "0x000002e2"
+    },
+    {
+      "csv_token": "2.00E+08",
+      "line": 50,
+      "log_token": "0x000002e8"
+    },
+    {
+      "csv_token": "3.00E+05",
+      "line": 53,
+      "log_token": "0x000003e5"
+    },
+    {
+      "csv_token": "3.00E+08",
+      "line": 54,
+      "log_token": "0x000003e8"
+    },
+    {
+      "csv_token": "3.00E+09",
+      "line": 55,
+      "log_token": "0x000003e9"
+    }
+  ],
+  "opaque_log_flag_examples": [
+    {
+      "csv_extended": "0",
+      "line": 18,
+      "opaque_log_flags": "E",
+      "original_id": "0x00000000",
+      "original_payload": "0x10 48 00 01 "
+    }
+  ],
+  "previously_reviewed_state_source_rows": [
+    {
+      "csv_id": "1fa",
+      "line": 1880,
+      "log_id": "0x000001fa",
+      "payload_hex": "414545f037383737",
+      "ticks": 2621457
+    },
+    {
+      "csv_id": "1fa",
+      "line": 2124,
+      "log_id": "0x000001fa",
+      "payload_hex": "415545f037383737",
+      "ticks": 2621606
+    },
+    {
+      "csv_id": "1fa",
+      "line": 2486,
+      "log_id": "0x000001fa",
+      "payload_hex": "415945f037383737",
+      "ticks": 2621826
+    },
+    {
+      "csv_id": "1fa",
+      "line": 2575,
+      "log_id": "0x000001fa",
+      "payload_hex": "416945f037383737",
+      "ticks": 2621877
+    }
+  ],
+  "rows_sorted": false,
+  "scope": "Pinned representation comparison; no physical clock authentication",
+  "seconds_per_tick": null,
+  "source_mutated": false,
+  "sources": {
+    "csv": {
+      "bytes": 5348227,
+      "commit": "9cbfc24528d9dfb2923c532f987ce1f3c278908f",
+      "git_blob": "3b66c4239cc4537f8ac68c4a5c2a0f63378684c6",
+      "path": "BMW i3/2017-60AH-REX-PT-CAN2-startcharge.csv",
+      "repository": "dalathegreat/EV-CANlogs",
+      "sha256": "d6bd56a3f0f60d7cfffa708a18b287c5802cc42fd5261e01b58d40e7c5c68ebf"
+    },
+    "log": {
+      "bytes": 9909389,
+      "commit": "9cbfc24528d9dfb2923c532f987ce1f3c278908f",
+      "git_blob": "9e8aaad34a94c2b638405f2bfce5da60c2236a91",
+      "path": "BMW i3/2017-60AH-REX-PT-CAN2-startcharge.log",
+      "repository": "dalathegreat/EV-CANlogs",
+      "sha256": "e858df31719d6a2dfd914a9f254a6a411e2b79451ec76cd51b5ff673f8c79dda"
+    }
+  },
+  "tick_unit": null
+}

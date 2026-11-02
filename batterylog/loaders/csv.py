@@ -83,38 +83,58 @@ def _validate_chunk_rows(chunk_rows: int) -> None:
         raise ValueError("chunk_rows must be a positive integer")
 
 
-def load_battery_csv_bytes(data: bytes) -> pd.DataFrame:
+def load_battery_csv_bytes(
+    data: bytes, *, signal_mapping: SignalMapping | None = None
+) -> pd.DataFrame:
     _read_header_from_bytes(data)
-    return pd.read_csv(io.BytesIO(data), encoding="utf-8-sig", skip_blank_lines=False)
+    timestamp = (
+        signal_mapping.timestamp if isinstance(signal_mapping, SignalMapping) else "timestamp_s"
+    )
+    return pd.read_csv(
+        io.BytesIO(data),
+        encoding="utf-8-sig",
+        skip_blank_lines=False,
+        dtype={timestamp: str},
+    )
 
 
-def load_battery_csv(path: str | Path) -> pd.DataFrame:
-    return load_battery_csv_bytes(Path(path).read_bytes())
+def load_battery_csv(
+    path: str | Path, *, signal_mapping: SignalMapping | None = None
+) -> pd.DataFrame:
+    return load_battery_csv_bytes(Path(path).read_bytes(), signal_mapping=signal_mapping)
 
 
 def iter_battery_csv(
     path: str | Path,
     *,
     chunk_rows: int,
+    signal_mapping: SignalMapping | None = None,
 ) -> Iterator[pd.DataFrame]:
     source = Path(path)
     with source.open("rb") as handle:
-        yield from iter_battery_csv_file(handle, chunk_rows=chunk_rows)
+        yield from iter_battery_csv_file(
+            handle, chunk_rows=chunk_rows, signal_mapping=signal_mapping
+        )
 
 
 def iter_battery_csv_file(
     handle: BinaryIO,
     *,
     chunk_rows: int,
+    signal_mapping: SignalMapping | None = None,
 ) -> Iterator[pd.DataFrame]:
     _validate_chunk_rows(chunk_rows)
     _read_header_from_binary_file(handle)
+    timestamp = (
+        signal_mapping.timestamp if isinstance(signal_mapping, SignalMapping) else "timestamp_s"
+    )
 
     reader = pd.read_csv(
         handle,
         encoding="utf-8-sig",
         chunksize=chunk_rows,
         skip_blank_lines=False,
+        dtype={timestamp: str},
     )
     try:
         yield from reader
@@ -133,8 +153,9 @@ class CsvPathLoader:
         *,
         signal_mapping: SignalMapping | None,
     ) -> Iterator[pd.DataFrame]:
-        del signal_mapping
-        yield from iter_battery_csv(self.path, chunk_rows=self.chunk_rows)
+        yield from iter_battery_csv(
+            self.path, chunk_rows=self.chunk_rows, signal_mapping=signal_mapping
+        )
 
 
 @dataclass(frozen=True)
@@ -148,5 +169,6 @@ class CsvFileLoader:
         *,
         signal_mapping: SignalMapping | None,
     ) -> Iterator[pd.DataFrame]:
-        del signal_mapping
-        yield from iter_battery_csv_file(self.handle, chunk_rows=self.chunk_rows)
+        yield from iter_battery_csv_file(
+            self.handle, chunk_rows=self.chunk_rows, signal_mapping=signal_mapping
+        )

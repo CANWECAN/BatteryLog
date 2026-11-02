@@ -1,0 +1,956 @@
+{
+  "scope": "research_source_context_review",
+  "diagnostic_claim": false,
+  "source_doi": "10.5281/zenodo.13715694",
+  "source_member": "field_data/data_sys_4.csv",
+  "source_license": "CC BY-NC 4.0",
+  "source_sha256": "f4a7861b72b273f7a78f5fc2e1f965c9c631bc579ea03099d14b10f82df003b9",
+  "rows": 4695793,
+  "eligible_pairs": 4294639,
+  "threshold_v": 0.05,
+  "max_gap_s": 60,
+  "overall": {
+    "observations": 4037,
+    "by_cell": {
+      "1": 3958,
+      "2": 3,
+      "3": 3,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 73
+    },
+    "cell_1_fraction": 0.9804310131285608
+  },
+  "monthly": [
+    {
+      "month": "2015-02",
+      "rows": 24515,
+      "eligible_pairs": 439,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0009999999999998899,
+        0.002000000000000224,
+        0.002000000000000224
+      ]
+    },
+    {
+      "month": "2015-03",
+      "rows": 45948,
+      "eligible_pairs": 744,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0009999999999998899,
+        0.002000000000000224,
+        0.002000000000000224
+      ]
+    },
+    {
+      "month": "2015-04",
+      "rows": 44446,
+      "eligible_pairs": 760,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0019999999999997797,
+        0.002000000000000224,
+        0.0030000000000001137
+      ]
+    },
+    {
+      "month": "2015-05",
+      "rows": 45948,
+      "eligible_pairs": 744,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0009999999999998899,
+        0.002000000000000224,
+        0.0030000000000001137
+      ]
+    },
+    {
+      "month": "2015-06",
+      "rows": 44465,
+      "eligible_pairs": 720,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0009999999999998899,
+        0.002000000000000224,
+        0.002000000000000224
+      ]
+    },
+    {
+      "month": "2015-07",
+      "rows": 455408,
+      "eligible_pairs": 451742,
+      "observations": 5,
+      "by_cell": {
+        "1": 3,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 2
+      },
+      "cell_1_fraction": 0.6,
+      "cell_1_level_abs_gt_0_2_v_rows": 39749,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.03799999999999981,
+        0.27,
+        0.39099999999999957
+      ]
+    },
+    {
+      "month": "2015-08",
+      "rows": 535680,
+      "eligible_pairs": 535680,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0009999999999998899,
+        0.0030000000000001137,
+        0.004999999999999893
+      ]
+    },
+    {
+      "month": "2015-09",
+      "rows": 518400,
+      "eligible_pairs": 518400,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0019999999999997797,
+        0.002000000000000224,
+        0.002000000000000224
+      ]
+    },
+    {
+      "month": "2015-10",
+      "rows": 535680,
+      "eligible_pairs": 535680,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0019999999999997797,
+        0.002000000000000224,
+        0.0030000000000001137
+      ]
+    },
+    {
+      "month": "2015-11",
+      "rows": 518400,
+      "eligible_pairs": 518400,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0019999999999997797,
+        0.002000000000000224,
+        0.0030000000000001137
+      ]
+    },
+    {
+      "month": "2015-12",
+      "rows": 535680,
+      "eligible_pairs": 535680,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0019999999999997797,
+        0.002000000000000224,
+        0.0029999999999996696
+      ]
+    },
+    {
+      "month": "2016-01",
+      "rows": 466526,
+      "eligible_pairs": 460014,
+      "observations": 1,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 1
+      },
+      "cell_1_fraction": 0.0,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0019999999999997797,
+        0.0029999999999996696,
+        0.0040000000000000036
+      ]
+    },
+    {
+      "month": "2016-02",
+      "rows": 58282,
+      "eligible_pairs": 17406,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.001000000000000334,
+        0.005999999999999783,
+        0.009999999999999787
+      ]
+    },
+    {
+      "month": "2016-03",
+      "rows": 45948,
+      "eligible_pairs": 744,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0019999999999997797,
+        0.0030000000000001137,
+        0.0030000000000001137
+      ]
+    },
+    {
+      "month": "2016-04",
+      "rows": 44145,
+      "eligible_pairs": 720,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0019999999999997797,
+        0.0030000000000001137,
+        0.0030000000000001137
+      ]
+    },
+    {
+      "month": "2016-05",
+      "rows": 112206,
+      "eligible_pairs": 73515,
+      "observations": 0,
+      "by_cell": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": null,
+      "cell_1_level_abs_gt_0_2_v_rows": 0,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.002000000000000224,
+        0.004999999999999893,
+        0.008000000000000007
+      ]
+    },
+    {
+      "month": "2016-06",
+      "rows": 355806,
+      "eligible_pairs": 340798,
+      "observations": 414,
+      "by_cell": {
+        "1": 414,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": 1.0,
+      "cell_1_level_abs_gt_0_2_v_rows": 1536,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0019999999999997797,
+        0.01399999999999979,
+        0.12299999999999978
+      ]
+    },
+    {
+      "month": "2016-07",
+      "rows": 308310,
+      "eligible_pairs": 302453,
+      "observations": 3617,
+      "by_cell": {
+        "1": 3541,
+        "2": 3,
+        "3": 3,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 70
+      },
+      "cell_1_fraction": 0.9789881116947746,
+      "cell_1_level_abs_gt_0_2_v_rows": 11737,
+      "cell_1_level_abs_v_p50_p95_p99": [
+        0.0050000000000003375,
+        0.15500000000000025,
+        0.4219999999999997
+      ]
+    }
+  ],
+  "both_endpoint_abs_current_at_most_a": {
+    "50": {
+      "eligible_pairs": 4246511,
+      "observations": 2935,
+      "by_cell": {
+        "1": 2933,
+        "2": 1,
+        "3": 1,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "cell_1_fraction": 0.9993185689948892
+    },
+    "100": {
+      "eligible_pairs": 4272568,
+      "observations": 3286,
+      "by_cell": {
+        "1": 3276,
+        "2": 3,
+        "3": 3,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 4
+      },
+      "cell_1_fraction": 0.996956786366403
+    },
+    "500": {
+      "eligible_pairs": 4294615,
+      "observations": 4032,
+      "by_cell": {
+        "1": 3955,
+        "2": 3,
+        "3": 3,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 71
+      },
+      "cell_1_fraction": 0.9809027777777778
+    },
+    "1000": {
+      "eligible_pairs": 4294622,
+      "observations": 4032,
+      "by_cell": {
+        "1": 3955,
+        "2": 3,
+        "3": 3,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 71
+      },
+      "cell_1_fraction": 0.9809027777777778
+    }
+  },
+  "both_current_le_100_a_and_pack_error_le_0_15_v": {
+    "eligible_pairs": 4272552,
+    "observations": 3277,
+    "by_cell": {
+      "1": 3273,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 4
+    },
+    "cell_1_fraction": 0.9987793713762587
+  },
+  "cell_1_pair_context": {
+    "observations": 3958,
+    "any_converter_either_endpoint_abs_gt_0_1_a": 1306,
+    "cell_1_converter_either_endpoint_abs_gt_0_1_a": 1039,
+    "all_converters_both_endpoints_exactly_zero": 1638,
+    "pack_error_both_endpoints_le_0_15_v": 3955,
+    "abs_current_change_le_1_a": 1157,
+    "relative_step_v_p50_p95_p99_max": [
+      0.09799999999999986,
+      0.4457249999999994,
+      0.8300749999999998,
+      1.6840000000000002
+    ]
+  },
+  "cell_1_observation_group_sensitivity_merge_gap_s": {
+    "5": {
+      "groups": 2180,
+      "largest_observation_count": 24
+    },
+    "30": {
+      "groups": 1081,
+      "largest_observation_count": 60
+    },
+    "60": {
+      "groups": 780,
+      "largest_observation_count": 114
+    }
+  },
+  "windows": [
+    {
+      "center_source_data_row": 3802126,
+      "window_half_width_s": 300,
+      "rows": 76,
+      "duplicate_pairs": 2,
+      "gaps_gt_60_s": 2,
+      "cell_1_v_min_max": [
+        2.8,
+        3.382
+      ],
+      "cell_1_below_2_5_v_rows": 0,
+      "cell_1_above_3_65_v_rows": 0,
+      "max_abs_pack_error_v": 4.668000000000003,
+      "max_abs_current_a": 0.122168481349945,
+      "max_abs_cell_1_converter_a": 0.046,
+      "bounded_source_context": [
+        {
+          "source_data_row": 3802124,
+          "timestamp_as_recorded": "2016-02-11 14:53:47",
+          "cell_1_v": 3.38,
+          "peer_2_to_8_min_max_v": [
+            3.364,
+            3.385
+          ],
+          "pack_v": 26.99,
+          "pack_minus_cell_sum_v": -0.026000000000003354,
+          "pack_current_a": 0.024433696642518,
+          "cell_1_converter_a": 0.0,
+          "max_abs_converter_a": 0.0,
+          "temperatures_c": [
+            20.0,
+            21.0,
+            20.0,
+            19.0
+          ]
+        },
+        {
+          "source_data_row": 3802125,
+          "timestamp_as_recorded": "2016-02-11 14:53:53",
+          "cell_1_v": 3.38,
+          "peer_2_to_8_min_max_v": [
+            3.364,
+            3.385
+          ],
+          "pack_v": 26.998,
+          "pack_minus_cell_sum_v": -0.01899999999999835,
+          "pack_current_a": 0.0488673932850361,
+          "cell_1_converter_a": 0.0,
+          "max_abs_converter_a": 0.0,
+          "temperatures_c": [
+            20.0,
+            21.0,
+            20.0,
+            19.0
+          ]
+        },
+        {
+          "source_data_row": 3802126,
+          "timestamp_as_recorded": "2016-02-11 14:53:53",
+          "cell_1_v": 2.8,
+          "peer_2_to_8_min_max_v": [
+            2.787,
+            2.807
+          ],
+          "pack_v": 27.038,
+          "pack_minus_cell_sum_v": 4.668000000000003,
+          "pack_current_a": 0.0,
+          "cell_1_converter_a": -0.003,
+          "max_abs_converter_a": 0.005,
+          "temperatures_c": [
+            21.0,
+            21.0,
+            21.0,
+            19.0
+          ]
+        },
+        {
+          "source_data_row": 3802127,
+          "timestamp_as_recorded": "2016-02-11 14:53:58",
+          "cell_1_v": 3.379,
+          "peer_2_to_8_min_max_v": [
+            3.364,
+            3.385
+          ],
+          "pack_v": 26.996,
+          "pack_minus_cell_sum_v": -0.018000000000004235,
+          "pack_current_a": 0.0488673932850361,
+          "cell_1_converter_a": 0.0,
+          "max_abs_converter_a": 0.0,
+          "temperatures_c": [
+            20.0,
+            21.0,
+            20.0,
+            19.0
+          ]
+        },
+        {
+          "source_data_row": 3802128,
+          "timestamp_as_recorded": "2016-02-11 14:53:58",
+          "cell_1_v": 3.275,
+          "peer_2_to_8_min_max_v": [
+            3.26,
+            3.282
+          ],
+          "pack_v": 27.027,
+          "pack_minus_cell_sum_v": 0.8570000000000029,
+          "pack_current_a": 0.0977347865700722,
+          "cell_1_converter_a": -0.046,
+          "max_abs_converter_a": 0.151,
+          "temperatures_c": [
+            21.0,
+            21.0,
+            21.0,
+            19.0
+          ]
+        }
+      ]
+    },
+    {
+      "center_source_data_row": 4521427,
+      "window_half_width_s": 300,
+      "rows": 119,
+      "duplicate_pairs": 0,
+      "gaps_gt_60_s": 0,
+      "cell_1_v_min_max": [
+        1.752,
+        3.41
+      ],
+      "cell_1_below_2_5_v_rows": 1,
+      "cell_1_above_3_65_v_rows": 0,
+      "max_abs_pack_error_v": 0.1059999999999981,
+      "max_abs_current_a": 2.00356292724609,
+      "max_abs_cell_1_converter_a": 0.537,
+      "bounded_source_context": [
+        {
+          "source_data_row": 4521425,
+          "timestamp_as_recorded": "2016-07-12 08:09:29",
+          "cell_1_v": 3.261,
+          "peer_2_to_8_min_max_v": [
+            3.362,
+            3.363
+          ],
+          "pack_v": 26.783,
+          "pack_minus_cell_sum_v": -0.015000000000000568,
+          "pack_current_a": -1.27055215835571,
+          "cell_1_converter_a": 0.0,
+          "max_abs_converter_a": 0.0,
+          "temperatures_c": [
+            19.0,
+            19.0,
+            19.0,
+            17.0
+          ]
+        },
+        {
+          "source_data_row": 4521426,
+          "timestamp_as_recorded": "2016-07-12 08:09:34",
+          "cell_1_v": 3.255,
+          "peer_2_to_8_min_max_v": [
+            3.361,
+            3.363
+          ],
+          "pack_v": 26.771,
+          "pack_minus_cell_sum_v": -0.01899999999999835,
+          "pack_current_a": -1.3927206993103,
+          "cell_1_converter_a": 0.0,
+          "max_abs_converter_a": 0.0,
+          "temperatures_c": [
+            19.0,
+            19.0,
+            19.0,
+            17.0
+          ]
+        },
+        {
+          "source_data_row": 4521427,
+          "timestamp_as_recorded": "2016-07-12 08:09:39",
+          "cell_1_v": 1.752,
+          "peer_2_to_8_min_max_v": [
+            3.361,
+            3.365
+          ],
+          "pack_v": 25.184,
+          "pack_minus_cell_sum_v": -0.1059999999999981,
+          "pack_current_a": -2.00356292724609,
+          "cell_1_converter_a": 0.305,
+          "max_abs_converter_a": 0.305,
+          "temperatures_c": [
+            19.0,
+            19.0,
+            19.0,
+            17.0
+          ]
+        },
+        {
+          "source_data_row": 4521428,
+          "timestamp_as_recorded": "2016-07-12 08:09:44",
+          "cell_1_v": 3.41,
+          "peer_2_to_8_min_max_v": [
+            3.356,
+            3.359
+          ],
+          "pack_v": 26.92,
+          "pack_minus_cell_sum_v": 0.009000000000000341,
+          "pack_current_a": -1.78365981578827,
+          "cell_1_converter_a": -0.004,
+          "max_abs_converter_a": 0.023,
+          "temperatures_c": [
+            19.0,
+            19.0,
+            19.0,
+            17.0
+          ]
+        },
+        {
+          "source_data_row": 4521429,
+          "timestamp_as_recorded": "2016-07-12 08:09:49",
+          "cell_1_v": 3.323,
+          "peer_2_to_8_min_max_v": [
+            3.356,
+            3.358
+          ],
+          "pack_v": 26.832,
+          "pack_minus_cell_sum_v": 0.012000000000000455,
+          "pack_current_a": -1.80809354782104,
+          "cell_1_converter_a": 0.387,
+          "max_abs_converter_a": 0.387,
+          "temperatures_c": [
+            19.0,
+            19.0,
+            19.0,
+            17.0
+          ]
+        }
+      ],
+      "cell_1_below_2_5_v_run": {
+        "first_source_data_row": 4521427,
+        "last_source_data_row": 4521427,
+        "sample_count": 1,
+        "observed_sample_span_s": 0.0,
+        "previous_neighbor_interval_s": 5.0,
+        "next_neighbor_interval_s": 5.0,
+        "first_timestamp_as_recorded": "2016-07-12 08:09:39",
+        "last_timestamp_as_recorded": "2016-07-12 08:09:39",
+        "cell_1_v_min_max": [
+          1.752,
+          1.752
+        ],
+        "pack_current_a_min_max": [
+          -2.00356292724609,
+          -2.00356292724609
+        ],
+        "max_abs_pack_error_v": 0.1059999999999981,
+        "max_abs_cell_1_converter_a": 0.305,
+        "previous_neighbor_cell_1_v": 3.255,
+        "next_neighbor_cell_1_v": 3.41
+      }
+    },
+    {
+      "center_source_data_row": 4535913,
+      "window_half_width_s": 300,
+      "rows": 119,
+      "duplicate_pairs": 0,
+      "gaps_gt_60_s": 0,
+      "cell_1_v_min_max": [
+        2.982,
+        4.934
+      ],
+      "cell_1_below_2_5_v_rows": 0,
+      "cell_1_above_3_65_v_rows": 64,
+      "max_abs_pack_error_v": 0.07199999999999918,
+      "max_abs_current_a": 103.453330993652,
+      "max_abs_cell_1_converter_a": 0.034,
+      "bounded_source_context": [
+        {
+          "source_data_row": 4535911,
+          "timestamp_as_recorded": "2016-07-13 04:16:46",
+          "cell_1_v": 3.033,
+          "peer_2_to_8_min_max_v": [
+            3.263,
+            3.274
+          ],
+          "pack_v": 25.897,
+          "pack_minus_cell_sum_v": -0.015000000000000568,
+          "pack_current_a": -0.928480446338654,
+          "cell_1_converter_a": 0.0,
+          "max_abs_converter_a": 0.0,
+          "temperatures_c": [
+            22.0,
+            21.0,
+            20.0,
+            18.0
+          ]
+        },
+        {
+          "source_data_row": 4535912,
+          "timestamp_as_recorded": "2016-07-13 04:16:51",
+          "cell_1_v": 3.455,
+          "peer_2_to_8_min_max_v": [
+            3.276,
+            3.288
+          ],
+          "pack_v": 26.423,
+          "pack_minus_cell_sum_v": 0.0070000000000014495,
+          "pack_current_a": 23.0165424346924,
+          "cell_1_converter_a": 0.007,
+          "max_abs_converter_a": 0.058,
+          "temperatures_c": [
+            22.0,
+            21.0,
+            20.0,
+            18.0
+          ]
+        },
+        {
+          "source_data_row": 4535913,
+          "timestamp_as_recorded": "2016-07-13 04:16:56",
+          "cell_1_v": 4.934,
+          "peer_2_to_8_min_max_v": [
+            3.305,
+            3.338
+          ],
+          "pack_v": 28.203,
+          "pack_minus_cell_sum_v": 0.07199999999999918,
+          "pack_current_a": 67.143798828125,
+          "cell_1_converter_a": 0.005,
+          "max_abs_converter_a": 0.02,
+          "temperatures_c": [
+            22.0,
+            21.0,
+            20.0,
+            18.0
+          ]
+        },
+        {
+          "source_data_row": 4535914,
+          "timestamp_as_recorded": "2016-07-13 04:17:01",
+          "cell_1_v": 4.146,
+          "peer_2_to_8_min_max_v": [
+            3.327,
+            3.373
+          ],
+          "pack_v": 27.538,
+          "pack_minus_cell_sum_v": 0.018000000000000682,
+          "pack_current_a": 93.6705017089844,
+          "cell_1_converter_a": 0.005,
+          "max_abs_converter_a": 0.052,
+          "temperatures_c": [
+            22.0,
+            21.0,
+            20.0,
+            18.0
+          ]
+        },
+        {
+          "source_data_row": 4535915,
+          "timestamp_as_recorded": "2016-07-13 04:17:06",
+          "cell_1_v": 3.832,
+          "peer_2_to_8_min_max_v": [
+            3.342,
+            3.391
+          ],
+          "pack_v": 27.336,
+          "pack_minus_cell_sum_v": 0.020000000000003126,
+          "pack_current_a": 103.453330993652,
+          "cell_1_converter_a": 0.005,
+          "max_abs_converter_a": 0.101,
+          "temperatures_c": [
+            22.0,
+            21.0,
+            20.0,
+            18.0
+          ]
+        }
+      ],
+      "cell_1_above_3_65_v_run": {
+        "first_source_data_row": 4535913,
+        "last_source_data_row": 4536541,
+        "sample_count": 629,
+        "observed_sample_span_s": 3133.0,
+        "previous_neighbor_interval_s": 5.0,
+        "next_neighbor_interval_s": 5.0,
+        "first_timestamp_as_recorded": "2016-07-13 04:16:56",
+        "last_timestamp_as_recorded": "2016-07-13 05:09:09",
+        "cell_1_v_min_max": [
+          3.692,
+          4.934
+        ],
+        "pack_current_a_min_max": [
+          1.36828696727753,
+          103.453330993652
+        ],
+        "max_abs_pack_error_v": 0.07199999999999918,
+        "max_abs_cell_1_converter_a": 0.005,
+        "previous_neighbor_cell_1_v": 3.455,
+        "next_neighbor_cell_1_v": 3.424
+      }
+    }
+  ],
+  "interpretation_limits": [
+    "Current/converter/pack-error cutoffs are illustrative review strata, not safety limits.",
+    "Both original endpoints are tested; no pair is rebuilt across discarded rows.",
+    "All source rows stay in the primary analysis; chronology is never reordered.",
+    "Observation groups are not incident or physical fault counts.",
+    "Converter currents are measurements, not authenticated BMS active status.",
+    "Shared temperature channels and unknown sensor timing cannot establish local heating.",
+    "Pack/cell-sum agreement strengthens cross-channel consistency, not causal diagnosis."
+  ]
+}

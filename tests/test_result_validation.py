@@ -101,7 +101,7 @@ def test_rule_order_is_not_a_new_wire_requirement() -> None:
 def test_other_schema_versions_are_not_silently_accepted() -> None:
     payload = _passing_result()
     payload["schema_version"] = 7
-    with pytest.raises(ValueError, match="version 8 only"):
+    with pytest.raises(ValueError, match="version 8 or 9 only"):
         validate_result_semantics(payload)
 
 

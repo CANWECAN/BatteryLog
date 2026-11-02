@@ -1,0 +1,9 @@
+# Synthetic demonstration only; choose current bounds and timing for the test procedure.
+schema_version: 7
+failure_models:
+  max_gap_s: 1
+  precharge_current:
+    active_source: precharge
+    evaluation_s: 2
+    min_start_abs_current_a: 4
+    min_drop_a: 3

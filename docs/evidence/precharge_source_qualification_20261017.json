@@ -1,0 +1,310 @@
+{
+  "chalmers": {
+    "current_raw_download_verified": false,
+    "decision": "Request a raw startup subset and its channel dictionary before any full transfer; processed aging data are not accepted as startup reference.",
+    "pdf_pages_one_based": [
+      151,
+      165,
+      166
+    ],
+    "processed_charge_interval_s": 1.0,
+    "processed_discharge_interval_s": 0.5,
+    "processed_pipeline_interpolates": true,
+    "processed_pipeline_removes_some_initialization_values": true,
+    "raw_pack_nominal_interval_ms": 20,
+    "source": "https://research.chalmers.se/publication/543724/file/543724_Fulltext.pdf",
+    "thesis_reports_processed_gb": 5.6
+  },
+  "date_utc": "2026-10-17",
+  "dortmund": {
+    "csv_widths_valid": true,
+    "data_type_counts": {
+      "C": 27,
+      "E": 42,
+      "G": 32,
+      "G and C": 1,
+      "H": 781
+    },
+    "external_active_channels": [
+      {
+        "Data type": "E",
+        "Description": "Timestamp E-type data",
+        "Parameter": "Time",
+        "Source": "EV monitoring system",
+        "Unit": "date and time",
+        "csv file suffix": "EV-Monitor"
+      },
+      {
+        "Data type": "E",
+        "Description": "CCS voltage",
+        "Parameter": "Voltage CCS",
+        "Source": "EV monitoring system",
+        "Unit": "V",
+        "csv file suffix": "EV-Monitor"
+      },
+      {
+        "Data type": "E",
+        "Description": "CCS current",
+        "Parameter": "Current CCS",
+        "Source": "EV monitoring system",
+        "Unit": "A",
+        "csv file suffix": "EV-Monitor"
+      },
+      {
+        "Data type": "E",
+        "Description": "CCS power",
+        "Parameter": "Power CCS",
+        "Source": "EV monitoring system",
+        "Unit": "W",
+        "csv file suffix": "EV-Monitor"
+      },
+      {
+        "Data type": "E",
+        "Description": "CHAdeMO voltage",
+        "Parameter": "Voltage CHAdeMO",
+        "Source": "EV monitoring system",
+        "Unit": "V",
+        "csv file suffix": "EV-Monitor"
+      },
+      {
+        "Data type": "E",
+        "Description": "CHAdeMO current",
+        "Parameter": "Current CHAdeMO",
+        "Source": "EV monitoring system",
+        "Unit": "A",
+        "csv file suffix": "EV-Monitor"
+      },
+      {
+        "Data type": "E",
+        "Description": "CHAdeMO power",
+        "Parameter": "Power CHAdeMO",
+        "Source": "EV monitoring system",
+        "Unit": "W",
+        "csv file suffix": "EV-Monitor"
+      },
+      {
+        "Data type": "E",
+        "Description": "Ambient temperature",
+        "Parameter": "Ambient Temperature",
+        "Source": "EV monitoring system",
+        "Unit": "degC",
+        "csv file suffix": "EV-Monitor"
+      },
+      {
+        "Data type": "E",
+        "Description": "CCS plug DC+ temperature",
+        "Parameter": "Temperature CCS DC+",
+        "Source": "EV monitoring system",
+        "Unit": "degC",
+        "csv file suffix": "EV-Monitor"
+      },
+      {
+        "Data type": "E",
+        "Description": "CCS plug DC- temperature",
+        "Parameter": "Temperature CCS DC-",
+        "Source": "EV monitoring system",
+        "Unit": "degC",
+        "csv file suffix": "EV-Monitor"
+      }
+    ],
+    "internal_precharge_term_matches": [],
+    "measurement_rows": 142,
+    "normal_reference_accepted": false,
+    "parameter_rows": 883,
+    "raw_waveforms_downloaded": false,
+    "reason": "Dictionary supplies charger/grid/plug measurements. Internal pack/DC-link pair, precharge path current, phase and independent normal bounds are not established by the inspected metadata.",
+    "record": "https://zenodo.org/records/14065331",
+    "vehicle_names": [
+      "Fiat_500e",
+      "Honda_e",
+      "Hyundai_IONIQ5",
+      "Mitsubishi_EC",
+      "Nissan_Leaf",
+      "OpelCorsa_e",
+      "TeslaModel_Y",
+      "VW_ID4"
+    ]
+  },
+  "downloads": [
+    {
+      "bytes": 76991,
+      "git_blob": "506070708a638330e85e7bb28944e100601e8ab2",
+      "git_blob_verified": false,
+      "http_status_if_fetched": null,
+      "md5": "55a479a1a34114a81da6bbc233cda419",
+      "name": "dortmund_parameters.csv",
+      "published_md5_verified": true,
+      "sha256": "16c60ab66160c0c04d869e6fdff31c8597ca18d791e6eeb0ff2dbc86b37e173c",
+      "url": "https://zenodo.org/records/14065331/files/parameters.csv?download=1",
+      "used_verified_cache": true
+    },
+    {
+      "bytes": 20133,
+      "git_blob": "f56105d24a74b1185144f7d2260420be004da40b",
+      "git_blob_verified": false,
+      "http_status_if_fetched": null,
+      "md5": "332378d8e25b2edf808f3f05a610fdc1",
+      "name": "dortmund_measurements.csv",
+      "published_md5_verified": true,
+      "sha256": "3f5030134f0ef40abf9716fb0301f16ab64af71d9ca688e2282de66164ae029f",
+      "url": "https://zenodo.org/records/14065331/files/measurements.csv?download=1",
+      "used_verified_cache": true
+    },
+    {
+      "bytes": 384,
+      "git_blob": "cdafaafb5bb50a8bded3ef9c42658ec17bc1ecfa",
+      "git_blob_verified": true,
+      "http_status_if_fetched": 200,
+      "md5": "e6951458ed21569c1ac08392cee0b3d1",
+      "name": "rico_DATA_LINK.txt",
+      "published_md5_verified": false,
+      "sha256": "12d932b71bf594563c98475b4b303656afd48f514166a956e00be1ea19ac18dd",
+      "url": "https://raw.githubusercontent.com/Rico-dicp/Ev-battery-cell-to-cell-inconsistency/dc1dd9226d2c01450b1afb1c8a378b7eb293c291/DATA_LINK.txt",
+      "used_verified_cache": false
+    },
+    {
+      "bytes": 3497,
+      "git_blob": "01b44afa240ef5b404e8a03ce74673b3cfc02758",
+      "git_blob_verified": true,
+      "http_status_if_fetched": 200,
+      "md5": "33aebc94d387b60e7f28a92a5f4f9721",
+      "name": "rico_README.md",
+      "published_md5_verified": false,
+      "sha256": "02a7c11443110de0256fe95e5ce52e0a32a70181f335fe6345bd629090ceb3a9",
+      "url": "https://raw.githubusercontent.com/Rico-dicp/Ev-battery-cell-to-cell-inconsistency/dc1dd9226d2c01450b1afb1c8a378b7eb293c291/README.md",
+      "used_verified_cache": false
+    },
+    {
+      "bytes": 13511,
+      "git_blob": "704fa526e6d832795aad4271d232467f6c5d3ce7",
+      "git_blob_verified": true,
+      "http_status_if_fetched": 200,
+      "md5": "847e8168c455285a8bd13f32d027a86b",
+      "name": "rico_preprocessing.txt",
+      "published_md5_verified": false,
+      "sha256": "d329d6d909d050c3261adff8d0f512b0b18ca821b2af6c1c06f1c3b443fad5d6",
+      "url": "https://raw.githubusercontent.com/Rico-dicp/Ev-battery-cell-to-cell-inconsistency/dc1dd9226d2c01450b1afb1c8a378b7eb293c291/code/01_data_preprocessing.py",
+      "used_verified_cache": false
+    }
+  ],
+  "native_focused_validation": {
+    "elapsed_s": 3.68,
+    "new_full_suite_run": false,
+    "passed": 83,
+    "test_files": [
+      "tests/test_research_precharge_file_review.py",
+      "tests/test_research_precharge_control_boundaries.py"
+    ]
+  },
+  "normal_reference_accepted": false,
+  "parser_check": {
+    "archive_hash_unchanged": true,
+    "cases": [
+      {
+        "bytes": 14950,
+        "error": "Require the exact ordered precharge CSV header",
+        "name": "05_Capacitor_charging/RigolDS126.csv",
+        "observer_calls": 0,
+        "outcome": "rejected_by_aligned_csv_parser",
+        "sha256": "9cced49fb29b36b1f11162af71fbf690092c5e6332008960a7552aee65d651e2"
+      },
+      {
+        "bytes": 15765,
+        "error": "Require the exact ordered precharge CSV header",
+        "name": "05_Capacitor_charging/RigolDS125.csv",
+        "observer_calls": 0,
+        "outcome": "rejected_by_aligned_csv_parser",
+        "sha256": "ccc8feac874a6e2b6d7f15adbc29a12b14195c46ca0a3f7f2d123ede765840cc"
+      },
+      {
+        "bytes": 14156,
+        "error": "Require the exact ordered precharge CSV header",
+        "name": "05_Capacitor_charging/RigolDS124.csv",
+        "observer_calls": 0,
+        "outcome": "rejected_by_aligned_csv_parser",
+        "sha256": "6b6b0128a2f7c0eed80046e0fc1852862757bf4368821b6aba7b2d3658a318be"
+      },
+      {
+        "bytes": 21018,
+        "error": "Require the exact ordered precharge CSV header",
+        "name": "05_Capacitor_charging/RigolDS123.csv",
+        "observer_calls": 0,
+        "outcome": "rejected_by_aligned_csv_parser",
+        "sha256": "5d703181ad864b7321a2592b0d0b36b80c744d562baf31d13a724012536b8ec9"
+      },
+      {
+        "bytes": 23808,
+        "error": "Require the exact ordered precharge CSV header",
+        "name": "05_Capacitor_charging/RigolDS122.csv",
+        "observer_calls": 0,
+        "outcome": "rejected_by_aligned_csv_parser",
+        "sha256": "a209a38d3dc613268bf17490e13a7af5231f2a99efb1c0a4236a6c1960790ac4"
+      },
+      {
+        "bytes": 76991,
+        "error": "Require the exact ordered precharge CSV header",
+        "name": "dortmund_parameters.csv",
+        "observer_calls": 0,
+        "outcome": "rejected_by_aligned_csv_parser",
+        "sha256": "16c60ab66160c0c04d869e6fdff31c8597ca18d791e6eeb0ff2dbc86b37e173c"
+      },
+      {
+        "bytes": 20133,
+        "error": "Require the exact ordered precharge CSV header",
+        "name": "dortmund_measurements.csv",
+        "observer_calls": 0,
+        "outcome": "rejected_by_aligned_csv_parser",
+        "sha256": "3f5030134f0ef40abf9716fb0301f16ab64af71d9ca688e2282de66164ae029f"
+      }
+    ],
+    "physical_curve_review_eligible": false,
+    "scope": "existing_csv_parser_header_boundary_only_not_physical_acceptance",
+    "source_commit": "df9cf68b1b213e246bd90aa857fb4552b880832a"
+  },
+  "physical_curve_review_eligible": false,
+  "prior_ci": {
+    "commit": "df9cf68b1b213e246bd90aa857fb4552b880832a",
+    "jobs_succeeded": 12,
+    "jobs_total": 12,
+    "run_id": 38810085613
+  },
+  "rico": {
+    "consumer_script_required_columns": [
+      "Timestamp",
+      "VehicleStatus",
+      "ChargingStatus",
+      "Speed",
+      "Mileage",
+      "TotalVoltage",
+      "TotalCurrent",
+      "SOC",
+      "MaxVoltageCellID",
+      "MaxCellVoltage",
+      "MinVoltageCellID",
+      "MinCellVoltage",
+      "MaxTempProbeID",
+      "MaxTemp",
+      "MinTempProbeID",
+      "MinTemp",
+      "CellVoltages",
+      "CellTemperatures"
+    ],
+    "decision": "Separate fleet-aging lead; inspected consumer columns do not establish an internal precharge channel set or qualified reference.",
+    "expected_parquet_files": 60,
+    "linked_parquet_downloaded": false,
+    "pin": "dc1dd9226d2c01450b1afb1c8a378b7eb293c291",
+    "raw_parquet_schema_verified": false,
+    "repo": "Rico-dicp/Ev-battery-cell-to-cell-inconsistency",
+    "same_as_chalmers_six_phev_dataset": null
+  },
+  "scope": "source_metadata_qualification_and_existing_parser_checks",
+  "source_base": "3d4a3ce6b3100d806d7d14795517c6940b729286",
+  "step7": "open_no_qualified_normal_reference",
+  "step8": "open_depends_on_physical_alignment_and_reference",
+  "step9": "deferred_at_user_direction_no_hardware",
+  "validation_scripts_sha256": {
+    "audit_sources.py": "d79d8d2fc8796e94fccd2388f38c11fb271ea801db51730dfdcda436a5bdfd30",
+    "validate_candidate_boundaries.py": "7746a172dd6cad7770bb090302b4069b00e9794e050ffe311c1379d1d4890356"
+  },
+  "windows_only": true
+}

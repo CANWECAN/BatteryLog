@@ -21,15 +21,15 @@ It checks:
 These address the known consumer gaps recorded in PRs #60, #63 and #66, plus
 the documented row-accounting relationships. The function returns `None` on
 success, raises `ValueError` for a checked inconsistency, and does not modify
-the result. It supports v8 only. Different defect classes may overlap one
+the result. It supports v8 and v9. Different defect classes may overlap one
 excluded row; their affected-value counts must not be summed as row counts.
 
 ## Usage
 
 Parse strict JSON and validate the frozen structural schema **before** calling
-the semantic check. The example uses `jsonschema`, available in BatteryLog's
-development extra; a consumer may use another conforming structural validator.
-No new runtime dependency is required by the semantic function itself.
+the semantic check. BatteryLog includes `jsonschema` as a runtime dependency so
+the desktop launcher can enforce this contract before publishing a result; other
+consumers may use any conforming structural validator.
 
 ```python
 import json

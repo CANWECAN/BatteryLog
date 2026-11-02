@@ -37,7 +37,10 @@ EXIT_RUNTIME_ERROR = 4
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Analyze EV battery test data.")
+    parser = argparse.ArgumentParser(
+        description="Analyze EV battery test data.",
+        epilog="Experimental offline workflows: batterylog experimental --help",
+    )
     parser.add_argument("path", help="Measurement path, or input directory with --batch")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--batch", action="store_true", help="Analyze a directory of measurements")
@@ -47,8 +50,27 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument(
         "--normalize", action="store_true", help="Prepare canonical CSV plus conversion evidence"
     )
+    mode.add_argument(
+        "--audit-recordings",
+        metavar="PLAN",
+        help="Review declared CSV recording coverage and engineering reports together",
+    )
+    mode.add_argument(
+        "--interpret",
+        action="store_true",
+        help="Publish a source-bound interpretation bundle; physical claims remain NOT_EVALUATED",
+    )
+    parser.add_argument(
+        "--measurement-context",
+        help="With --interpret, read an optional declared measurement-context JSON file",
+    )
     parser.add_argument(
         "--time-unit", choices=["s", "ms", "us"], help="Declared source time unit for normalization"
+    )
+    parser.add_argument(
+        "--relative-time",
+        action="store_true",
+        help="With --normalize on CSV, subtract the first raw timestamp before conversion",
     )
     parser.add_argument(
         "--cell-voltage-unit", choices=["V", "mV"], help="Declared source cell-voltage unit"
@@ -294,6 +316,7 @@ def _resolve_cli_config(
         event_detection=event_detection,
         data_quality=base.data_quality,
         signals=base.signals,
+        failure_models=base.failure_models,
     )
 
 
@@ -331,9 +354,23 @@ def _batch_exit_code(summary: BatchSummary) -> int:
 
 
 def run(argv: Sequence[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
     parser = build_parser()
     try:
+        if argv[:1] == ["experimental"]:
+            from .experimental import run as run_experimental
+
+            return run_experimental(argv[1:])
         args = parser.parse_args(argv)
+        if args.measurement_context and not args.interpret:
+            parser.error("--measurement-context requires --interpret")
+        if args.interpret:
+            if not args.output_dir:
+                parser.error("--interpret requires --output-dir")
+            if args.report or args.json_out or args.recursive:
+                parser.error(
+                    "--interpret writes one bundle; --report, --json-out and --recursive are not supported"
+                )
         if args.inspect and (args.report or args.json_out):
             parser.error(
                 "--inspect emits metadata on stdout; --report and --json-out require analysis"
@@ -354,14 +391,18 @@ def run(argv: Sequence[str] | None = None) -> int:
                 parser.error(
                     "--normalize prepares one file; report and recursive options require analysis"
                 )
-        elif any(unit_options):
-            parser.error("Source unit options require --normalize")
-        if args.batch:
+        elif any(unit_options) or args.relative_time:
+            parser.error("Source unit options and --relative-time require --normalize")
+        if args.batch or args.audit_recordings:
             if not args.output_dir:
-                parser.error("--batch requires --output-dir")
+                parser.error("--batch and --audit-recordings require --output-dir")
             if args.report or args.json_out:
-                parser.error("--batch writes per-file reports; use --output-dir")
-        elif not args.normalize and (args.output_dir or args.recursive):
+                parser.error("Directory review writes its reports; use --output-dir")
+            if args.audit_recordings and args.recursive:
+                parser.error(
+                    "--audit-recordings uses exact planned paths; --recursive is not supported"
+                )
+        elif not args.normalize and not args.interpret and (args.output_dir or args.recursive):
             parser.error("--output-dir and --recursive require --batch")
     except SystemExit as exc:
         return int(exc.code or EXIT_PASS)
@@ -393,6 +434,7 @@ def run(argv: Sequence[str] | None = None) -> int:
                 ),
                 config=_resolve_cli_config(args, base=base_config),
                 config_evidence=config_snapshot.evidence if config_snapshot is not None else None,
+                relative_time=args.relative_time,
             )
             sys.stdout.write(
                 json.dumps(normalized, indent=2, sort_keys=True, allow_nan=False) + "\n"
@@ -406,7 +448,23 @@ def run(argv: Sequence[str] | None = None) -> int:
             )
             return EXIT_PASS if inspection["metadata_status"] == "OK" else EXIT_RUNTIME_ERROR
 
-        if args.batch:
+        if args.interpret:
+            from .interpretation_review import review_measurement
+
+            bundle = review_measurement(
+                input_path,
+                args.output_dir,
+                context_path=args.measurement_context,
+                config=_resolve_cli_config(args),
+            )
+            print(
+                "Physical interpretation: NOT_EVALUATED; engineering result retained.",
+                file=sys.stderr,
+            )
+            sys.stdout.write(bundle.result_json)
+            return _validation_exit_code(json.loads(bundle.result_json))
+
+        if args.batch or args.audit_recordings:
             config_snapshot = (
                 capture_file_snapshot(config_path) if config_path is not None else None
             )
@@ -415,6 +473,30 @@ def run(argv: Sequence[str] | None = None) -> int:
                 if config_snapshot is not None
                 else ValidationConfig()
             )
+            if args.audit_recordings:
+                from .recording_review import review_recordings
+
+                review = review_recordings(
+                    input_path,
+                    args.output_dir,
+                    plan=args.audit_recordings,
+                    service=AnalysisService(_resolve_cli_config(args, base=base_config)),
+                    config_evidence=config_snapshot.evidence
+                    if config_snapshot is not None
+                    else None,
+                )
+                sys.stdout.write(
+                    json.dumps(review, indent=2, sort_keys=True, allow_nan=False) + "\n"
+                )
+                coverage = review["audit"]["coverage_status"]
+                engineering = review["engineering_status"]
+                if "ERROR" in {coverage, engineering}:
+                    return EXIT_RUNTIME_ERROR
+                if coverage == "INCOMPLETE" or engineering == "FAIL":
+                    return EXIT_VALIDATION_FAIL
+                if "NOT_EVALUATED" in {coverage, engineering}:
+                    return EXIT_NOT_EVALUATED
+                return EXIT_PASS
             summary = analyze_directory(
                 input_path,
                 args.output_dir,

@@ -1,0 +1,85 @@
+{
+  "branches": [
+    {
+      "all_branch_facts_equal": true,
+      "core": {
+        "CELL_SAG_UNDER_LOAD": {
+          "evaluated_samples": 1301,
+          "event_count": 34,
+          "exceeding_samples": 995,
+          "incomplete_intervals": 60,
+          "reason": null,
+          "status": "FAIL"
+        },
+        "TEMPERATURE_RISE_HIGH": {
+          "evaluated_samples": 16364,
+          "event_count": 2283,
+          "exceeding_samples": 2402,
+          "incomplete_intervals": 0,
+          "reason": null,
+          "status": "FAIL"
+        }
+      },
+      "core_equal_to_saved": true,
+      "csv_name": "Qtzl_Cycle_229_WLTP_WLTP_P1.csv",
+      "different_sections": [],
+      "rows": 16365,
+      "sha256": "cab778f24ba7daf862cc0c80cf0d4f4cebf00aa82515544fcadb23aaa1e119b7"
+    },
+    {
+      "all_branch_facts_equal": true,
+      "core": {
+        "CELL_SAG_UNDER_LOAD": {
+          "evaluated_samples": 1222,
+          "event_count": 26,
+          "exceeding_samples": 735,
+          "incomplete_intervals": 60,
+          "reason": null,
+          "status": "FAIL"
+        },
+        "TEMPERATURE_RISE_HIGH": {
+          "evaluated_samples": 16364,
+          "event_count": 2220,
+          "exceeding_samples": 2302,
+          "incomplete_intervals": 0,
+          "reason": null,
+          "status": "FAIL"
+        }
+      },
+      "core_equal_to_saved": true,
+      "csv_name": "Qtzl_Cycle_229_WLTP_WLTP_P2.csv",
+      "different_sections": [],
+      "rows": 16365,
+      "sha256": "0047f21e78f98f22fedd296914161e78893fddcd0aa7c6fb71be5f6498ec9ada"
+    },
+    {
+      "all_branch_facts_equal": true,
+      "core": {
+        "CELL_SAG_UNDER_LOAD": {
+          "evaluated_samples": 1046,
+          "event_count": 0,
+          "exceeding_samples": 0,
+          "incomplete_intervals": 68,
+          "reason": "Insufficient eligible contiguous observations",
+          "status": "NOT_EVALUATED"
+        },
+        "TEMPERATURE_RISE_HIGH": {
+          "evaluated_samples": 16364,
+          "event_count": 2115,
+          "exceeding_samples": 2309,
+          "incomplete_intervals": 0,
+          "reason": null,
+          "status": "FAIL"
+        }
+      },
+      "core_equal_to_saved": true,
+      "csv_name": "Qtzl_Cycle_229_WLTP_WLTP_P3.csv",
+      "different_sections": [],
+      "rows": 16365,
+      "sha256": "89a7197e0c68d515f3f8e257ec3d73ba0895cc5aa3813a29c78991d37975e652"
+    }
+  ],
+  "original_inputs_unchanged": true,
+  "scope": "same_three_prepared_CORA_branches_not_physical_fault_labels",
+  "source_sha256": "f6c3c5a85054039bf30b854c47b43bfadbe0e3a3d0abbe295f59e5125553883f"
+}

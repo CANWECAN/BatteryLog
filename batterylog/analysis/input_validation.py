@@ -1,17 +1,130 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from decimal import Decimal
 
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_object_dtype
 
 from batterylog.config import SignalMapping, ValidationLimits
+from batterylog.failure_config import FailureModelConfig
+from batterylog.loaders import MeasurementLoader
+from batterylog.loaders.mf4 import MdfFileLoader, MdfPathLoader
 from batterylog.signals import (
     canonicalize_battery_signals,
     find_canonical_pack_signal_columns,
     find_canonical_signal_columns,
+    resolve_signal_mapping,
 )
 
 from .data_quality import _required_boolean_mask
+
+Timestamp = int | float | Decimal
+
+
+def parse_binary_status(value: object) -> bool | None:
+    if isinstance(value, str):
+        value = {"0": 0, "1": 1, "true": True, "false": False}.get(value.strip().lower())
+    if isinstance(value, (bool, int, float, np.bool_, np.integer, np.floating)) and value in (0, 1):
+        return bool(value)
+    return None
+
+
+parse_balancing_status = parse_binary_status
+
+
+def failure_model_loader(
+    loader: MeasurementLoader,
+    config: FailureModelConfig | None,
+) -> MeasurementLoader:
+    if config is not None and not isinstance(config, FailureModelConfig):
+        raise TypeError("failure_models must be a FailureModelConfig instance or null")
+    if config and isinstance(loader, (MdfFileLoader, MdfPathLoader)):
+        return replace(
+            loader,
+            balance_active_source=config.balancing.active_source if config.balancing else None,
+            unloaded_source=config.unloaded_current.unloaded_source
+            if config.unloaded_current
+            else None,
+            status_sources=(
+                (config.precharge_current.active_source,) if config.precharge_current else ()
+            )
+            + (
+                (
+                    config.contactor_response.command_source,
+                    config.contactor_response.feedback_source,
+                )
+                if config.contactor_response
+                else ()
+            ),
+        )
+    return loader
+
+
+def balance_values_for_frame(
+    frame: pd.DataFrame,
+    mapping: SignalMapping | None,
+    config: FailureModelConfig | None,
+) -> pd.Series | None:
+    if config is None or config.balancing is None:
+        return None
+    return _status_values_for_frame(frame, mapping, config.balancing.active_source, "Balancing")
+
+
+def unloaded_values_for_frame(
+    frame: pd.DataFrame,
+    mapping: SignalMapping | None,
+    config: FailureModelConfig | None,
+) -> pd.Series | None:
+    if config is None or config.unloaded_current is None:
+        return None
+    return _status_values_for_frame(
+        frame, mapping, config.unloaded_current.unloaded_source, "Unloaded"
+    )
+
+
+def precharge_values_for_frame(
+    frame: pd.DataFrame,
+    mapping: SignalMapping | None,
+    config: FailureModelConfig | None,
+) -> pd.Series | None:
+    if config is None or config.precharge_current is None:
+        return None
+    return _status_values_for_frame(
+        frame, mapping, config.precharge_current.active_source, "Precharge"
+    )
+
+
+def contactor_values_for_frame(
+    frame: pd.DataFrame,
+    mapping: SignalMapping | None,
+    config: FailureModelConfig | None,
+) -> tuple[pd.Series | None, pd.Series | None]:
+    if config is None or config.contactor_response is None:
+        return None, None
+    cfg = config.contactor_response
+    return (
+        _status_values_for_frame(frame, mapping, cfg.command_source, "Contactor command"),
+        _status_values_for_frame(frame, mapping, cfg.feedback_source, "Contactor feedback"),
+    )
+
+
+def _status_values_for_frame(
+    frame: pd.DataFrame, mapping: SignalMapping | None, source: str, label: str
+) -> pd.Series | None:
+    count = sum(name == source for name in frame.columns)
+    if count == 0:
+        return None
+    if count > 1:
+        raise ValueError(f"Duplicate {label.lower()} source {source!r}")
+    if mapping is not None:
+        resolved = resolve_signal_mapping(frame.columns, mapping)
+        required = [*resolved.source_columns, *resolved.canonical_columns]
+    else:
+        cells, temperatures = find_canonical_signal_columns(frame.columns)
+        required = ["timestamp_s", "pack_current_a", "pack_voltage_v", *cells, *temperatures]
+    if source in required:
+        raise ValueError(f"{label} source {source!r} is also assigned to a measurement role")
+    return frame[source]
 
 
 @dataclass(frozen=True)
@@ -96,12 +209,12 @@ def _first_true_position(mask: np.ndarray) -> tuple[int, int] | None:
     return row_pos, column_pos
 
 
-def raise_invalid_numeric_value(
+def _invalid_numeric_error(
     frame: pd.DataFrame,
     numeric: pd.DataFrame,
     *,
     row_offset: int = 0,
-) -> None:
+) -> tuple[int, ValueError] | None:
     columns = list(numeric.columns)
     numeric_missing = numeric.isna().to_numpy(dtype=bool)
     invalid_numeric = numeric_missing | _required_boolean_mask(frame, columns)
@@ -110,34 +223,154 @@ def raise_invalid_numeric_value(
 
     invalid_position = _first_true_position(invalid_numeric | non_finite)
     if invalid_position is None:
-        return
+        return None
 
     row_pos, column_pos = invalid_position
     column = numeric.columns[column_pos]
     row_index = frame.index[row_pos]
     if invalid_numeric[row_pos, column_pos]:
         raw_value = frame.iloc[row_pos][column]
-        raise ValueError(
+        return row_pos, ValueError(
             "Required numeric value is missing or non-numeric at "
             f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
             f"column {column!r}: {raw_value!r}"
         )
 
     value = values[row_pos, column_pos]
-    raise ValueError(
+    return row_pos, ValueError(
         "Required numeric value is non-finite at "
         f"data row {row_offset + row_pos + 1} (index {row_index!r}), "
         f"column {column!r}: {value!r}"
     )
 
 
-def valid_timestamp_values(
+def raise_invalid_numeric_value(
     frame: pd.DataFrame,
     numeric: pd.DataFrame,
-) -> pd.Series:
+    *,
+    row_offset: int = 0,
+) -> None:
+    error = _invalid_numeric_error(frame, numeric, row_offset=row_offset)
+    if error is not None:
+        raise error[1]
+
+
+def _valid_timestamp_positions_and_values(
+    frame: pd.DataFrame,
+    numeric: pd.DataFrame,
+) -> tuple[np.ndarray, np.ndarray]:
     timestamp = numeric["timestamp_s"]
     invalid = timestamp.isna().to_numpy(dtype=bool).copy()
     invalid |= _required_boolean_mask(frame, ["timestamp_s"])[:, 0]
     values = timestamp.to_numpy(dtype=float, na_value=np.nan)
     invalid |= ~np.isfinite(values)
-    return pd.Series(values[~invalid], dtype=float)
+    positions = np.flatnonzero(~invalid)
+    # Validate source order before binary64 coercion can merge distinct times.
+    # CSV loaders retain the selected clock as text; other measurements retain
+    # their normal inference and all analysis/report arithmetic stays unchanged.
+    raw = frame["timestamp_s"].to_numpy(dtype=object)
+    ordering_values = []
+    for position in positions:
+        value = raw[position]
+        if isinstance(value, str):
+            value = Decimal(value)
+        elif isinstance(value, np.integer):
+            value = int(value)
+        elif isinstance(value, np.floating):
+            value = Decimal(str(value)) if value.dtype.itemsize > 8 else float(value)
+        ordering_values.append(value)
+    return positions, np.asarray(ordering_values, dtype=object)
+
+
+def valid_timestamp_values(
+    frame: pd.DataFrame,
+    numeric: pd.DataFrame,
+) -> pd.Series:
+    _, values = _valid_timestamp_positions_and_values(frame, numeric)
+    return pd.Series(values, dtype=object)
+
+
+def _timestamp_regression_error(
+    frame: pd.DataFrame,
+    numeric: pd.DataFrame,
+    *,
+    previous_timestamp: Timestamp | None,
+) -> tuple[int, ValueError] | None:
+    positions, values = _valid_timestamp_positions_and_values(frame, numeric)
+    if not len(values):
+        return None
+    if previous_timestamp is not None and values[0] < previous_timestamp:
+        return int(positions[0]), ValueError("timestamp_s must be non-decreasing")
+    decreases = np.flatnonzero(values[1:] < values[:-1])
+    if not len(decreases):
+        return None
+    row_pos = int(positions[int(decreases[0]) + 1])
+    return row_pos, ValueError("timestamp_s must be non-decreasing")
+
+
+def _invalid_status_error(
+    balance_values: pd.Series | None,
+    *,
+    row_offset: int,
+    label: str,
+) -> tuple[int, ValueError] | None:
+    if balance_values is None:
+        return None
+    invalid = np.fromiter(
+        (parse_binary_status(value) is None for value in balance_values.to_numpy(dtype=object)),
+        dtype=bool,
+        count=len(balance_values),
+    )
+    positions = np.flatnonzero(invalid)
+    if not len(positions):
+        return None
+    row_pos = int(positions[0])
+    return row_pos, ValueError(
+        f"{label} status must be 0/1 or boolean at data row {row_offset + row_pos + 1}"
+    )
+
+
+def raise_first_strict_input_error(
+    frame: pd.DataFrame,
+    numeric: pd.DataFrame,
+    balance_values: pd.Series | None,
+    *,
+    unloaded_values: pd.Series | None = None,
+    precharge_values: pd.Series | None = None,
+    contactor_values: tuple[pd.Series | None, pd.Series | None] = (None, None),
+    row_offset: int = 0,
+    previous_timestamp: Timestamp | None = None,
+) -> None:
+    """Raise the earliest strict input defect independent of measurement chunking."""
+    candidates: list[tuple[int, int, ValueError]] = []
+    numeric_error = _invalid_numeric_error(frame, numeric, row_offset=row_offset)
+    if numeric_error is not None:
+        candidates.append((numeric_error[0], 0, numeric_error[1]))
+    timestamp_error = _timestamp_regression_error(
+        frame,
+        numeric,
+        previous_timestamp=previous_timestamp,
+    )
+    if timestamp_error is not None:
+        candidates.append((timestamp_error[0], 1, timestamp_error[1]))
+    balancing_error = _invalid_status_error(
+        balance_values, row_offset=row_offset, label="Balancing"
+    )
+    if balancing_error is not None:
+        candidates.append((balancing_error[0], 2, balancing_error[1]))
+    unloaded_error = _invalid_status_error(unloaded_values, row_offset=row_offset, label="Unloaded")
+    if unloaded_error is not None:
+        candidates.append((unloaded_error[0], 3, unloaded_error[1]))
+    for priority, (label, values) in enumerate(
+        zip(("Contactor command", "Contactor feedback"), contactor_values, strict=True), start=4
+    ):
+        error = _invalid_status_error(values, row_offset=row_offset, label=label)
+        if error is not None:
+            candidates.append((error[0], priority, error[1]))
+    precharge_error = _invalid_status_error(
+        precharge_values, row_offset=row_offset, label="Precharge"
+    )
+    if precharge_error is not None:
+        candidates.append((precharge_error[0], 6, precharge_error[1]))
+    if candidates:
+        raise min(candidates, key=lambda item: (item[0], item[1]))[2]

@@ -1,0 +1,344 @@
+{
+  "actual_mf4_version": "8.8.27",
+  "all_final_checks_passed": true,
+  "baseline": {
+    "boundary_campaign": {
+      "expected_multiple_activation_rejections": 1036,
+      "mismatches": 262,
+      "trials": 1200
+    },
+    "first_boundary_mismatches": [
+      {
+        "actual_rejected": false,
+        "expected_edges": 2,
+        "exponent": -96,
+        "gap_hex": "0x1.ffffffffffff0p-99",
+        "index": 0,
+        "interval_hex": "0x1.0000000000000p-98",
+        "ulp_steps": 16
+      },
+      {
+        "actual_rejected": false,
+        "expected_edges": 2,
+        "exponent": 668,
+        "gap_hex": "0x1.ffffffffffff0p+665",
+        "index": 5,
+        "interval_hex": "0x1.0000000000000p+666",
+        "ulp_steps": 16
+      },
+      {
+        "actual_rejected": false,
+        "expected_edges": 2,
+        "exponent": 259,
+        "gap_hex": "0x1.ffffffffffff0p+256",
+        "index": 10,
+        "interval_hex": "0x1.0000000000000p+257",
+        "ulp_steps": 16
+      },
+      {
+        "actual_rejected": false,
+        "expected_edges": 2,
+        "exponent": 377,
+        "gap_hex": "0x1.ffffffffffff0p+374",
+        "index": 15,
+        "interval_hex": "0x1.0000000000000p+375",
+        "ulp_steps": 16
+      },
+      {
+        "actual_rejected": false,
+        "expected_edges": 2,
+        "exponent": -113,
+        "gap_hex": "0x1.ffffffffffff0p-116",
+        "index": 20,
+        "interval_hex": "0x1.0000000000000p-115",
+        "ulp_steps": 16
+      }
+    ],
+    "immutable_inputs": true,
+    "normal_captures": 400,
+    "normal_curve_reports": 400,
+    "normal_source_rows": 20607,
+    "normal_spans": 5071,
+    "seconds": 0.5791122999999061,
+    "seed_boundary": 15002026,
+    "seed_normal": 20261015,
+    "source_sha256": {
+      "batterylog_research/precharge_capture_review.py": "39263f726538b9424c6f9cea5acca9b6453224428aafcc14896fa1c7b55847c9",
+      "batterylog_research/precharge_curve_review.py": "ec22c51ac1a10f7b5c9220d9800bdd4f9f2383e1ae6bd1907b2a425dad7e1d2a"
+    },
+    "strict_json": true
+  },
+  "bmw_eligible": false,
+  "bmw_raw_trace_bytes": 13412692,
+  "bmw_raw_trace_same_bytes": true,
+  "bmw_raw_trace_sha256": "4f9e4b0a8bcd02952e586d1dc58d704dc18f3290a5faf8186b4e1a626f6fea9c",
+  "checks": {
+    "desktop-suite": {
+      "command": [
+        "<checkout>-venv\\Scripts\\python.exe",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_desktop_ui.py",
+        "--cov=batterylog",
+        "--cov-report=",
+        "--cov-fail-under=0"
+      ],
+      "exit_code": 0,
+      "log_sha256": "8460c3431816e54a1e85bd3db706fd8c4bbd20df02ca6580b0c4b08c72a4943d",
+      "seconds": 21.185965099999976,
+      "tail": [
+        ".............................................                            [100%]",
+        "45 passed in 20.76s"
+      ]
+    },
+    "diff-check": {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "seconds": 0.06778089999988879,
+      "tail": []
+    },
+    "mypy": {
+      "command": [
+        "<checkout>-venv\\Scripts\\python.exe",
+        "-m",
+        "mypy",
+        "--follow-imports=silent",
+        "--ignore-missing-imports",
+        "batterylog"
+      ],
+      "exit_code": 0,
+      "log_sha256": "ecb8399edbf23ad4cacd9fb156d28186a57318eeac101aedcdc3ff78fc21a035",
+      "seconds": 10.150471200000084,
+      "tail": [
+        "Success: no issues found in 48 source files"
+      ]
+    },
+    "pip-check": {
+      "command": [
+        "<checkout>-venv\\Scripts\\python.exe",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "exit_code": 0,
+      "log_sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+      "seconds": 2.040561499999967,
+      "tail": [
+        "No broken requirements found."
+      ]
+    },
+    "remaining-suite": {
+      "command": [
+        "<checkout>-venv\\Scripts\\python.exe",
+        "-m",
+        "pytest",
+        "-q",
+        "--ignore=tests/test_desktop_ui.py",
+        "--cov=batterylog",
+        "--cov-append",
+        "--cov-report=term-missing",
+        "--cov-report=json:<checkout>-evidence\\partitioned-coverage.json",
+        "--cov-fail-under=95"
+      ],
+      "exit_code": 0,
+      "log_sha256": "1b40715ab1a697af005c497ea37b9ee8338d41e68fe3053ba7f5ed70959cf41f",
+      "seconds": 149.53002330000027,
+      "tail": [
+        "batterylog\\models.py                         91      0   100%",
+        "batterylog\\normalization.py                 141      4    97%   251, 283, 292, 323",
+        "batterylog\\reporting\\__init__.py              4      0   100%",
+        "batterylog\\reporting\\event_browser.py        44      0   100%",
+        "batterylog\\reporting\\evidence.py             91      0   100%",
+        "batterylog\\reporting\\html.py                135      0   100%",
+        "batterylog\\reporting\\json.py                 20      0   100%",
+        "batterylog\\reporting\\plots.py               270      9    97%   64, 66, 94, 99, 533, 538, 611, 622, 709",
+        "batterylog\\result_validation.py              44      0   100%",
+        "batterylog\\signals.py                       123      2    98%   91-92",
+        "batterylog\\units.py                          23      1    96%   37",
+        "-----------------------------------------------------------------------",
+        "TOTAL                                      4778    159    97%",
+        "Coverage JSON written to file <checkout>-evidence\\partitioned-coverage.json",
+        "Required test coverage of 95% reached. Total coverage: 96.67%",
+        "2857 passed, 2 skipped, 9 warnings in 148.89s (0:02:28)"
+      ]
+    },
+    "ruff-check": {
+      "command": [
+        "<checkout>-venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "exit_code": 0,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "seconds": 0.16687009999986913,
+      "tail": [
+        "All checks passed!"
+      ]
+    },
+    "ruff-format": {
+      "command": [
+        "<checkout>-venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit_code": 0,
+      "log_sha256": "bc4c8ec6f1dc727876d981f727b6d3308157440b75422206a33a24532dc7ddc9",
+      "seconds": 0.1439013000003797,
+      "tail": [
+        "228 files already formatted"
+      ]
+    }
+  },
+  "core_coverage": {
+    "covered_lines": 4619,
+    "excluded_lines": 19,
+    "missing_lines": 159,
+    "num_statements": 4778,
+    "percent_covered": 96.67224780242779,
+    "percent_covered_display": "97",
+    "percent_statements_covered": 96.67224780242779,
+    "percent_statements_covered_display": "97"
+  },
+  "core_import": "<checkout>\\batterylog\\__init__.py",
+  "desktop_recheck": {
+    "button_tcl_sha256": "1f5dd8d81b26f16e772e92fd2a22accb785004d0ed3447e54f87005d9c6a07a5",
+    "command": [
+      "<checkout>-venv\\Scripts\\python.exe",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_desktop_ui.py"
+    ],
+    "exit_code": 0,
+    "five_real_roots_created": true,
+    "seconds": 20.479798699999947,
+    "tail": [
+      ".............................................                            [100%]",
+      "45 passed in 20.17s"
+    ],
+    "ten_reads_equal": true
+  },
+  "fixed": {
+    "all_800_previously_accepted_reports_unchanged": true,
+    "boundary_campaign": {
+      "expected_multiple_activation_rejections": 1036,
+      "trials": 1200
+    },
+    "first_boundary_mismatches": [],
+    "immutable_inputs": true,
+    "normal_captures": 400,
+    "normal_curve_reports": 400,
+    "normal_source_rows": 20607,
+    "normal_spans": 5071,
+    "seconds": 0.6655659999998988,
+    "seed_boundary": 15002026,
+    "seed_normal": 20261015,
+    "source_sha256": {
+      "batterylog_research/precharge_capture_review.py": "c562648c580c3a4432dc5cf3e33a7bd2047b48fec7d8d91f82cfe8d13e9d0268",
+      "batterylog_research/precharge_curve_review.py": "bfda5f57d27fa0980753b4e32f87cef94b2619749bc4f47b6b53746fb4b31d6d"
+    },
+    "strict_json": true
+  },
+  "initial_full_suite": {
+    "command": [
+      "<checkout>-venv\\Scripts\\python.exe",
+      "-m",
+      "pytest",
+      "-q",
+      "--cov=batterylog",
+      "--cov-report=term-missing",
+      "--cov-report=json:<checkout>-evidence\\coverage.json"
+    ],
+    "exit_code": 1,
+    "log_sha256": "0d29cafdc582e468d24f264a095e9ef79fe88a8dfa989d43f9eaf73ef0e94beb",
+    "seconds": 178.52236900000003,
+    "tail": [
+      "batterylog\\normalization.py                 141      4    97%   251, 283, 292, 323",
+      "batterylog\\reporting\\__init__.py              4      0   100%",
+      "batterylog\\reporting\\event_browser.py        44      0   100%",
+      "batterylog\\reporting\\evidence.py             91      0   100%",
+      "batterylog\\reporting\\html.py                135      0   100%",
+      "batterylog\\reporting\\json.py                 20      0   100%",
+      "batterylog\\reporting\\plots.py               270      9    97%   64, 66, 94, 99, 533, 538, 611, 622, 709",
+      "batterylog\\result_validation.py              44      0   100%",
+      "batterylog\\signals.py                       123      2    98%   91-92",
+      "batterylog\\units.py                          23      1    96%   37",
+      "-----------------------------------------------------------------------",
+      "TOTAL                                      4778    159    97%",
+      "Coverage JSON written to file <checkout>-evidence\\coverage.json",
+      "=========================== short test summary info ===========================",
+      "ERROR tests/test_desktop_ui.py::test_real_analysis_ui_stays_responsive_and_opens_report[None-NOT_EVALUATED]",
+      "2901 passed, 2 skipped, 9 warnings, 1 error in 177.54s (0:02:57)"
+    ]
+  },
+  "initial_gui_setup_error": "Tk could not read button.tcl; failure before the test body",
+  "native_execution_mode": "two pytest processes: all 45 GUI cases, then all remaining cases",
+  "native_partitioned_passed": 2902,
+  "native_partitioned_skipped": 2,
+  "new_regressions": {
+    "after_passed": 24,
+    "after_skipped": 0,
+    "before_failed": 17,
+    "before_passed": 7
+  },
+  "parent": "e4de1f6b604fe543182e57fe0d04e920d031da67",
+  "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+  "real_tk_required": true,
+  "second_full_suite": {
+    "command": [
+      "<checkout>-venv\\Scripts\\python.exe",
+      "-m",
+      "pytest",
+      "-q",
+      "--cov=batterylog",
+      "--cov-report=term-missing",
+      "--cov-report=json:<checkout>-evidence\\coverage.json"
+    ],
+    "exit_code": 1,
+    "log_sha256": "3872669e916628e2e4010be2191c5e422f77f8b92d5814c29ed2865bed3c06d0",
+    "seconds": 172.93098699999996,
+    "tail": [
+      "batterylog\\normalization.py                 141      4    97%   251, 283, 292, 323",
+      "batterylog\\reporting\\__init__.py              4      0   100%",
+      "batterylog\\reporting\\event_browser.py        44      0   100%",
+      "batterylog\\reporting\\evidence.py             91      0   100%",
+      "batterylog\\reporting\\html.py                135      0   100%",
+      "batterylog\\reporting\\json.py                 20      0   100%",
+      "batterylog\\reporting\\plots.py               270      9    97%   64, 66, 94, 99, 533, 538, 611, 622, 709",
+      "batterylog\\result_validation.py              44      0   100%",
+      "batterylog\\signals.py                       123      2    98%   91-92",
+      "batterylog\\units.py                          23      1    96%   37",
+      "-----------------------------------------------------------------------",
+      "TOTAL                                      4778    159    97%",
+      "Coverage JSON written to file <checkout>-evidence\\coverage.json",
+      "=========================== short test summary info ===========================",
+      "ERROR tests/test_desktop_ui.py::test_real_analysis_ui_stays_responsive_and_opens_report[schema_version: 7\\nfailure_models:\\n  max_gap_s: 2\\n  sustained_imbalance:\\n    max_delta_v: 1\\n    duration_s: 2\\n-PASS]",
+      "2901 passed, 2 skipped, 9 warnings, 1 error in 172.30s (0:02:52)"
+    ]
+  },
+  "single_process_full_suite_passed": false,
+  "source_sha256": {
+    "batterylog_research/precharge_capture_review.py": "c562648c580c3a4432dc5cf3e33a7bd2047b48fec7d8d91f82cfe8d13e9d0268",
+    "batterylog_research/precharge_curve_review.py": "bfda5f57d27fa0980753b4e32f87cef94b2619749bc4f47b6b53746fb4b31d6d",
+    "tests/test_research_precharge_control_boundaries.py": "a0607455bdeb4ca638fdaa621ef3272b2527f6e46c61e1fb10a03b1588768a48"
+  },
+  "tk_root_diagnostic": {
+    "errors": [],
+    "passed": 100,
+    "python_base": "C:\\Program Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3824.0_x64__qbz5n2kfra8p0",
+    "roots_attempted": 100,
+    "seconds": 3.5180986000000303
+  },
+  "public_metadata_redaction": "Local checkout paths and personal host names were replaced; recorded revisions, measurements and test outcomes are unchanged."
+}

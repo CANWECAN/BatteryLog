@@ -19,9 +19,14 @@ def test_package_metadata_declares_apache_2() -> None:
     metadata = project["project"]
 
     assert metadata["license"] == "Apache-2.0"
-    assert metadata["license-files"] == ["LICENSE", "NOTICE"]
+    assert metadata["license-files"] == [
+        "LICENSE",
+        "NOTICE",
+        "batterylog_research/third_party_model3dbc_NOTICE.txt",
+    ]
     assert {"name": "Berk Ozfiliz"} in metadata["authors"]
     assert "setuptools>=77" in project["build-system"]["requires"]
+    assert "jsonschema>=4" in metadata["dependencies"]
     optional = project["project"]["optional-dependencies"]
     assert optional["mf4"] == [
         "asammdf>=8.8,<9",

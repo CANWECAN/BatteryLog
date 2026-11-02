@@ -1,0 +1,529 @@
+{
+  "analyzer_baseline_commit": "8d28af92b29f488b3bfeaf4957f2eedd3ab3a89c",
+  "dataset_doi": "10.5281/zenodo.13715694",
+  "source_manifest": {
+    "dataset": "10.5281/zenodo.13715694",
+    "archive_published_bytes": 1668409464,
+    "archive_published_md5": "827f508740c4154b7ff7b15de3b2c75d",
+    "archive_full_checksum_verified": false,
+    "member": "field_data/data_sys_4.csv",
+    "raw_bytes": 690633709,
+    "compressed_bytes": 42572825,
+    "crc32": "459f0234",
+    "sha256": "f4a7861b72b273f7a78f5fc2e1f965c9c631bc579ea03099d14b10f82df003b9",
+    "range_start": 522117062,
+    "range_end": 564693982,
+    "download_seconds": 265.351
+  },
+  "source_stats": {
+    "rows": 4695793,
+    "source_bytes": 690633709,
+    "canonical_bytes": 847710112,
+    "canonical_sha256": "6ae5198bbb34f3c4d2f109f5442d01e98824d60d51c04a4ecc6c3cbcbb9e2084",
+    "source_sha256": "f4a7861b72b273f7a78f5fc2e1f965c9c631bc579ea03099d14b10f82df003b9",
+    "origin_as_recorded": "2015-02-09 21:22:22",
+    "last_elapsed_s": 45665933.0,
+    "duplicate_timestamp_pairs": 11214,
+    "timestamp_regressions": 1,
+    "gaps_above_60s": 389938,
+    "nonfinite_rows_in_used_channels": 0,
+    "within_prepare_chunk_nonzero_temperature_changes": 351269,
+    "within_prepare_chunk_exact_1C_changes": 350131,
+    "rows_any_converter_abs_current_above_0_1A": 35103,
+    "converter_current_used_as_balancing_status": false,
+    "rows_removed_or_resampled": 0
+  },
+  "intact_input": {
+    "status": "REJECTED",
+    "exception": "ValueError",
+    "diagnostic": "timestamp_s must be non-decreasing",
+    "complete_result_emitted": false
+  },
+  "clock_regressions": [
+    {
+      "source_data_row": 3304582,
+      "previous": "2016-01-01T00:00:54.000000000",
+      "current": "2016-01-01T00:00:00.000000000",
+      "delta_seconds": -54.0
+    }
+  ],
+  "segments": [
+    {
+      "file": "segment_1.csv",
+      "source_start_row": 1,
+      "source_end_row": 3304581,
+      "rows": 3304581,
+      "bytes": 597851655,
+      "sha256": "2def9d4ca891276e3d8035e0ce014656c8d33b5183652240305c5bfaa29b4890"
+    },
+    {
+      "file": "segment_2.csv",
+      "source_start_row": 3304582,
+      "source_end_row": 4695793,
+      "rows": 1391212,
+      "bytes": 249858607,
+      "sha256": "7cbaab7bb0651df5d1d3decafeadb77eee7c8683d7a1114c51b3d83dd9245252"
+    }
+  ],
+  "runs": [
+    {
+      "chunk_rows": 65536,
+      "rows": 3304581,
+      "status": "FAIL",
+      "rows_excluded": 0,
+      "core_events": 393,
+      "failure_events": 13153,
+      "json_bytes": 4778113,
+      "result_sha256": "2d702ac77b53917ab3c53e550c552ca1e616aaa3f62677ac04f7e8998ddb0448",
+      "analysis_seconds": 100.554,
+      "total_seconds": 107.846,
+      "whole_process_peak_rss_mib": 179.266,
+      "segment": 1
+    },
+    {
+      "chunk_rows": 131072,
+      "rows": 3304581,
+      "status": "FAIL",
+      "rows_excluded": 0,
+      "core_events": 393,
+      "failure_events": 13153,
+      "json_bytes": 4778113,
+      "result_sha256": "2d702ac77b53917ab3c53e550c552ca1e616aaa3f62677ac04f7e8998ddb0448",
+      "analysis_seconds": 100.566,
+      "total_seconds": 107.642,
+      "whole_process_peak_rss_mib": 252.27,
+      "segment": 1
+    },
+    {
+      "chunk_rows": 65536,
+      "rows": 1391212,
+      "status": "FAIL",
+      "rows_excluded": 0,
+      "core_events": 1662,
+      "failure_events": 7029,
+      "json_bytes": 2924752,
+      "result_sha256": "6f97d23c883702c3cff7f9af2bb19967fae4a5299a18e8d22dd79ef431fd7823",
+      "analysis_seconds": 47.579,
+      "total_seconds": 53.212,
+      "whole_process_peak_rss_mib": 178.328,
+      "segment": 2
+    },
+    {
+      "chunk_rows": 131072,
+      "rows": 1391212,
+      "status": "FAIL",
+      "rows_excluded": 0,
+      "core_events": 1662,
+      "failure_events": 7029,
+      "json_bytes": 2924752,
+      "result_sha256": "6f97d23c883702c3cff7f9af2bb19967fae4a5299a18e8d22dd79ef431fd7823",
+      "analysis_seconds": 46.468,
+      "total_seconds": 50.897,
+      "whole_process_peak_rss_mib": 259.082,
+      "segment": 2
+    }
+  ],
+  "references": [
+    {
+      "rows": 3304581,
+      "core_violating_rows": {
+        "CELL_UNDERVOLTAGE": 0,
+        "CELL_OVERVOLTAGE": 42646,
+        "CELL_IMBALANCE_HIGH": 157219,
+        "TEMPERATURE_HIGH": 0,
+        "PACK_VOLTAGE_CELL_SUM_MISMATCH": 0
+      },
+      "independent_model_events_audited": 13153,
+      "spread_rows_by_probe_V": {
+        "0.02": 343041,
+        "0.05": 242926,
+        "0.1": 157219,
+        "0.2": 80927
+      },
+      "pack_sum_rows_by_probe_V": {
+        "0.05": 0,
+        "0.15": 0,
+        "0.3": 0,
+        "0.5": 0
+      },
+      "cell_voltage_min": 2.694,
+      "cell_voltage_max": 4.018,
+      "temperature_min": 10.0,
+      "temperature_max": 31.0,
+      "maximum_pack_sum_error_V": 0.034000000000006025,
+      "elapsed_seconds": 16.363,
+      "whole_process_peak_rss_mib": 1573.027,
+      "segment": 1
+    },
+    {
+      "rows": 1391212,
+      "core_violating_rows": {
+        "CELL_UNDERVOLTAGE": 143,
+        "CELL_OVERVOLTAGE": 5180,
+        "CELL_IMBALANCE_HIGH": 28801,
+        "TEMPERATURE_HIGH": 0,
+        "PACK_VOLTAGE_CELL_SUM_MISMATCH": 14
+      },
+      "independent_model_events_audited": 7029,
+      "spread_rows_by_probe_V": {
+        "0.02": 198360,
+        "0.05": 71628,
+        "0.1": 28801,
+        "0.2": 14541
+      },
+      "pack_sum_rows_by_probe_V": {
+        "0.05": 23,
+        "0.15": 14,
+        "0.3": 13,
+        "0.5": 13
+      },
+      "cell_voltage_min": 1.752,
+      "cell_voltage_max": 4.934,
+      "temperature_min": 8.0,
+      "temperature_max": 47.0,
+      "maximum_pack_sum_error_V": 4.668000000000003,
+      "elapsed_seconds": 10.767,
+      "whole_process_peak_rss_mib": 699.227,
+      "segment": 2
+    }
+  ],
+  "peer": [
+    {
+      "report": {
+        "scope": "research_observational_peer_relative_cell_step",
+        "diagnostic_claim": false,
+        "assumptions": "Synchronous, correctly mapped series-cell voltages in V; elapsed time in s",
+        "threshold_v": 0.05,
+        "max_gap_s": 60.0,
+        "source_has_current": true,
+        "rows_read": 3304581,
+        "eligible_sample_pairs": 3099000,
+        "cell_step_observations_flagged": 5,
+        "ambiguous_peer_reference_pairs": 0,
+        "continuity": {
+          "duplicate_timestamps": 5980,
+          "gaps_beyond_limit": 199600
+        },
+        "observations_by_cell": {
+          "cell_1_v": 3,
+          "cell_8_v": 2
+        },
+        "examples": [
+          {
+            "csv_row": 273547,
+            "signal": "cell_1_v",
+            "previous_time_s": 12934286.0,
+            "time_s": 12934291.0,
+            "interval_s": 5.0,
+            "cell_delta_v": 0.0990000000000002,
+            "median_peer_delta_v": 0.027999999999999803,
+            "peer_relative_step_v": 0.0710000000000004,
+            "delta_current_a": -2954.85522460937
+          },
+          {
+            "csv_row": 273548,
+            "signal": "cell_1_v",
+            "previous_time_s": 12934291.0,
+            "time_s": 12934296.0,
+            "interval_s": 5.0,
+            "cell_delta_v": 0.10399999999999965,
+            "median_peer_delta_v": 0.01750000000000007,
+            "peer_relative_step_v": 0.08649999999999958,
+            "delta_current_a": 41.57275390625
+          },
+          {
+            "csv_row": 273548,
+            "signal": "cell_8_v",
+            "previous_time_s": 12934291.0,
+            "time_s": 12934296.0,
+            "interval_s": 5.0,
+            "cell_delta_v": 0.06800000000000006,
+            "median_peer_delta_v": 0.01750000000000007,
+            "peer_relative_step_v": 0.05049999999999999,
+            "delta_current_a": 41.57275390625
+          },
+          {
+            "csv_row": 273549,
+            "signal": "cell_1_v",
+            "previous_time_s": 12934296.0,
+            "time_s": 12934301.0,
+            "interval_s": 5.0,
+            "cell_delta_v": 0.08899999999999997,
+            "median_peer_delta_v": 0.012499999999999956,
+            "peer_relative_step_v": 0.07650000000000001,
+            "delta_current_a": 1109.669921875
+          },
+          {
+            "csv_row": 273549,
+            "signal": "cell_8_v",
+            "previous_time_s": 12934296.0,
+            "time_s": 12934301.0,
+            "interval_s": 5.0,
+            "cell_delta_v": 0.06399999999999961,
+            "median_peer_delta_v": 0.012499999999999956,
+            "peer_relative_step_v": 0.05149999999999966,
+            "delta_current_a": 1109.669921875
+          }
+        ],
+        "interpretation": "Candidates for engineering review, not fault labels, health status or validated safety limits; ambiguous reference pairs are not classified"
+      },
+      "elapsed_seconds": 45.554,
+      "whole_process_peak_rss_mib": 62.02,
+      "segment": 1
+    },
+    {
+      "report": {
+        "scope": "research_observational_peer_relative_cell_step",
+        "diagnostic_claim": false,
+        "assumptions": "Synchronous, correctly mapped series-cell voltages in V; elapsed time in s",
+        "threshold_v": 0.05,
+        "max_gap_s": 60.0,
+        "source_has_current": true,
+        "rows_read": 1391212,
+        "eligible_sample_pairs": 1195639,
+        "cell_step_observations_flagged": 4032,
+        "ambiguous_peer_reference_pairs": 0,
+        "continuity": {
+          "duplicate_timestamps": 5234,
+          "gaps_beyond_limit": 190338
+        },
+        "observations_by_cell": {
+          "cell_1_v": 3955,
+          "cell_2_v": 3,
+          "cell_3_v": 3,
+          "cell_8_v": 71
+        },
+        "examples": [
+          {
+            "csv_row": 438822,
+            "signal": "cell_8_v",
+            "previous_time_s": 30283118.0,
+            "time_s": 30283139.0,
+            "interval_s": 21.0,
+            "cell_delta_v": 0.19200000000000017,
+            "median_peer_delta_v": 0.13949999999999974,
+            "peer_relative_step_v": 0.052500000000000435,
+            "delta_current_a": 191.69441873952798
+          },
+          {
+            "csv_row": 1011158,
+            "signal": "cell_1_v",
+            "previous_time_s": 43453901.0,
+            "time_s": 43453906.0,
+            "interval_s": 5.0,
+            "cell_delta_v": 0.052000000000000046,
+            "median_peer_delta_v": -0.001000000000000334,
+            "peer_relative_step_v": 0.05300000000000038,
+            "delta_current_a": -0.4891510009760225
+          },
+          {
+            "csv_row": 1011159,
+            "signal": "cell_1_v",
+            "previous_time_s": 43453906.0,
+            "time_s": 43453911.0,
+            "interval_s": 5.0,
+            "cell_delta_v": 0.06000000000000005,
+            "median_peer_delta_v": 0.0015000000000000568,
+            "peer_relative_step_v": 0.058499999999999996,
+            "delta_current_a": 0.9782867431640057
+          },
+          {
+            "csv_row": 1012807,
+            "signal": "cell_1_v",
+            "previous_time_s": 43462103.0,
+            "time_s": 43462108.0,
+            "interval_s": 5.0,
+            "cell_delta_v": -0.06400000000000006,
+            "median_peer_delta_v": -0.007500000000000062,
+            "peer_relative_step_v": -0.056499999999999995,
+            "delta_current_a": -1.9302619695663412
+          },
+          {
+            "csv_row": 1016686,
+            "signal": "cell_1_v",
+            "previous_time_s": 43481521.0,
+            "time_s": 43481526.0,
+            "interval_s": 5.0,
+            "cell_delta_v": 0.14100000000000001,
+            "median_peer_delta_v": 0.04600000000000004,
+            "peer_relative_step_v": 0.09499999999999997,
+            "delta_current_a": 128.00222778320318
+          },
+          {
+            "csv_row": 1016687,
+            "signal": "cell_1_v",
+            "previous_time_s": 43481526.0,
+            "time_s": 43481532.0,
+            "interval_s": 6.0,
+            "cell_delta_v": 0.10599999999999987,
+            "median_peer_delta_v": 0.04550000000000032,
+            "peer_relative_step_v": 0.060499999999999554,
+            "delta_current_a": 43.41867840290068
+          },
+          {
+            "csv_row": 1016690,
+            "signal": "cell_1_v",
+            "previous_time_s": 43481542.0,
+            "time_s": 43481547.0,
+            "interval_s": 5.0,
+            "cell_delta_v": -0.18800000000000017,
+            "median_peer_delta_v": -0.05899999999999994,
+            "peer_relative_step_v": -0.12900000000000023,
+            "delta_current_a": -127.06034660339387
+          },
+          {
+            "csv_row": 1016691,
+            "signal": "cell_1_v",
+            "previous_time_s": 43481547.0,
+            "time_s": 43481552.0,
+            "interval_s": 5.0,
+            "cell_delta_v": 0.1459999999999999,
+            "median_peer_delta_v": 0.04500000000000015,
+            "peer_relative_step_v": 0.10099999999999976,
+            "delta_current_a": 111.9603233337405
+          },
+          {
+            "csv_row": 1022017,
+            "signal": "cell_1_v",
+            "previous_time_s": 43508201.0,
+            "time_s": 43508206.0,
+            "interval_s": 5.0,
+            "cell_delta_v": -0.15399999999999991,
+            "median_peer_delta_v": -0.06600000000000006,
+            "peer_relative_step_v": -0.08799999999999986,
+            "delta_current_a": -114.90954971313471
+          },
+          {
+            "csv_row": 1022034,
+            "signal": "cell_1_v",
+            "previous_time_s": 43508272.0,
+            "time_s": 43508273.0,
+            "interval_s": 1.0,
+            "cell_delta_v": 0.06599999999999984,
+            "median_peer_delta_v": 0.014000000000000012,
+            "peer_relative_step_v": 0.051999999999999824,
+            "delta_current_a": 51.115226745605
+          }
+        ],
+        "interpretation": "Candidates for engineering review, not fault labels, health status or validated safety limits; ambiguous reference pairs are not classified"
+      },
+      "elapsed_seconds": 18.503,
+      "whole_process_peak_rss_mib": 62.023,
+      "segment": 2
+    }
+  ],
+  "voltage_evidence": [
+    {
+      "source_data_row": 3802126,
+      "elapsed_s": 31685491.0,
+      "time_as_recorded": "2016-02-11 14:53:53",
+      "pack_voltage_v": 27.038,
+      "cell_sum_v": 22.369999999999997,
+      "signed_pack_minus_cells_v": 4.668000000000003,
+      "cells_v": [
+        2.8,
+        2.791,
+        2.787,
+        2.793,
+        2.799,
+        2.803,
+        2.79,
+        2.807
+      ],
+      "current_a": 0.0,
+      "temperatures_c": [
+        21,
+        21,
+        21,
+        19
+      ]
+    },
+    {
+      "source_data_row": 4521427,
+      "elapsed_s": 44794037.0,
+      "time_as_recorded": "2016-07-12 08:09:39",
+      "pack_voltage_v": 25.184,
+      "cell_sum_v": 25.29,
+      "signed_pack_minus_cells_v": -0.1059999999999981,
+      "cells_v": [
+        1.752,
+        3.365,
+        3.362,
+        3.362,
+        3.362,
+        3.363,
+        3.363,
+        3.361
+      ],
+      "current_a": -2.00356292724609,
+      "temperatures_c": [
+        19,
+        19,
+        19,
+        17
+      ]
+    },
+    {
+      "source_data_row": 4535913,
+      "elapsed_s": 44866474.0,
+      "time_as_recorded": "2016-07-13 04:16:56",
+      "pack_voltage_v": 28.203,
+      "cell_sum_v": 28.131,
+      "signed_pack_minus_cells_v": 0.07199999999999918,
+      "cells_v": [
+        4.934,
+        3.312,
+        3.309,
+        3.309,
+        3.31,
+        3.305,
+        3.314,
+        3.338
+      ],
+      "current_a": 67.143798828125,
+      "temperatures_c": [
+        22,
+        21,
+        20,
+        18
+      ]
+    }
+  ],
+  "temperature_quantization": {
+    "events": 19130,
+    "exact_1C_peak_changes": 18942,
+    "fraction": 0.9901725039205437
+  },
+  "common_mode_window": {
+    "source_row_center": 3802126,
+    "window_source_start_row": 3802121,
+    "window_rows": 11,
+    "peer_candidates": 0,
+    "eligible_pairs": 8,
+    "peak_pack_sum_error_v": 4.668000000000003,
+    "rows_pack_sum_error_over_0_15_v": 2
+  },
+  "hostile": {
+    "source_window_rows": 2049,
+    "mutations": [
+      {
+        "field": "timestamp_s",
+        "value": "-1",
+        "diagnostic": "timestamp_s must be non-decreasing"
+      },
+      {
+        "field": "cell_1_v",
+        "value": "inf",
+        "diagnostic": "Required numeric value is non-finite at data row 1025 (index 1024), column 'cell_1_v': np.float64(inf)"
+      }
+    ],
+    "small_partition_exact_matches": 4
+  },
+  "focused_tests_passed": 45,
+  "full_repository_suite_repeated": false,
+  "successful_stream_row_analyses": 9391586,
+  "independent_model_events_audited": 20182,
+  "peer_observations": 4037,
+  "peer_cell1_observations": 3958,
+  "source_second_segment_max_abs_logged_current_A": 15879.939453125
+}

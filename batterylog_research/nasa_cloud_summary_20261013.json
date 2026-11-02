@@ -1,0 +1,40 @@
+{
+  "scope": "NASA-origin mirror, single-cell source-software characterization",
+  "mirror": "devhaaana/nasa-battery-aging-dataset",
+  "source_commit": "c881323a09dfa4c8f7405945ac7c81480b5f4307",
+  "sources": {
+    "B0005": {
+      "bytes": 15956874,
+      "git_blob": "8ecf6c78caf437a36fec60cf02470510b46e9162",
+      "sha256": "0eae4585baf3f200c09fe24c5ab884f1889679fc75206ca1aa19da704104f0b0"
+    },
+    "B0018": {
+      "bytes": 8502218,
+      "git_blob": "13ef3ffda5be655edc2ed08a52073aedf73b548b",
+      "sha256": "d1e6c923a43ea1c9666b3a90bbb521757a067fd60b4d17dbfaa49c50b179da69"
+    }
+  },
+  "limits_are_illustrative": true,
+  "source_authentication": "Mirror blob match; official NASA byte checksum unavailable",
+  "resampling_or_clipping": false,
+  "operations": 604,
+  "rows": 906134,
+  "excluded_rows": 2,
+  "temperature_events_audited": 214,
+  "chunk_comparisons": 1240,
+  "strict_rejections_checked": 1,
+  "missing_channel_runs": 8,
+  "outcomes": {
+    "FAIL": 604
+  },
+  "operation_types": {
+    "charge": 304,
+    "discharge": 300
+  },
+  "violating_samples": {
+    "CELL_UNDERVOLTAGE": 504,
+    "CELL_OVERVOLTAGE": 442884,
+    "TEMPERATURE_HIGH": 0
+  },
+  "elapsed_s": 107.575
+}

@@ -1,0 +1,157 @@
+{
+  "scope": "private_research_hosted_ci_checkpoint",
+  "repository": "CANWECAN/BatteryLog-Research",
+  "pull_request": 2,
+  "base": "research/dev",
+  "run_id": 38430587468,
+  "run_url": "https://github.com/CANWECAN/BatteryLog-Research/actions/runs/38430587468",
+  "event": "pull_request",
+  "source_commit": "7b032af9193f1286b8cd95851b346ca2cb043cbb",
+  "conclusion": "success",
+  "local_ci_can_contracts": {
+    "linux_passed": 99,
+    "windows_passed": 99
+  },
+  "jobs": [
+    {
+      "id": 115411878699,
+      "name": "test (3.14)",
+      "conclusion": "success",
+      "test_summaries": [
+        "2373 passed, 2 skipped, 9 warnings in 79.96s (0:01:19)"
+      ],
+      "coverage": [
+        "Required test coverage of 95% reached. Total coverage: 96.02%"
+      ]
+    },
+    {
+      "id": 115411878971,
+      "name": "package",
+      "conclusion": "success",
+      "test_summaries": [],
+      "coverage": []
+    },
+    {
+      "id": 115411878973,
+      "name": "mf4 (ubuntu-24.04, 3.14)",
+      "conclusion": "success",
+      "test_summaries": [
+        "175 passed in 17.13s"
+      ],
+      "coverage": []
+    },
+    {
+      "id": 115411879160,
+      "name": "windows",
+      "conclusion": "success",
+      "test_summaries": [
+        "2371 passed, 4 skipped, 9 warnings in 351.84s (0:05:51)"
+      ],
+      "coverage": [
+        "Required test coverage of 95% reached. Total coverage: 96.21%"
+      ]
+    },
+    {
+      "id": 115411879167,
+      "name": "mf4 (ubuntu-24.04, 3.11)",
+      "conclusion": "success",
+      "test_summaries": [
+        "175 passed in 15.49s"
+      ],
+      "coverage": []
+    },
+    {
+      "id": 115411879201,
+      "name": "test (3.11)",
+      "conclusion": "success",
+      "test_summaries": [
+        "2373 passed, 2 skipped, 9 warnings in 178.82s (0:02:58)"
+      ],
+      "coverage": [
+        "Required test coverage of 95% reached. Total coverage: 96.23%"
+      ]
+    },
+    {
+      "id": 115411879212,
+      "name": "mf4 (ubuntu-24.04, 3.12)",
+      "conclusion": "success",
+      "test_summaries": [
+        "175 passed in 13.00s"
+      ],
+      "coverage": []
+    },
+    {
+      "id": 115411879232,
+      "name": "mf4 (ubuntu-24.04, 3.13)",
+      "conclusion": "success",
+      "test_summaries": [
+        "175 passed in 16.49s"
+      ],
+      "coverage": []
+    },
+    {
+      "id": 115411879313,
+      "name": "test (3.13)",
+      "conclusion": "success",
+      "test_summaries": [
+        "2373 passed, 2 skipped, 9 warnings in 182.05s (0:03:02)"
+      ],
+      "coverage": [
+        "Required test coverage of 95% reached. Total coverage: 96.23%"
+      ]
+    },
+    {
+      "id": 115411879354,
+      "name": "minimum-runtime",
+      "conclusion": "success",
+      "test_summaries": [
+        "2373 passed, 2 skipped, 10 warnings in 250.45s (0:04:10)"
+      ],
+      "coverage": [
+        "Required test coverage of 95% reached. Total coverage: 96.23%"
+      ]
+    },
+    {
+      "id": 115411879367,
+      "name": "mf4 (windows-latest, 3.13)",
+      "conclusion": "success",
+      "test_summaries": [
+        "175 passed in 19.92s"
+      ],
+      "coverage": []
+    },
+    {
+      "id": 115411879411,
+      "name": "test (3.12)",
+      "conclusion": "success",
+      "test_summaries": [
+        "2373 passed, 2 skipped, 9 warnings in 224.64s (0:03:44)"
+      ],
+      "coverage": [
+        "Required test coverage of 95% reached. Total coverage: 96.23%"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 11830244599,
+      "name": "private-research-verification-distributions",
+      "size_in_bytes": 642531,
+      "digest": "sha256:b81a7ebd83dc47a6cccf9787ee7d1a6fad31dbddc25b857cb3eeac88422c4f69",
+      "expired": false
+    }
+  ],
+  "superseded_run": {
+    "id": 38430504659,
+    "event": "push",
+    "conclusion": "cancelled",
+    "reason": "Same-branch concurrency selected the new pull-request run."
+  },
+  "limits": [
+    "Private draft integration checkpoint; no merge or release.",
+    "Known-path distribution scan and install checks do not approve source licensing or physical BMS semantics.",
+    "Full-suite Linux skips are optional actual MF4 cases; separate MF4 jobs test the backend.",
+    "Windows full-suite skips include optional MF4 plus Linux /proc and POSIX escalation cases.",
+    "The subsequent documentation checkpoint will trigger fresh CI; its result is shown in the PR."
+  ]
+}

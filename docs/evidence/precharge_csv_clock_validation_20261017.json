@@ -1,0 +1,181 @@
+{
+  "base_commit": "73b5389b9c6858b60cd76c150e8f86e5ceff0e96",
+  "baseline_source_sha256": {
+    "batterylog_research/precharge_capture_review.py": "c562648c580c3a4432dc5cf3e33a7bd2047b48fec7d8d91f82cfe8d13e9d0268",
+    "batterylog_research/precharge_curve_review.py": "bfda5f57d27fa0980753b4e32f87cef94b2619749bc4f47b6b53746fb4b31d6d",
+    "batterylog_research/precharge_file_review.py": "15c7322a8c58c634ac9ebccca97fe9950735a92312d70de7cec08e457da6952a"
+  },
+  "core_ci_dependency_diff_empty": true,
+  "date_utc": "2026-10-17",
+  "evidence_directory": "batterylog-precharge-long-review-20261017-evidence",
+  "hardware_validation": false,
+  "hosted_ci": "Exact saved-head closure is recorded separately in the draft PR",
+  "independent_campaign": {
+    "baseline_boundary_mismatches": 792,
+    "baseline_seconds": 35.998,
+    "benign_cases": 400,
+    "benign_report_differences": 0,
+    "boundary_cases": 1200,
+    "by_scenario": {
+      "deviation": {
+        "baseline_mismatches": 224,
+        "cases": 300,
+        "fixed_mismatches": 0
+      },
+      "early_horizon": {
+        "baseline_mismatches": 224,
+        "cases": 300,
+        "fixed_mismatches": 0
+      },
+      "healthy": {
+        "baseline_mismatches": 120,
+        "cases": 300,
+        "fixed_mismatches": 0
+      },
+      "source_gap": {
+        "baseline_mismatches": 224,
+        "cases": 300,
+        "fixed_mismatches": 0
+      }
+    },
+    "fixed_boundary_mismatches": 0,
+    "fixed_seconds": 23.636,
+    "input_hash_differences": 0,
+    "scope": "authored_software_clock_cases_not_physical_validation"
+  },
+  "logs_sha256": {
+    "campaign-baseline.json": "89a97343b58b3655285c07c71a75d3343087286e28b9d00aaca4cf4688673cc8",
+    "campaign-fixed.json": "24d54ba2f7351211620d7c2520ad4c23687a1b1644a5a42b77555ad544124a19",
+    "clock-regressions.log": "151773d6c5e84ea02751bcf2b28dab339c8777dd1784e12ef2c3b9e5646132dc",
+    "clock_campaign.py": "9ba23702eb74e3a4e96769660646d5d01aec5e7db16fcf760a688d8ca7ed241e",
+    "focused-all.log": "381088e04416fb0ebd9389bec34a46040621c858a4b14816dfc2b0fe41f8b462",
+    "full-suite.log": "33b4dc8e6f4709c07377b6f680adefa86fa73a0cfbc2b45feaad4b236fe1b684",
+    "million_row_check.py": "731df6b51a3bffe5ea0d656c7cb853d900077d9f56c9fdf0734eb0e412fa5848",
+    "quality-checks.json": "fd7ca0b24ebd6211f27c06be0fd709cd5fc8953a3c68c9dcb3c8dce8aafb8602",
+    "source_fetches.json": "296dc86e3bcd36994bf0066aa4080cd6e94262c1cf675ba7f4ed33f9127d0014"
+  },
+  "native_full_suite": {
+    "capture_mode": "sys",
+    "core_coverage_percent": 96.67,
+    "passed": 2939,
+    "required_real_desktop": true,
+    "seconds": 179.06,
+    "single_process": true,
+    "skipped": 2,
+    "warnings": 9
+  },
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.13.14",
+  "quality_checks": [
+    {
+      "arguments": [
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "All checks passed!\n"
+    },
+    {
+      "arguments": [
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "232 files already formatted\n"
+    },
+    {
+      "arguments": [
+        "-m",
+        "mypy",
+        "--follow-imports=silent",
+        "--ignore-missing-imports",
+        "batterylog"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Success: no issues found in 48 source files\n"
+    },
+    {
+      "arguments": [
+        "-m",
+        "pip",
+        "check"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "No broken requirements found.\n"
+    }
+  ],
+  "regression_cases": 37,
+  "scope": "authored_software_validation_not_physical_step_completion",
+  "source_followup": [
+    {
+      "bytes": 25877,
+      "md5": "abbcba061358db0d05d5de5b6abc4edf",
+      "name": "evcharger_info.docx",
+      "sha256": "37311a820c78762144972e003f14dac69b5e75099d9f1fdfeaac4d4805aa9b39",
+      "status": 200,
+      "url": "https://zenodo.org/records/4431657/files/EVCharhger_Lab_Info_V2.docx?download=1"
+    },
+    {
+      "error": "HTTP Error 503: Service Temporarily Unavailable",
+      "name": "osf_node.json",
+      "url": "https://api.osf.io/v2/nodes/94gkc/"
+    },
+    {
+      "error": "HTTP Error 503: Service Temporarily Unavailable",
+      "name": "osf_files.json",
+      "url": "https://api.osf.io/v2/nodes/94gkc/files/osfstorage/"
+    },
+    {
+      "bytes": 3038,
+      "md5": "ef34477109bd5fe7e7bed6cd8efe5ade",
+      "name": "nature_powerquality.html",
+      "sha256": "32ed63159c77e21ee19ca1b9aa3213ccf0218eb59539560b132a8e68ef0e18ea",
+      "status": 200,
+      "url": "https://www.nature.com/articles/s41597-026-06768-5"
+    }
+  ],
+  "source_sha256": {
+    "batterylog_research/precharge_capture_review.py": "130f004342f64d264721d1f5ed0870dfe02ea8ea9e6962df48e13c7bb4a67755",
+    "batterylog_research/precharge_curve_review.py": "2c5b8c2fc61dad9d52122500a012028d8945c62f117f765bdbc59b6ec1a5a4c2",
+    "batterylog_research/precharge_file_review.py": "a73a304f9c0870b4f50031cdce12f2fc7c31327254909859ebc7506ad533b145",
+    "tests/test_research_precharge_csv_clock.py": "660c9213d2256bd10c2ead425930f432d0c6cfb7d10ffd742d7bd61660a584f0"
+  },
+  "steps": {
+    "7": "open",
+    "8": "open",
+    "9": "deferred_no_adapter"
+  },
+  "stress": {
+    "bounds": [
+      {
+        "error": "CSV exceeds the 1000000-row input bound",
+        "input": "too-many.csv",
+        "output_exists": false,
+        "seconds": 5.072
+      },
+      {
+        "error": "too-large.csv exceeds the 67108864-byte input bound",
+        "input": "too-large.csv",
+        "output_exists": false,
+        "seconds": 0.023
+      }
+    ],
+    "bytes": 25000072,
+    "capture_sha256": "c36d972e6dc7fb6dca84e0b480f303d0bb273e90e03d6a42f856c54c43029a25",
+    "covered": 1,
+    "peak_process_rss_mib": 658.38,
+    "reviewed_samples": 999998,
+    "rows": 1000000,
+    "scope": "authored_software_stress_only",
+    "seconds": 21.972
+  }
+}

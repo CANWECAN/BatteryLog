@@ -1,0 +1,171 @@
+{
+  "archive_bytes": 24759,
+  "archive_filename": "05_Capacitor_charging.zip",
+  "archive_sha256": "7a58d14c96203f6d23c072ca4f3a37f2393f99903ff6f137e31d4c0470e36dbe",
+  "author": "zutao zhang",
+  "csv_files": [
+    {
+      "adjacent_delta_s_declared": [
+        "0.02000",
+        "0.020000"
+      ],
+      "bytes": 14950,
+      "columns": [
+        "Time(s)",
+        "CH1V"
+      ],
+      "data_rows": 552,
+      "filename": "RigolDS126.csv",
+      "first_time_as_written": "-2.000000e+01",
+      "last_time_as_written": "-8.980000e+00",
+      "missing_required_channels": [
+        "source_voltage",
+        "current",
+        "precharge_phase"
+      ],
+      "negative_voltage_values_retained": 33,
+      "physical_node_and_probe_scaling_authenticated": false,
+      "sha256": "9cced49fb29b36b1f11162af71fbf690092c5e6332008960a7552aee65d651e2"
+    },
+    {
+      "adjacent_delta_s_declared": [
+        "0.02000",
+        "0.020000"
+      ],
+      "bytes": 15765,
+      "columns": [
+        "Time(s)",
+        "CH1V"
+      ],
+      "data_rows": 581,
+      "filename": "RigolDS125.csv",
+      "first_time_as_written": "-2.000000e+01",
+      "last_time_as_written": "-8.400000e+00",
+      "missing_required_channels": [
+        "source_voltage",
+        "current",
+        "precharge_phase"
+      ],
+      "negative_voltage_values_retained": 65,
+      "physical_node_and_probe_scaling_authenticated": false,
+      "sha256": "ccc8feac874a6e2b6d7f15adbc29a12b14195c46ca0a3f7f2d123ede765840cc"
+    },
+    {
+      "adjacent_delta_s_declared": [
+        "0.02000",
+        "0.020000"
+      ],
+      "bytes": 14156,
+      "columns": [
+        "Time(s)",
+        "CH1V"
+      ],
+      "data_rows": 521,
+      "filename": "RigolDS124.csv",
+      "first_time_as_written": "-2.000000e+01",
+      "last_time_as_written": "-9.600000e+00",
+      "missing_required_channels": [
+        "source_voltage",
+        "current",
+        "precharge_phase"
+      ],
+      "negative_voltage_values_retained": 76,
+      "physical_node_and_probe_scaling_authenticated": false,
+      "sha256": "6b6b0128a2f7c0eed80046e0fc1852862757bf4368821b6aba7b2d3658a318be"
+    },
+    {
+      "adjacent_delta_s_declared": [
+        "0.02000",
+        "0.020000"
+      ],
+      "bytes": 21018,
+      "columns": [
+        "Time(s)",
+        "CH1V"
+      ],
+      "data_rows": 776,
+      "filename": "RigolDS123.csv",
+      "first_time_as_written": "-2.000000e+01",
+      "last_time_as_written": "-4.500000e+00",
+      "missing_required_channels": [
+        "source_voltage",
+        "current",
+        "precharge_phase"
+      ],
+      "negative_voltage_values_retained": 53,
+      "physical_node_and_probe_scaling_authenticated": false,
+      "sha256": "5d703181ad864b7321a2592b0d0b36b80c744d562baf31d13a724012536b8ec9"
+    },
+    {
+      "adjacent_delta_s_declared": [
+        "0.02000",
+        "0.020000"
+      ],
+      "bytes": 23808,
+      "columns": [
+        "Time(s)",
+        "CH1V"
+      ],
+      "data_rows": 879,
+      "filename": "RigolDS122.csv",
+      "first_time_as_written": "-2.000000e+01",
+      "last_time_as_written": "-2.440000e+00",
+      "missing_required_channels": [
+        "source_voltage",
+        "current",
+        "precharge_phase"
+      ],
+      "negative_voltage_values_retained": 62,
+      "physical_node_and_probe_scaling_authenticated": false,
+      "sha256": "a209a38d3dc613268bf17490e13a7af5231f2a99efb1c0a4236a6c1960790ac4"
+    }
+  ],
+  "date_timezone": "2026-10-16 Europe/Istanbul",
+  "doi": "10.17632/8smzhh6mxm.1",
+  "file_id": "6e9c9c5a-8925-44da-a921-c4e1218c3f32",
+  "licence_declared": "CC BY 4.0",
+  "limits": [
+    "Published energy-harvesting BQ25570 experiment; not BMW/vehicle evidence.",
+    "Only one voltage channel; source voltage/current/phase not supplied in inspected files.",
+    "All original time offsets and negative voltage samples retained; no smoothing, fitting or alignment.",
+    "Independent normal bounds and physical channel/probe mapping remain missing."
+  ],
+  "metadata_only": false,
+  "nominal_labels_are_not_calibration": true,
+  "normal_reference_accepted": false,
+  "other_leads": [
+    {
+      "claimed_collection_size": "over 1 TB",
+      "current_direct_raw_download_verified": false,
+      "dc_link_phase_reference_verified": false,
+      "published_statement": "fleet pack voltage/current nominally every 20 ms; release planned after review",
+      "source": "Chalmers thesis 543724, Paper E, pp.150/164"
+    },
+    {
+      "bytes": 380,
+      "commit": "6cab12744975433595be5230232fda414a3647a8",
+      "file": "datasets/capacitor_rc_transients.csv",
+      "finding": "Summary tau/derived capacitance values, not a raw waveform.",
+      "source": "abdelachbani/Circuit-Analysis-and-Characterization"
+    },
+    {
+      "finding": "Documented 1296-ohm/47-uF laboratory experiment, approximately 50000 points per record; no raw trace download identified in the inspected article.",
+      "source": "arxiv:2501.12028v1"
+    }
+  ],
+  "physical_curve_eligible": false,
+  "readme_sha256": "45a847b17aab5856a8931de6fc289567b46fa8c3c3d7448ec9b794cffb8b9ca6",
+  "repository_root_file_count": 13,
+  "repository_root_total_bytes": 113664182,
+  "source_nominal_capacitance_labels_uF": {
+    "RigolDS122.csv": 1000,
+    "RigolDS123.csv": 2200,
+    "RigolDS124.csv": 100,
+    "RigolDS125.csv": 47,
+    "RigolDS126.csv": 22
+  },
+  "source_url": "https://data.mendeley.com/datasets/8smzhh6mxm/1",
+  "study": "precharge-dataset-search-20261016",
+  "total_data_rows": 3309,
+  "version": 1
+}

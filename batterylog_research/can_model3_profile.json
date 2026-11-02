@@ -1,0 +1,19 @@
+{
+  "bus": "can0",
+  "dbc_sha256": "d54df533fc82f3dab11ddd0f5ae4d846f22c0a24b111d8cba2b93e79caf60151",
+  "anchor": {
+    "frame_id": 1025,
+    "extended": false,
+    "multiplexer_signal": "MultiplexSelector",
+    "multiplexer_value": 8
+  },
+  "signals": [
+    {"column": "cell_25_v", "frame_id": 1025, "extended": false, "signal": "Brick24", "max_age_s": 0},
+    {"column": "cell_26_v", "frame_id": 1025, "extended": false, "signal": "Brick25", "max_age_s": 0},
+    {"column": "cell_27_v", "frame_id": 1025, "extended": false, "signal": "Brick26", "max_age_s": 0},
+    {"column": "temp_1_c", "frame_id": 818, "extended": false, "signal": "BattBrickTempMax332", "max_age_s": 2.1},
+    {"column": "temp_2_c", "frame_id": 818, "extended": false, "signal": "BattBrickTempMin332", "max_age_s": 2.1},
+    {"column": "pack_current_a", "frame_id": 306, "extended": false, "signal": "SmoothBattCurrent132", "max_age_s": 0.05},
+    {"column": "pack_voltage_v", "frame_id": 306, "extended": false, "signal": "BattVoltage132", "max_age_s": 0.05}
+  ]
+}

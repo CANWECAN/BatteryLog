@@ -130,7 +130,11 @@ def _analyze_file(
             "rows_input": result["rows_input"],
             "rows_analyzed": result["rows_analyzed"],
             "rows_excluded": result["rows_excluded"],
-            "violation_events": len(result["violations"]),
+            "violation_events": len(result["violations"])
+            + sum(
+                len(item["events"])
+                for item in result.get("failure_models", {}).get("evaluations", [])
+            ),
             "data_quality_events": len(result["data_quality"]["events"]),
             "max_cell_voltage_v": result["max_cell_voltage_v"],
             "max_delta_v": result["max_delta_v"],

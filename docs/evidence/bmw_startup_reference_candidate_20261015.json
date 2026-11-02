@@ -1,0 +1,185 @@
+{
+  "all_ones_raw_counts": {
+    "current": 19,
+    "dc_link": 20,
+    "pack": 50
+  },
+  "audit_script_sha256": "92c6106b3169a346bd5c37ae09677d43d9330264836ff37d8a88b58df5a70cf6",
+  "byte_comparison_mismatches": 0,
+  "candidate_current_range_detail": {
+    "above_declared_maximum": 19,
+    "negative": 8606
+  },
+  "dbc_sha256": "667a43048f80fc6eb71a212bd90494379347a073d632056705374974eef73626",
+  "declared_dbc_range_departures_retained": {
+    "current": 8625,
+    "dc_link": 20,
+    "pack": 50
+  },
+  "inputs": {
+    "2017-60AH-REX-PT-CAN2-startup.csv": {
+      "bytes": 6129617,
+      "git_blob": "5fbdb1e92836f0b88548736505be08d0a3daf48a",
+      "sha256": "fde91ff7dab0230746788c72c21fa8baf8408a4a20556381c1727bf083acf8ae"
+    },
+    "2017-60AH-REX-PT-CAN2-startup.log": {
+      "bytes": 11386333,
+      "git_blob": "7f1b025e71b4f2ba4eb1b056ebcf87206799c656",
+      "sha256": "bf8aed7e9c252c39a36aa1e155a7fecdad3d1dbc0e638567e73cd6f2cae98b1e"
+    }
+  },
+  "limits": "Separate filename is a separate candidate, not proof of an independent healthy run. Values are DBC candidates; raw ticks have no accepted seconds conversion. No fit, envelope, interpolation, phase alignment or physical normality decision.",
+  "manual_byte_vs_cantools_values_compared": 28269,
+  "normal_reference_accepted": false,
+  "parseable_csv_id_matches": 150439,
+  "physical_curve_eligible": false,
+  "raw_clock": {
+    "backward_deltas": 0,
+    "duplicate_adjacent_ticks": 83155,
+    "first_tick": 2466116,
+    "largest_adjacent_delta": {
+      "delta_ticks": 10,
+      "previous_record_index": 2,
+      "previous_tick": 2466123,
+      "record_index": 3,
+      "tick": 2466133
+    },
+    "last_tick": 2560000,
+    "units_authenticated": false
+  },
+  "records_compared": 153055,
+  "reported_prechrg_rows": [
+    {
+      "physical_line": 12601,
+      "raw_tick": 2473902,
+      "record_index": 12599
+    },
+    {
+      "physical_line": 12970,
+      "raw_tick": 2474122,
+      "record_index": 12968
+    }
+  ],
+  "reported_state_changes": [
+    {
+      "adjacent_electrical_source_rows": {
+        "after": {
+          "candidate_current_a": 5734.3,
+          "candidate_dc_link_v": 1020,
+          "candidate_pack_v": 6553.5,
+          "csv_physical_line": 34,
+          "log_physical_line": 34,
+          "raw_tick": 2466183,
+          "record_index": 32
+        },
+        "before": {
+          "candidate_current_a": 5734.3,
+          "candidate_dc_link_v": 1020,
+          "candidate_pack_v": 6553.5,
+          "csv_physical_line": 28,
+          "log_physical_line": 28,
+          "raw_tick": 2466173,
+          "record_index": 26
+        }
+      },
+      "csv_physical_line": 33,
+      "log_physical_line": 33,
+      "raw_tick": 2466182,
+      "record_index": 31,
+      "reported_state_code": 0
+    },
+    {
+      "adjacent_electrical_source_rows": {
+        "after": {
+          "candidate_current_a": 0.0,
+          "candidate_dc_link_v": 40,
+          "candidate_pack_v": 390.6,
+          "csv_physical_line": 12605,
+          "log_physical_line": 12605,
+          "raw_tick": 2473903,
+          "record_index": 12603
+        },
+        "before": {
+          "candidate_current_a": 0.0,
+          "candidate_dc_link_v": 40,
+          "candidate_pack_v": 390.6,
+          "csv_physical_line": 12585,
+          "log_physical_line": 12585,
+          "raw_tick": 2473893,
+          "record_index": 12583
+        }
+      },
+      "csv_physical_line": 12601,
+      "log_physical_line": 12601,
+      "raw_tick": 2473902,
+      "record_index": 12599,
+      "reported_state_code": 1
+    },
+    {
+      "adjacent_electrical_source_rows": {
+        "after": {
+          "candidate_current_a": -0.1,
+          "candidate_dc_link_v": 392,
+          "candidate_pack_v": 390.5,
+          "csv_physical_line": 13072,
+          "log_physical_line": 13072,
+          "raw_tick": 2474183,
+          "record_index": 13070
+        },
+        "before": {
+          "candidate_current_a": -0.1,
+          "candidate_dc_link_v": 392,
+          "candidate_pack_v": 390.5,
+          "csv_physical_line": 13057,
+          "log_physical_line": 13057,
+          "raw_tick": 2474173,
+          "record_index": 13055
+        }
+      },
+      "csv_physical_line": 13058,
+      "log_physical_line": 13058,
+      "raw_tick": 2474173,
+      "record_index": 13056,
+      "reported_state_code": 2
+    }
+  ],
+  "reported_state_counts": {
+    "0": 12,
+    "1": 2,
+    "2": 88
+  },
+  "selected_frames": {
+    "0x112": 9389,
+    "0x1fa": 102
+  },
+  "source_commit": "9cbfc24528d9dfb2923c532f987ce1f3c278908f",
+  "source_metadata": {
+    "extended": {
+      "0": 153055
+    },
+    "opaque_flags": {
+      "": 153054,
+      "E": 1
+    },
+    "original_channel_to_csv_bus": {
+      "0->1": 153055
+    },
+    "parser_name": {
+      "Default Parser": 153055
+    }
+  },
+  "study": "step7-alternate-bmw-startup-reference-candidate",
+  "timestamp_dlc_payload_mismatches": 0,
+  "unrepaired_csv_id_tokens": 2616,
+  "unresolved": [
+    "clock_and_logger_authentication",
+    "exact_sensor_and_firmware_binding",
+    "measurement_path_and_sign",
+    "validity_staleness_and_sensor_timing",
+    "phase_semantics_and_latency",
+    "independent_healthy_label",
+    "load_capacitance_and_procedure",
+    "initial_condition_and_temperature_soc_context",
+    "measurement_uncertainty_and_reference_tolerances"
+  ]
+}

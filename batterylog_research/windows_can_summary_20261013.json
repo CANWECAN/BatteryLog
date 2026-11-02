@@ -1,0 +1,134 @@
+{
+  "scope": "native_windows_offline_research_validation",
+  "baseline_commit": "fcc8b382612cd3afe825b4aa6f3ff7e42875a7bb",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+  "versions": {
+    "numpy": "2.3.5",
+    "pandas": "2.2.3",
+    "pytest": "9.1.1",
+    "pytest-cov": "7.1.0",
+    "hypothesis": "6.169.0",
+    "ruff": "0.17.0",
+    "mypy": "1.19.1",
+    "types-PyYAML": "6.0.12.20260906",
+    "cantools": "44.2.1",
+    "canmatrix": "1.2",
+    "python-can": "4.6.1",
+    "asammdf": "8.8.27",
+    "setuptools": "82.0.1"
+  },
+  "full_suite_suites": [
+    {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "4",
+      "tests": "2518",
+      "time": "176.572",
+      "timestamp": "2026-10-13T16:46:57.258547+03:00",
+      "hostname": "windows-runner"
+    }
+  ],
+  "full_suite_skips": [
+    {
+      "test": "tests.test_benchmark_measurement.test_native_peak_excludes_fixture_parent_memory",
+      "reason": "Linux /proc exec-lifetime measurement"
+    },
+    {
+      "test": "tests.test_desktop_job.test_cancel_kills_real_worker_that_ignores_terminate",
+      "reason": "POSIX signal escalation; Windows terminate is immediate"
+    },
+    {
+      "test": "tests.test_research_distribution_boundary.test_core_sdist_excludes_private_research_source_and_tests",
+      "reason": "could not import 'setuptools': No module named 'setuptools'"
+    },
+    {
+      "test": "tests.test_research_distribution_boundary.test_original_recursive_manifest_would_expose_private_research_files",
+      "reason": "could not import 'setuptools': No module named 'setuptools'"
+    }
+  ],
+  "coverage_totals": {
+    "covered_lines": 4619,
+    "num_statements": 4778,
+    "percent_covered": 96.67224780242779,
+    "percent_covered_display": "97",
+    "missing_lines": 159,
+    "excluded_lines": 19,
+    "percent_statements_covered": 96.67224780242779,
+    "percent_statements_covered_display": "97"
+  },
+  "source_patch_identity": {
+    "batterylog_research/field_stress.py": {
+      "raw_sha256": "ed7b44e0e2ea8f9b08b8b5fe12cf853b38ffa2cfbbb77e58ca935ed8be75dc9e",
+      "git_blob_lf": "94069906526aaca21f74f4fc5e439c951797971c"
+    },
+    "tests/test_research_field_stress.py": {
+      "raw_sha256": "bb62c79a9bfcf7dfe638f9273e07a06fe07f3a32bf59c5c568672a16e6e8a633",
+      "git_blob_lf": "d2c9246469cf4b8360e58aafa3c158adb29d0c94"
+    }
+  },
+  "native_peak_rss_metric": null,
+  "full_log_sha256": "493fbc24c9b63e7d637e38ff7e717398f1fd73a64487e1f2dfb86c2bfaf6aafc",
+  "gui_summary": "159 passed, 1 skipped in 52.73s",
+  "distribution_summary": "3 passed in 1.87s",
+  "full_suite_result": {
+    "passed": 2514,
+    "skipped": 4,
+    "warnings": 9,
+    "seconds": 176.61,
+    "coverage_scope": "batterylog package only",
+    "desktop_tests_required": true,
+    "pytest_capture": "sys"
+  },
+  "linux_regression": {
+    "passed": 2323,
+    "skipped": 46,
+    "warnings": 9,
+    "seconds": 92.52
+  },
+  "supplemental_distribution": {
+    "passed": 3,
+    "skipped": 0,
+    "seconds": 1.87,
+    "two_previously_skipped_tests_executed": true
+  },
+  "preliminary_gui_environment": {
+    "numpy": "2.5.3",
+    "pandas": "3.0.6",
+    "python": "3.13.14",
+    "tk_patchlevel": "8.6.15"
+  },
+  "source_campaigns": {
+    "second_vehicles": {
+      "records": 317435,
+      "dual_decoder_values": 76005,
+      "manual_byte_values": 17995,
+      "json_semantics_exactly_equal_to_cloud": true,
+      "analysis_preparation_eligible": false,
+      "reference_sha256": "b4525fdf85c347f7c88911d161e78e658791d05847634d45158dd71e112099b1"
+    },
+    "model3": {
+      "records": 118053,
+      "rows_input": 6,
+      "rows_analyzed": 5,
+      "rows_excluded": 1,
+      "validation_status": "FAIL",
+      "engineering_violation_events": 0,
+      "chunk_sizes_exactly_match": [
+        1,
+        7,
+        65536
+      ],
+      "independent_decoders_and_manual_and_hostile_checks_equal_to_cloud": true,
+      "interpretation": "Missing initial temperatures cause data-quality FAIL; this is not a measured physical battery fault."
+    }
+  },
+  "boundaries": [
+    "Offline files and native Tk tests only; no live CAN adapter/HIL, counter/CRC, CAN FD or ISO-TP validation.",
+    "No release, merge, public push, workflow activation, production rule/dependency or project license change.",
+    "Windows was tested at the baseline revision plus the two hash-verified Research portability edits.",
+    "Final mypy uses dormant CI import flags and an explicit types-PyYAML installation; CI activation/setup remains a separate gate."
+  ],
+  "public_metadata_redaction": "Local checkout paths and personal host names were replaced; recorded revisions, measurements and test outcomes are unchanged."
+}

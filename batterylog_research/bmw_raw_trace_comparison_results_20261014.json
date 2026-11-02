@@ -1,0 +1,148 @@
+{
+  "actual_cli_roundtrip_equal": true,
+  "aligned_rows_created": false,
+  "altered_input_rejections": [
+    {
+      "error": "csv input does not match the pinned original bytes",
+      "kind": "csv",
+      "mode": "same_size"
+    },
+    {
+      "error": "csv input does not match the pinned original bytes",
+      "kind": "csv",
+      "mode": "append"
+    },
+    {
+      "error": "log input does not match the pinned original bytes",
+      "kind": "log",
+      "mode": "same_size"
+    },
+    {
+      "error": "log input does not match the pinned original bytes",
+      "kind": "log",
+      "mode": "append"
+    },
+    {
+      "error": "DBC bytes do not match the pinned source",
+      "kind": "dbc",
+      "mode": "same_size"
+    },
+    {
+      "error": "DBC bytes do not match the pinned source",
+      "kind": "dbc",
+      "mode": "append"
+    }
+  ],
+  "candidate_value_comparisons": 24450,
+  "cli_clock_override_rejected": true,
+  "clock_observations": {
+    "backward_steps": 0,
+    "duplicate_adjacent_raw_ticks": 85132,
+    "largest_adjacent_delta": {
+      "delta_ticks": 42949672,
+      "previous_source_record_index": 111156,
+      "previous_ticks": 2688401,
+      "source_record_index": 111157,
+      "ticks": 45638073
+    }
+  },
+  "curve_review_eligible": false,
+  "deterministic_repeat_equal": true,
+  "environment": {
+    "cantools": "44.2.1",
+    "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "full_trace_retained_outside_git": true,
+  "input_sha256_after": {
+    "csv": "d6bd56a3f0f60d7cfffa708a18b287c5802cc42fd5261e01b58d40e7c5c68ebf",
+    "dbc": "667a43048f80fc6eb71a212bd90494379347a073d632056705374974eef73626",
+    "log": "e858df31719d6a2dfd914a9f254a6a411e2b79451ec76cd51b5ff673f8c79dda"
+  },
+  "input_sha256_before": {
+    "csv": "d6bd56a3f0f60d7cfffa708a18b287c5802cc42fd5261e01b58d40e7c5c68ebf",
+    "dbc": "667a43048f80fc6eb71a212bd90494379347a073d632056705374974eef73626",
+    "log": "e858df31719d6a2dfd914a9f254a6a411e2b79451ec76cd51b5ff673f8c79dda"
+  },
+  "malformed_csv_ids_not_repaired": 2304,
+  "observations": {
+    "Battery_Current": {
+      "all_ones": 19,
+      "count": 8120,
+      "negative": 419,
+      "outside_declared_range": 438
+    },
+    "Battery_Volts": {
+      "all_ones": 51,
+      "count": 8120,
+      "outside_declared_range": 51
+    },
+    "DC_link": {
+      "all_ones": 20,
+      "count": 8120,
+      "outside_declared_range": 20
+    },
+    "ST_DCSW_HVSTO": {
+      "all_ones": 0,
+      "count": 90,
+      "outside_declared_range": 0
+    }
+  },
+  "observer_rejected_raw_trace_context": true,
+  "physical_preparation_blockers": [
+    "clock_units_and_jump_cause",
+    "vehicle_hardware_firmware_binding",
+    "measurement_nodes_current_path_and_sign",
+    "raw_validity_and_stale_policy",
+    "phase_meaning_command_feedback_and_latency",
+    "sensor_timing_filtering_synchronization_and_age_bounds",
+    "independently_justified_comparable_reference"
+  ],
+  "prior_clock_and_measurement_probe_facts_equal": true,
+  "records_inspected": 132941,
+  "selected_frame_counts": {
+    "274": 8120,
+    "506": 90
+  },
+  "selected_source_row_comparisons": 8210,
+  "source_parent": "7c40d64666937e96f4a43333a6063275b6fd83dc",
+  "source_sha256": {
+    "batterylog_research/bmw_clock_provenance_audit.py": "381d52bbcffcd79fb6da473e67d4b5db68f92a5f98a5f12188a5440f2d7de451",
+    "batterylog_research/bmw_measurement_contract_probe.py": "0a36a043ecb396699323e088b78914319333208814bf55532a242311b62935c3",
+    "batterylog_research/bmw_raw_source_trace.py": "c944266072bcbf180b97a964347c6fa8e13944575fbcd0d3fe32adfa027f8401",
+    "tests/test_research_bmw_raw_source_trace.py": "0489f64c4477c04959da91e53d44195cf1c0bda91261d6df46cc7be1f16cd777"
+  },
+  "sources": {
+    "csv": {
+      "bytes": 5348227,
+      "commit": "9cbfc24528d9dfb2923c532f987ce1f3c278908f",
+      "git_blob": "3b66c4239cc4537f8ac68c4a5c2a0f63378684c6",
+      "path": "BMW i3/2017-60AH-REX-PT-CAN2-startcharge.csv",
+      "repository": "dalathegreat/EV-CANlogs",
+      "sha256": "d6bd56a3f0f60d7cfffa708a18b287c5802cc42fd5261e01b58d40e7c5c68ebf"
+    },
+    "dbc": {
+      "bytes": 64000,
+      "commit": "9cbfc24528d9dfb2923c532f987ce1f3c278908f",
+      "path": "BMW i3/BMW-i3-PT-CAN2.dbc",
+      "sha256": "667a43048f80fc6eb71a212bd90494379347a073d632056705374974eef73626"
+    },
+    "log": {
+      "bytes": 9909389,
+      "commit": "9cbfc24528d9dfb2923c532f987ce1f3c278908f",
+      "git_blob": "9e8aaad34a94c2b638405f2bfce5da60c2236a91",
+      "path": "BMW i3/2017-60AH-REX-PT-CAN2-startcharge.log",
+      "repository": "dalathegreat/EV-CANlogs",
+      "sha256": "e858df31719d6a2dfd914a9f254a6a411e2b79451ec76cd51b5ff673f8c79dda"
+    }
+  },
+  "state_code_counts": {
+    "0": 5,
+    "1": 2,
+    "2": 83
+  },
+  "strict_json_roundtrip_equal": true,
+  "third_party_inputs_retained_outside_git": true,
+  "trace_json_bytes": 13412692,
+  "trace_json_sha256": "4f9e4b0a8bcd02952e586d1dc58d704dc18f3290a5faf8186b4e1a626f6fea9c",
+  "trace_seconds": 0.8503385000003618
+}

@@ -1,0 +1,164 @@
+{
+  "actual_mf4_version": "8.8.27",
+  "all_final_checks_passed": true,
+  "checks": {
+    "diff-check": {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "seconds": 0.06407259999832604,
+      "tail": []
+    },
+    "full-suite": {
+      "command": [
+        "<checkout>-venv\\Scripts\\python.exe",
+        "-m",
+        "pytest",
+        "-q",
+        "--cov=batterylog",
+        "--cov-report=term-missing",
+        "--cov-report=json:<checkout>-evidence\\coverage.json"
+      ],
+      "exit_code": 0,
+      "log_sha256": "d3a4a43cfd38edafcde1f5ef8fe662b5bb45f1d2d3cd4c01d1ec1b3371c64ddb",
+      "seconds": 161.80363699999725,
+      "tail": [
+        "batterylog\\loaders\\mf4.py                   200      8    96%   260, 352-359",
+        "batterylog\\models.py                         91      0   100%",
+        "batterylog\\normalization.py                 141      4    97%   251, 283, 292, 323",
+        "batterylog\\reporting\\__init__.py              4      0   100%",
+        "batterylog\\reporting\\event_browser.py        44      0   100%",
+        "batterylog\\reporting\\evidence.py             91      0   100%",
+        "batterylog\\reporting\\html.py                135      0   100%",
+        "batterylog\\reporting\\json.py                 20      0   100%",
+        "batterylog\\reporting\\plots.py               270      9    97%   64, 66, 94, 99, 533, 538, 611, 622, 709",
+        "batterylog\\result_validation.py              44      0   100%",
+        "batterylog\\signals.py                       123      2    98%   91-92",
+        "batterylog\\units.py                          23      1    96%   37",
+        "-----------------------------------------------------------------------",
+        "TOTAL                                      4778    159    97%",
+        "Coverage JSON written to file <checkout>-evidence\\coverage.json",
+        "2878 passed, 2 skipped, 9 warnings in 161.19s (0:02:41)"
+      ]
+    },
+    "mypy": {
+      "command": [
+        "<checkout>-venv\\Scripts\\python.exe",
+        "-m",
+        "mypy",
+        "--follow-imports=silent",
+        "--ignore-missing-imports",
+        "batterylog"
+      ],
+      "exit_code": 0,
+      "log_sha256": "ecb8399edbf23ad4cacd9fb156d28186a57318eeac101aedcdc3ff78fc21a035",
+      "seconds": 8.266719999999623,
+      "tail": [
+        "Success: no issues found in 48 source files"
+      ]
+    },
+    "pip-check": {
+      "command": [
+        "<checkout>-venv\\Scripts\\python.exe",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "exit_code": 0,
+      "log_sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+      "seconds": 0.3883139999998093,
+      "tail": [
+        "No broken requirements found."
+      ]
+    },
+    "ruff-check": {
+      "command": [
+        "<checkout>-venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "exit_code": 0,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "seconds": 0.14192760000150884,
+      "tail": [
+        "All checks passed!"
+      ]
+    },
+    "ruff-format": {
+      "command": [
+        "<checkout>-venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "."
+      ],
+      "exit_code": 0,
+      "log_sha256": "3e6bbe034e40875b9b7286a7f199e7d7d569a665a75f824425516bfba75c530f",
+      "seconds": 0.1426154000000679,
+      "tail": [
+        "226 files already formatted"
+      ]
+    }
+  },
+  "core_coverage": {
+    "covered_lines": 4619,
+    "excluded_lines": 19,
+    "missing_lines": 159,
+    "num_statements": 4778,
+    "percent_covered": 96.67224780242779,
+    "percent_covered_display": "97",
+    "percent_statements_covered": 96.67224780242779,
+    "percent_statements_covered_display": "97"
+  },
+  "core_import": "<checkout>\\batterylog\\__init__.py",
+  "focused_regressions_observed": {
+    "passed": 36,
+    "skipped": 0,
+    "source_hashes_match_full_suite": true
+  },
+  "initial_mypy_without_ci_flags": {
+    "command": [
+      "<checkout>-venv\\Scripts\\python.exe",
+      "-m",
+      "mypy",
+      "batterylog"
+    ],
+    "exit_code": 1,
+    "log_sha256": "1b43a4444a955e18744a22be302ae36496edd6a03dc3ca469f533caaf1601cb7",
+    "seconds": 6.330921500000841,
+    "tail": [
+      "batterylog\\analysis\\comparison.py:2: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports",
+      "batterylog\\analysis\\rules.py:4: error: Library stubs not installed for \"pandas\"  [import-untyped]",
+      "batterylog\\loaders\\mf4.py:10: error: Library stubs not installed for \"pandas\"  [import-untyped]",
+      "batterylog\\analysis\\evaluation.py:3: error: Library stubs not installed for \"pandas\"  [import-untyped]",
+      "batterylog\\analysis\\streaming_events.py:4: error: Library stubs not installed for \"pandas\"  [import-untyped]",
+      "batterylog\\analysis\\preparation.py:4: error: Library stubs not installed for \"pandas\"  [import-untyped]",
+      "batterylog\\analysis\\input_validation.py:4: error: Library stubs not installed for \"pandas\"  [import-untyped]",
+      "batterylog\\analysis\\input_validation.py:5: error: Library stubs not installed for \"pandas.api.types\"  [import-untyped]",
+      "batterylog\\normalization.py:9: error: Library stubs not installed for \"pandas\"  [import-untyped]",
+      "batterylog\\inspection.py:7: error: Library stubs not installed for \"pandas\"  [import-untyped]",
+      "batterylog\\analysis\\failure_models.py:6: error: Library stubs not installed for \"pandas\"  [import-untyped]",
+      "batterylog\\analysis\\streaming.py:5: error: Library stubs not installed for \"pandas\"  [import-untyped]",
+      "batterylog\\analysis\\core.py:3: error: Library stubs not installed for \"pandas\"  [import-untyped]",
+      "batterylog\\desktop_job.py:16: error: Library stubs not installed for \"jsonschema\"  [import-untyped]",
+      "batterylog\\desktop_job.py:16: note: Hint: \"python3 -m pip install types-jsonschema\"",
+      "Found 19 errors in 17 files (checked 48 source files)"
+    ]
+  },
+  "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+  "real_tk_required": true,
+  "source_sha256": {
+    "batterylog_research/bmw_clock_provenance_audit.py": "381d52bbcffcd79fb6da473e67d4b5db68f92a5f98a5f12188a5440f2d7de451",
+    "batterylog_research/bmw_raw_source_trace.py": "c944266072bcbf180b97a964347c6fa8e13944575fbcd0d3fe32adfa027f8401",
+    "tests/test_research_bmw_raw_source_trace.py": "0489f64c4477c04959da91e53d44195cf1c0bda91261d6df46cc7be1f16cd777"
+  },
+  "trace_import": "<checkout>\\batterylog_research\\bmw_raw_source_trace.py",
+  "public_metadata_redaction": "Local checkout paths and personal host names were replaced; recorded revisions, measurements and test outcomes are unchanged."
+}
